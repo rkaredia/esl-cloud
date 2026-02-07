@@ -49,8 +49,9 @@ def generate_esl_image(tag):
 
         # 1. DYNAMIC COLOR SCHEME
         left_bg = 'yellow' if (is_promo and 'Y' in color_scheme) else 'white'
+        
         if is_promo:
-            # BW tags get Black box, BWR/BWRY get Red box
+            # Red if BWR/BWRY, otherwise Black for BW
             price_bg = 'red' if ('R' in color_scheme or 'Y' in color_scheme) else 'black'
             price_txt_col = 'white'
         else:
@@ -60,51 +61,57 @@ def generate_esl_image(tag):
         image = Image.new('RGB', (width, height), color=left_bg)
         draw = ImageDraw.Draw(image)
 
-        # 2. DEFINE FIXED ZONES (XY Coordinates)
-        # Price takes 38% width
+        # 2. DEFINE ZONES & COORDINATES
         split_x = int(width * 0.62)
-        safe_pad = 3 # The 2-3 pixel buffer you requested
+        safe_pad = 3
         
-        # Locked Heights
+        # Fixed heights for zones
         sku_h = int(height * 0.12)
         barcode_h = int(height * 0.25)
-        # Name Zone takes the remainder
         name_zone_y1 = sku_h + safe_pad
         name_zone_y2 = height - barcode_h - safe_pad
 
-        # 3. DRAW PRICE (The "Shrink-to-Fit" Loop)
+        # Draw Price Box Zone
+        draw.rectangle([split_x, 0, width, height], fill=price_bg)
+
+        # 3. ADD "SALE" LABEL
+        if is_promo:
+            label_text = "SALE" if 'Y' not in color_scheme else "SPECIAL"
+            label_font = get_font_by_type(int(height * 0.12), "bold")
+            l_bbox = draw.textbbox((0, 0), label_text, font=label_font)
+            l_w = l_bbox[2] - l_bbox[0]
+            draw.text((split_x + (width - split_x - l_w)//2, safe_pad), label_text, fill=price_txt_col, font=label_font)
+
+        # 4. PRICE CALCULATION (Shrink-to-Fit)
         price_val = float(product.price)
         p_parts = f"{price_val:.2f}".split('.')
         dollars, cents = f"${p_parts[0]}", p_parts[1]
 
-        draw.rectangle([split_x, 0, width, height], fill=price_bg)
-        
         max_p_w = (width - split_x) - (safe_pad * 2)
-        p_size = int(height * 0.60) # Start large
+        p_size = int(height * 0.55) if is_promo else int(height * 0.60)
         
         while p_size > 12:
             d_font = get_font_by_type(p_size, "bold")
             c_font = get_font_by_type(int(p_size * 0.45), "bold")
             d_w = draw.textbbox((0, 0), dollars, font=d_font)[2]
             c_w = draw.textbbox((0, 0), cents, font=c_font)[2]
-            
             if (d_w + c_w + 4) <= max_p_w:
                 break
             p_size -= 2
 
-        # Center Price Group
         total_p_w = d_w + c_w + 4
         p_x = split_x + ((width - split_x) - total_p_w) // 2
-        draw.text((p_x, height // 2), dollars, fill=price_txt_col, font=d_font, anchor="lm")
-        draw.text((p_x + d_w + 2, (height // 2) - int(p_size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
-
-        # 4. DRAW SKU (Minimum size fixed)
+        y_offset = int(height * 0.1) if is_promo else 0
+        draw.text((p_x, (height // 2) + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
+        draw.text((p_x + d_w + 2, (height // 2) + y_offset - int(p_size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
+        
+        # 5. DRAW SKU
         sku_font = get_font_by_type(max(10, int(height * 0.10)), "bold")
         draw.text((safe_pad, safe_pad), f"SKU: {product.sku}", fill='black', font=sku_font)
 
-        # 5. PRODUCT NAME (Multi-line Shrink)
+        # 6. PRODUCT NAME (Multi-line Shrink)
         wrapper = textwrap.TextWrapper(width=18)
-        lines = wrapper.wrap(text=product.name)[:3] # Max 3 lines
+        lines = wrapper.wrap(text=product.name)[:3]
         
         if lines:
             n_size = int(height * 0.20)
@@ -112,7 +119,6 @@ def generate_esl_image(tag):
                 n_font = get_font_by_type(n_size, "condensed")
                 max_line_w = max([draw.textbbox((0, 0), line, font=n_font)[2] for line in lines])
                 total_n_h = len(lines) * (n_size + 1)
-                
                 if max_line_w <= (split_x - safe_pad) and total_n_h <= (name_zone_y2 - name_zone_y1):
                     break
                 n_size -= 1
@@ -122,16 +128,15 @@ def generate_esl_image(tag):
                 draw.text((safe_pad, curr_y), line, fill='black', font=n_font)
                 curr_y += n_size + 1
 
-        # 6. BARCODE (Fit to bottom slot)
+        # 7. BARCODE
         if product.sku:
             code128 = barcode.get_barcode_class('code128')
             ean = code128(str(product.sku), writer=ImageWriter())
             b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
-            # Force into the remaining bottom area
             b_img = b_img.resize((split_x - (safe_pad * 2), barcode_h), Image.NEAREST).convert("RGBA")
             image.paste(b_img, (safe_pad, height - barcode_h - safe_pad), b_img)
 
-        # 7. SAVE
+        # 8. SAVE
         temp = BytesIO()
         image.save(temp, format='PNG')
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
