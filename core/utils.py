@@ -142,6 +142,8 @@ def generate_esl_image(tag):
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
         tag.save()
         return True
+
+
     except Exception as e:
-        print(f"ERROR on {tag.tag_mac}: {e}", flush=True)
-        return False
+        logger.error(f"CRITICAL ERROR for {tag.tag_mac}: {e}", exc_info=True)
+        return False    
