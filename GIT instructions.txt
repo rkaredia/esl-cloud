@@ -1,0 +1,9 @@
+Your New Workflow
+
+Whenever we finish a chunk of code today (like the Image Scaling logic), follow this "Rule of Three":
+
+    git add .: Tell Git "I want to save these new changes."
+
+    git commit -m "Added image scaling logic": Create the local baseline with a descriptive note.
+
+    git push: Update the baseline on GitHub.
