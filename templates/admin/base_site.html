@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | SAIS Platform{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    #branding-container {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .header-store-selector {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 12px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+    }
+    .selector-label {
+        font-weight: bold;
+        font-size: 11px;
+        margin-right: 8px;
+        color: #ffca28; /* Highlight color */
+    }
+    .header-store-selector select {
+        background: #fff;
+        color: #333;
+        border: none;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="branding-container">
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">SAIS ESL Management</a>
+    </h1>
+
+    {% if request.user.is_authenticated %}
+        <div class="header-store-selector">
+            <span class="selector-label">ACTIVE STORE:</span>
+            <select onchange="window.location.href='/set-store/' + this.value + '/'">
+                {% if not active_store %}
+                    <option value="" selected disabled>Choose a Store...</option>
+                {% endif %}
+                
+                {% for store in user_stores %}
+                    <option value="{{ store.id }}" {% if store.id == active_store.id %}selected{% endif %}>
+                        {{ store.name }}
+                    </option>
+                {% empty %}
+                    <option disabled>No stores assigned</option>
+                {% endfor %}
+            </select>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block userlinks %}
+    {{ block.super }}
+{% endblock %}

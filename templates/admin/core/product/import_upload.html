@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="module" style="padding: 20px; background: white; border-radius: 8px;">
+    <h2>Step 1: Upload Modisoft File</h2>
+    <p>Upload the XLSX file for <strong>{{ active_store.name }}</strong> to see a preview of changes.</p>
+    
+    <form action="." method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="import_file" accept=".xlsx" required style="margin: 20px 0; display: block;">
+        <input type="submit" value="Upload and Preview" class="default">
+        <a href=".." class="button" style="background: #64748b !important; color: white; padding: 10px; border-radius: 4px; text-decoration: none;">Cancel</a>
+    </form>
+</div>
+{% endblock %}

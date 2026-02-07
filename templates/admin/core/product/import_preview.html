@@ -1,0 +1,137 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+    <h2>Import Summary for {{ store.name }}</h2>
+    
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="background: #dcfce7; padding: 15px; border-radius: 8px; border: 1px solid #86efac;">
+            <h3 style="margin:0; color: #166534;">New Products</h3>
+            <span style="font-size: 24px; font-weight: bold;">{{ results.new|length }}</span>
+        </div>
+        <div style="background: #dbeafe; padding: 15px; border-radius: 8px; border: 1px solid #93c5fd;">
+            <h3 style="margin:0; color: #1e40af;">To Update</h3>
+            <span style="font-size: 24px; font-weight: bold;">{{ results.update|length }}</span>
+        </div>
+        <div style="background: #fee2e2; padding: 15px; border-radius: 8px; border: 1px solid #fca5a5;">
+            <h3 style="margin:0; color: #991b1b;">Rejected</h3>
+            <span style="font-size: 24px; font-weight: bold;">{{ results.rejected|length }}</span>
+        </div>
+    </div>
+
+    {% if results.new %}
+    <div class="module">
+        <table style="width: 100%;">
+            <caption>New Products to Insert</caption>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.new %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ item.sku }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>${{ item.new_price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if results.update %}
+    <div class="module">
+        <table style="width: 100%;">
+            <caption>Products to Update</caption>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Old Price</th>
+                    <th>New Price</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.update %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ item.sku }}</td>
+                    <td>{{ item.name }}</td>
+                    <td style="color: #64748b; text-decoration: line-through;">${{ item.old_price }}</td>
+                    <td style="font-weight: bold;">${{ item.new_price }}</td>
+                    <td>
+                        {% if item.new_price > item.old_price %}
+                            <span style="color: red;">▲ Increase</span>
+                        {% else %}
+                            <span style="color: green;">▼ Drop</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if results.rejected %}
+    <div class="module">
+        <table style="width: 100%;">
+            <caption style="background: #ef4444; color: white;">Rejected Records (Will be skipped)</caption>
+            <thead>
+                <tr>
+                    <th>Row #</th>
+                    <th>SKU</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results.rejected %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ item.row }}</td>
+                    <td>{{ item.sku }}</td>
+                    <td style="color: #dc2626; font-weight: bold;">{{ item.reason }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="submit-row">
+        <form action="." method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="temp_file_path" value="{{ temp_file_path }}">
+            <p style="float: left; margin-top: 10px; color: #64748b;">
+                <strong>Note:</strong> Only "New" and "Update" records will be saved. Rejected records are ignored.
+            </p>
+            <input type="submit" name="confirm_save" value="Confirm and Process Import" class="default">
+            <a href=".." class="button" style="float: right; margin-left: 10px;">Cancel</a>
+        </form>
+    </div>
+
+        <div class="summary-cards">
+        <div class="card green">Add: {{ summary.added }}</div>
+        <div class="card blue">Update: {{ summary.updated }}</div>
+        <div class="card red">Reject: {{ summary.rejected }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>MAC Address</th><th>Gateway</th><th>Status</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+            {% for item in results %}
+            <tr class="{{ item.status }}">
+                <td>{{ item.mac }}</td>
+                <td>{{ item.gateway }}</td>
+                <td>{{ item.status_label }}</td>
+                <td>{{ item.message }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

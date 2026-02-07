@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="/admin/core/esltag/download-template/" class="addlink">Download Template</a>
+    </li>
+    <li>
+        <form id="tag-import-form" action="/admin/core/esltag/import-preview/" method="post" enctype="multipart/form-data" style="display:none;">
+            {% csrf_token %}
+            <input type="file" name="file" id="tag_file_input" onchange="document.getElementById('tag-import-form').submit();">
+        </form>
+        <a href="#" class="addlink" onclick="document.getElementById('tag_file_input').click(); return false;">
+            Import ESL Tags
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}

@@ -1,0 +1,63 @@
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=esl_db
+      - POSTGRES_USER=sais_user
+      - POSTGRES_PASSWORD=sais_pass
+
+  mqtt_broker:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - mqtt_broker
+      - redis
+    env_file: .env
+    volumes:
+      - .:/app
+      - ./media:/app/media  # Maps your local 'media' folder to the container
+    
+
+  mqtt_worker:
+    build: .
+    command: python manage.py mqtt_worker
+    depends_on:
+      - db
+      - mqtt_broker
+    env_file: .env
+
+  worker:
+    build: .
+    command: >
+      sh -c "celery -A core worker --loglevel=info"
+    env_file: 
+      - .env
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - .:/app
+      - ./media:/app/media  # Crucial: the worker needs to write to the same place
+
+volumes:
+  postgres_data:
