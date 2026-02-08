@@ -10,6 +10,9 @@ from PIL import Image, ImageDraw, ImageFont
 import barcode
 from barcode.writer import ImageWriter
 
+import time
+
+
 logger = logging.getLogger('core')
 
 def get_font_by_type(size, font_type="bold"):
@@ -37,6 +40,7 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
     return font
 
 def generate_esl_image(tag):
+    start_time = time.time() # Start the clock
     tag.refresh_from_db()
     try:
         spec = tag.hardware_spec
@@ -128,6 +132,8 @@ def generate_esl_image(tag):
                 draw.text((safe_pad, curr_y), line, fill='black', font=n_font)
                 curr_y += n_size + 1
 
+
+
         # 7. BARCODE
         if product.sku:
             code128 = barcode.get_barcode_class('code128')
@@ -136,11 +142,16 @@ def generate_esl_image(tag):
             b_img = b_img.resize((split_x - (safe_pad * 2), barcode_h), Image.NEAREST).convert("RGBA")
             image.paste(b_img, (safe_pad, height - barcode_h - safe_pad), b_img)
 
+        # Logging the start of the process
+        logger.info(f"Starting image generation for Tag: {tag.tag_mac} ({width}x{height})")
+
         # 8. SAVE
         temp = BytesIO()
         image.save(temp, format='PNG')
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
         tag.save()
+        duration = time.time() - start_time
+        logger.info(f"SUCCESS: {tag.tag_mac} generated in {duration:.3f}s")
         return True
 
 
