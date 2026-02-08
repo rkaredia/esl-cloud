@@ -95,8 +95,8 @@ class Store(BaseAuditModel):
 class TagHardware(models.Model):
     """
     Hardware specifications for different tag models.
-    Examples: ET0290-85, ET0212-3D
     """
+    # Changed back to model_number to maintain compatibility with admin.py
     model_number = models.CharField(max_length=100, unique=True, help_text="e.g., ET0290-85")
     width_px = models.IntegerField(help_text="Width in pixels")
     height_px = models.IntegerField(help_text="Height in pixels")
@@ -148,11 +148,12 @@ def get_tag_path(instance, filename):
         return os.path.join('tag_images', 'orphaned', filename)
 
 class ESLTag(BaseAuditModel):
+
     gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE)
     tag_mac = models.CharField(max_length=50, unique=True)
     
-    # Linked to Hardware Specifications
-    hardware_spec = models.ForeignKey(TagHardware, on_delete=models.PROTECT, null=True, blank=True)
+    # ForeignKey to TagHardware
+    hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
     
     # NEW: Physical Location Information
     aisle = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Aisle 4")

@@ -1,12 +1,9 @@
-{% extends "admin/change_list.html" %}
-{% load i18n admin_urls %}
 
+
+{% extends "admin/change_list.html" %}
 {% block object-tools-items %}
     <li>
-        <a href="import-mapping/" class="addlink" style="background-color: #417690; color: white;">
-            {% trans "Import Tag Mapping" %}
-        </a>
+        <a href="import-modisoft/" class="addlink">Import Modisoft Products</a>
     </li>
     {{ block.super }}
 {% endblock %}
-

@@ -110,28 +110,8 @@
             <input type="submit" name="confirm_save" value="Confirm and Process Import" class="default">
             <a href=".." class="button" style="float: right; margin-left: 10px;">Cancel</a>
         </form>
-    </div>
 
-        <div class="summary-cards">
-        <div class="card green">Add: {{ summary.added }}</div>
-        <div class="card blue">Update: {{ summary.updated }}</div>
-        <div class="card red">Reject: {{ summary.rejected }}</div>
-    </div>
 
-    <table>
-        <thead>
-            <tr><th>MAC Address</th><th>Gateway</th><th>Status</th><th>Notes</th></tr>
-        </thead>
-        <tbody>
-            {% for item in results %}
-            <tr class="{{ item.status }}">
-                <td>{{ item.mac }}</td>
-                <td>{{ item.gateway }}</td>
-                <td>{{ item.status_label }}</td>
-                <td>{{ item.message }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
 </div>
 {% endblock %}
