@@ -8,6 +8,11 @@ services:
       - POSTGRES_DB=esl_db
       - POSTGRES_USER=sais_user
       - POSTGRES_PASSWORD=sais_pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5  
 
   mqtt_broker:
     image: eclipse-mosquitto:latest
@@ -25,18 +30,21 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py seed_data &&
              python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - mqtt_broker
-      - redis
+      db:
+        condition: service_healthy
+      mqtt_broker:
+        condition: service_started
+      redis:
+        condition: service_started
     env_file: .env
     volumes:
       - .:/app
-      - ./media:/app/media  # Maps your local 'media' folder to the container
-    
+      - ./media:/app/media    
 
   mqtt_worker:
     build: .

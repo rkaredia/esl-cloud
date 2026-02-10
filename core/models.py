@@ -42,7 +42,7 @@ class Company(models.Model):
     contact_email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tax/VAT ID")
-    
+    is_active = models.BooleanField(default=True) # Added
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -88,7 +88,7 @@ class Store(BaseAuditModel):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='stores')
     name = models.CharField(max_length=255)
     location_code = models.CharField(max_length=50) 
-    
+    is_active = models.BooleanField(default=True) # Added
     def __str__(self):
         return f"{self.company.name} - {self.name}"
 
@@ -111,9 +111,11 @@ class TagHardware(models.Model):
         return f"{self.model_number} ({self.width_px}x{self.height_px})"
 
 class Gateway(BaseAuditModel):
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)
-    gateway_mac = models.CharField(max_length=17, unique=True)
     is_online = models.BooleanField(default=False)
+    gateway_mac = models.CharField(max_length=100, unique=True)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=True) # Added
+    last_seen = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Gateway {self.gateway_mac} ({self.store.name})"
