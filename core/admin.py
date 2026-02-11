@@ -11,6 +11,8 @@ from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware
 from core.tasks import update_tag_image_task  
 from .views import download_tag_template, preview_tag_import, preview_product_import
 
+from core.tasks import update_tag_image_task  # Restored task import
+
 # =================================================================
 # 1. MIXINS & SECURITY
 # =================================================================
@@ -22,6 +24,18 @@ class AuditAdminMixin:
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
+@admin.action(description='Regenerate images in background (Celery)')
+def regenerate_images_action(modeladmin, request, queryset):
+    count = 0
+    for item in queryset:
+        if isinstance(item, Product):
+            for tag in item.esl_tags.all():
+                update_tag_image_task.delay(tag.id)
+                count += 1
+        elif isinstance(item, ESLTag):
+            update_tag_image_task.delay(item.id)
+            count += 1
+    modeladmin.message_user(request, f"Queued {count} background tasks for image refresh.")
 
 class CompanySecurityMixin(AuditAdminMixin):
     def get_queryset(self, request):
@@ -105,11 +119,13 @@ class TagHardwareAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
-    list_display = ('sku', 'name', 'price', 'store', 'created_at', 'updated_at', 'updated_by')
+
+
+    list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('name', 'price')
-    list_filter = ('store','updated_by')
     search_fields = ('sku', 'name')
-    readonly_fields = ['updated_at', 'store', 'updated_by']
+    actions = [regenerate_images_action]
+    readonly_fields = ('updated_at', 'updated_by', 'image_preview_large','image_status')
 
     change_list_template = "admin/core/product/change_list.html"
     actions = ['regenerate_product_images', 'sync_products']
@@ -125,10 +141,29 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         self.message_user(request, f"Sync command sent for {queryset.count()} products.")
 
     def image_status(self, obj):
-        has_img = obj.esl_tags.filter(tag_image__gt='').exists()
-        color = "#059669" if has_img else "#ea580c"
-        label = "Generated" if has_img else "Pending"
-        return mark_safe(f'<span style="color: {color}; font-weight: bold;">● {label}</span>')
+        # Restore: Green/Orange/Grey logic
+        has_image = obj.esl_tags.filter(tag_image__gt='').exists()
+        has_tag = obj.esl_tags.exists()
+        
+        if has_image:
+            return mark_safe('<span style="color: #059669; font-weight: bold;">● Generated</span>')
+        if has_tag:
+            return mark_safe('<span style="color: #ea580c; font-weight: bold;">● Pending</span>')
+        return mark_safe('<span style="color: #94a3b8;">○ No Tag</span>')
+    image_status.short_description = "Status"
+
+    def sync_button(self, obj):
+        # Custom button for single-product sync
+        return format_html(
+            '<a class="button" href="#" onclick="alert(\'Syncing...\'); return false;" style="background-color: #2563eb; color: white; padding: 3px 10px;">Sync</a>'
+        )
+    sync_button.short_description = "Action"
+
+    def image_preview_large(self, obj):
+        tag = obj.esl_tags.first()
+        if tag and tag.tag_image:
+            return format_html('<img src="{}" style="max-width: 300px; border-radius: 8px;"/>', tag.tag_image.url)
+        return "No image available"
 
     def save_model(self, request, obj, form, change):
         obj.updated_by = request.user
@@ -147,20 +182,71 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
 @admin.register(ESLTag)
 class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
-    list_display = ('tag_mac', 'paired_product', 'hardware_spec', 'updated_at', 'created_at', 'updated_by')
-    list_editable = ('paired_product', 'hardware_spec')
-    readonly_fields = ('updated_at', 'created_at', 'updated_by')
-    change_list_template = "admin/core/esltag/change_list.html"
+    #list_display = ('tag_mac', 'paired_product', 'hardware_spec', 'updated_at', 'created_at', 'updated_by')
+    #list_editable = ('paired_product', 'hardware_spec')
+    #readonly_fields = ('updated_at', 'created_at', 'updated_by')
     # AJAX Search for Product (Autocomplete)
-    autocomplete_fields = ['paired_product']    
+    #autocomplete_fields = ['paired_product']    
+
+    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec','sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
+    list_editable = ( 'hardware_spec', 'aisle', 'section', 'shelf_row')
+
+    # 2. Restored AJAX Autocomplete (Search as you type)
+    autocomplete_fields = ['paired_product']
+    
+    actions = [regenerate_images_action]
+    readonly_fields = ('get_paired_info', 
+        'image_preview_large', 
+        'updated_at', 
+        'updated_by', 
+        'created_at')
 
     actions = ['regenerate_tag_images', 'sync_tags']
+    change_list_template = "admin/core/esltag/change_list.html"
+
 
     fieldsets = (
-        ('Identity', {'fields': ('tag_mac', 'gateway', 'hardware_spec', 'battery_level')}),
-        ('Linkage', {'fields': ('paired_product',)}),
+        ('Hardware', {'fields': ('tag_mac', 'gateway', 'hardware_spec', 'battery_level')}),
+        ('Pairing', {
+            'description': 'Search for a product by SKU or Name below.',
+            'fields': ('paired_product',),
+        }),
+        ('Visuals', {'fields': ('image_preview_large',)}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
+        ('Audit', {'fields': ('updated_by', 'updated_at')}),
     )
+
+    def get_paired_info(self, obj):
+        # FIX: Returns "SKU - Name" instead of "Product object (4)"
+        if obj.paired_product:
+            return f"{obj.paired_product.sku} - {obj.paired_product.name}"
+        return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
+    get_paired_info.short_description = "Paired Product"
+
+    def image_status(self, obj):
+        if not obj.paired_product:
+            return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
+        color = "#059669" if obj.tag_image else "#ea580c"
+        label = "Generated" if obj.tag_image else "Pending"
+        return mark_safe(f'<span style="color:{color}; font-weight:bold;">● {label}</span>')
+    image_status.short_description = "Status"
+
+    def thumbnail(self, obj):
+        if obj.tag_image:
+            return format_html('<img src="{}" style="width: 50px; height: auto; border-radius: 4px;"/>', obj.tag_image.url)
+        return "-"
+
+    def battery_status(self, obj):
+        val = obj.battery_level
+        color = "#059669" if val > 50 else "#ea580c" if val > 20 else "#dc2626"
+        return format_html('<b style="color: {};">{}%</b>', color, val)
+    battery_status.short_description = "Battery"
+
+    def image_preview_large(self, obj):
+        if obj.tag_image:
+            return format_html('<img src="{}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url)
+        return "Waiting for background generation..."
+    image_preview_large.short_description = "Current Tag Image"
 
     def get_product_name(self, obj):
         return f"{obj.paired_product.name} ({obj.paired_product.sku})" if obj.paired_product else "-"
@@ -195,10 +281,6 @@ class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         val = obj.battery_level or 0
         color = "#059669" if val > 50 else "#dc2626"
         return format_html('<b style="color: {};">{}%</b>', color, val)
-
-    def image_status(self, obj):
-        color = "#059669" if obj.tag_image else "#ea580c"
-        return mark_safe(f'<span style="color:{color};">● {"Generated" if obj.tag_image else "Pending"}</span>')
 
     def manual_sync_view(self, request, object_id):
         update_tag_image_task.delay(object_id)

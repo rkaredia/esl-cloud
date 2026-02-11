@@ -144,7 +144,9 @@ class Product(AuditModel):
 
     class Meta:
         unique_together = ('sku', 'store')
-
+    def __str__(self):
+        # This will change "Product object (4)" to "SKU - Name"
+        return f"{self.sku} - {self.name}"
 
 
 
