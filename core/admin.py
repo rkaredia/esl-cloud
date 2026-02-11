@@ -6,26 +6,24 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.shortcuts import render, redirect, get_object_or_404
-
 from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware 
 from core.tasks import update_tag_image_task  
 from .views import download_tag_template, preview_tag_import, preview_product_import
-
 from core.tasks import update_tag_image_task  # Restored task import
 
 # =================================================================
 # 1. MIXINS & SECURITY
 # =================================================================
+
 class AuditAdminMixin:
-    """
-    Automatically sets the updated_by field to the current logged-in user.
-    """
+    """Automatically stamps the user who last modified the record."""
     def save_model(self, request, obj, form, change):
-        obj.updated_by = request.user
+        if hasattr(obj, 'updated_by'):
+            obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
-@admin.action(description='Regenerate images in background (Celery)')
-def regenerate_images_action(modeladmin, request, queryset):
+@admin.action(description='Regenerate images in background')
+def regenerate_product_tags(modeladmin, request, queryset):
     count = 0
     for item in queryset:
         if isinstance(item, Product):
@@ -35,7 +33,8 @@ def regenerate_images_action(modeladmin, request, queryset):
         elif isinstance(item, ESLTag):
             update_tag_image_task.delay(item.id)
             count += 1
-    modeladmin.message_user(request, f"Queued {count} background tasks for image refresh.")
+    modeladmin.message_user(request, f"Queued {count} tasks for background image processing.")
+
 
 class CompanySecurityMixin(AuditAdminMixin):
     def get_queryset(self, request):
@@ -94,6 +93,16 @@ class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
     list_display = ('name', 'company', 'location_code', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('location_code', 'is_active')
     readonly_fields = ('created_at', 'updated_at', 'updated_by')
+    def get_readonly_fields(self, request, obj=None):
+        if not request.user.is_superuser:
+            return ('company',) # Owners cannot change their company
+        return ()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "company" and not request.user.is_superuser:
+            # Filter to only show the user's own company
+            kwargs["queryset"] = Company.objects.filter(id=request.user.company_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 # =================================================================
 # 3. GATEWAY ADMIN
@@ -110,7 +119,9 @@ class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
 @admin.register(TagHardware)
 class TagHardwareAdmin(admin.ModelAdmin):
     list_display = ('model_number', 'width_px', 'height_px', 'color_scheme', 'display_size_inch', 'created_at', 'updated_at', 'updated_by')
+    readonly_fields = ( 'updated_at', 'updated_by')
     def has_change_permission(self, request, obj=None): return request.user.is_superuser
+
 
 # =================================================================
 # 2. Product ADMIN
@@ -124,8 +135,7 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('name', 'price')
     search_fields = ('sku', 'name')
-    actions = [regenerate_images_action]
-    readonly_fields = ('updated_at', 'updated_by', 'image_preview_large','image_status')
+    readonly_fields = ('updated_at', 'updated_by','image_status')
 
     change_list_template = "admin/core/product/change_list.html"
     actions = ['regenerate_product_images', 'sync_products']
@@ -150,7 +160,16 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         if has_tag:
             return mark_safe('<span style="color: #ea580c; font-weight: bold;">● Pending</span>')
         return mark_safe('<span style="color: #94a3b8;">○ No Tag</span>')
+
+
     image_status.short_description = "Status"
+    image_status.admin_order_field = 'has_tag_image' # Links sorting to annotated field
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt=''))
+        )
 
     def sync_button(self, obj):
         # Custom button for single-product sync
@@ -180,21 +199,23 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 # 3. ESL TAG ADMIN
 # =================================================================
 
-@admin.register(ESLTag)
-class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
-    #list_display = ('tag_mac', 'paired_product', 'hardware_spec', 'updated_at', 'created_at', 'updated_by')
-    #list_editable = ('paired_product', 'hardware_spec')
-    #readonly_fields = ('updated_at', 'created_at', 'updated_by')
-    # AJAX Search for Product (Autocomplete)
-    #autocomplete_fields = ['paired_product']    
 
+
+
+ 
+
+
+@admin.register(ESLTag)
+class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):  
+    # Fixed UI Widths via CSS injection
+    change_list_template = "admin/core/esltag/change_list.html" 
     list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec','sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
     list_editable = ( 'hardware_spec', 'aisle', 'section', 'shelf_row')
 
     # 2. Restored AJAX Autocomplete (Search as you type)
     autocomplete_fields = ['paired_product']
     
-    actions = [regenerate_images_action]
+    actions = ['regenerate_images_action']
     readonly_fields = ('get_paired_info', 
         'image_preview_large', 
         'updated_at', 
@@ -262,6 +283,55 @@ class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
             return format_html('<img src="{}" style="max-width: 300px; height: auto;" />', obj.tag_image.url)
         return "No Image Preview Available"
 
+# Point 7: Zero-File CSS Injection for Widths
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['custom_css'] = mark_safe("""
+            <style>
+                /* Target the exact class name found via Inspect */
+                .column-get_paired_info { 
+                    width: 450px !important; 
+                    min-width: 300px !important; 
+                }
+
+                /* Ensure the text doesn't wrap into a tiny vertical column */
+                .field-get_paired_info {
+                    white-space: nowrap !important;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                /* Target the exact class name found via Inspect */
+                .column-hardware_spec { 
+                    width: 130px !important; 
+                    min-width: 130px !important; 
+                }
+
+                /* Target the exact class name found via Inspect */
+                .column-aisle { 
+                    width: 20px !important; 
+                    min-width: 20px !important; 
+                }
+                /* Target the exact class name found via Inspect */
+                .column-section,{ 
+                    width: 80px !important; 
+                    min-width: 80px !important; 
+                }
+                /* Shrink and center-align the location columns */
+                .column-shelf_row { 
+                    width: 80px !important; 
+                    text-align: center !important; 
+                    min-width: 80px !important;
+                }
+
+                /* Force the image status column to be narrow */
+                .column-image_status { 
+                    width: 100px !important; 
+                    text-align: center !important;
+                }
+            </style>
+        """)
+        return super().changelist_view(request, extra_context=extra_context)
+
     @admin.action(description="Regenerate Images for selected tags")
     def regenerate_tag_images(self, request, queryset):
         self.message_user(request, "Regenerating selected tags...")
@@ -287,12 +357,17 @@ class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         messages.success(request, "Sync task queued.")
         return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
 
+
     def get_urls(self):
-        custom = [
-            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
+        urls = super().get_urls()
+        # Custom URLs must come BEFORE the standard change_view URL to avoid ID conflict
+        custom_urls = [
+            path('download-template/', self.admin_site.admin_view(download_tag_template), name='download_tag_template'),
             path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
+            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
         ]
-        return custom + super().get_urls()
+        return custom_urls + urls
+
 
 # =================================================================
 # 4. SYSTEM & USER ADMIN
@@ -301,7 +376,14 @@ class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 @admin.register(User)
 class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     list_display = ('username', 'company', 'role', 'is_staff')
-    
+    fieldsets = UserAdmin.fieldsets + (
+        ('Store Allocation', {'fields': ('managed_stores', 'company', 'role')}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Store Allocation', {'fields': ('managed_stores', 'company', 'role')}),
+    )
+
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:

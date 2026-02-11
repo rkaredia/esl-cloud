@@ -168,9 +168,9 @@ class ESLTag(AuditModel):
     )
     
     # NEW: Physical Location Information
-    aisle = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Aisle 4")
-    section = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Dairy")
-    shelf_row = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Row 2")
+    aisle = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Aisle 4")
+    section = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Dairy")
+    shelf_row = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Row 2")
 
 
     def clean(self):
