@@ -14,8 +14,16 @@ from .views import download_tag_template, preview_tag_import, preview_product_im
 # =================================================================
 # 1. MIXINS & SECURITY
 # =================================================================
+class AuditAdminMixin:
+    """
+    Automatically sets the updated_by field to the current logged-in user.
+    """
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
-class CompanySecurityMixin:
+
+class CompanySecurityMixin(AuditAdminMixin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
@@ -43,11 +51,11 @@ class CompanySecurityMixin:
 
 class UIHelperMixin:
     """Shared display methods for cleaner list views."""
-    def display_last_updated(self, obj):
-        if not obj.last_updated: return "-"
-        return format_html('<span class="local-datetime" data-utc="{}">{}</span>',
-                           obj.last_updated.isoformat(), obj.last_updated.strftime("%d %b %Y"))
-    display_last_updated.short_description = "Last Updated"
+#    def display_last_updated(self, obj):
+#        if not obj.last_updated: return "-"
+#        return format_html('<span class="local-datetime" data-utc="{}">{}</span>',
+#                           obj.last_updated.isoformat(), obj.last_updated.strftime("%d %b %Y"))
+#    display_last_updated.short_description = "Last Updated"
 
     def sync_button(self, obj):
         url = reverse('admin:sync-tag-manual', args=[obj.pk])
@@ -55,16 +63,66 @@ class UIHelperMixin:
     sync_button.short_description = "Action"
 
 # =================================================================
-# 2. PRODUCT ADMIN
+# 1. COMPANY ADMIN
 # =================================================================
+@admin.register(Company)
+class CompanyAdmin(CompanySecurityMixin, admin.ModelAdmin):
+    list_display = ('name', 'contact_email', 'is_active', 'created_at', 'updated_at', 'updated_by')
+    list_editable = ('contact_email', 'is_active')
+    readonly_fields = ('created_at', 'updated_at', 'updated_by')
+
+
+# =================================================================
+# 2. STORE ADMIN
+# =================================================================
+@admin.register(Store)
+class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
+    list_display = ('name', 'company', 'location_code', 'is_active', 'created_at', 'updated_at', 'updated_by')
+    list_editable = ('location_code', 'is_active')
+    readonly_fields = ('created_at', 'updated_at', 'updated_by')
+
+# =================================================================
+# 3. GATEWAY ADMIN
+# =================================================================
+@admin.register(Gateway)
+class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
+    list_display = ('gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
+    list_editable = ('store', 'is_active')
+    readonly_fields = ( 'created_at', 'updated_at', 'updated_by')
+
+# =================================================================
+# 3. TAG HARDWARE ADMIN
+# =================================================================
+@admin.register(TagHardware)
+class TagHardwareAdmin(admin.ModelAdmin):
+    list_display = ('model_number', 'width_px', 'height_px', 'color_scheme', 'display_size_inch', 'created_at', 'updated_at', 'updated_by')
+    def has_change_permission(self, request, obj=None): return request.user.is_superuser
+
+# =================================================================
+# 2. Product ADMIN
+# =================================================================
+
 
 @admin.register(Product)
 class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
-    list_display = ('image_status', 'sku', 'name', 'price', 'sync_button', 'display_last_updated')
+    list_display = ('sku', 'name', 'price', 'store', 'created_at', 'updated_at', 'updated_by')
+    list_editable = ('name', 'price')
+    list_filter = ('store','updated_by')
     search_fields = ('sku', 'name')
-    readonly_fields = ['display_last_updated', 'store']
-    exclude = ('updated_by',)
+    readonly_fields = ['updated_at', 'store', 'updated_by']
+
     change_list_template = "admin/core/product/change_list.html"
+    actions = ['regenerate_product_images', 'sync_products']
+
+    @admin.action(description="Regenerate Tag Images for selected products")
+    def regenerate_product_images(self, request, queryset):
+        # Trigger your image generation logic here
+        self.message_user(request, f"Image regeneration started for {queryset.count()} products.")
+
+    @admin.action(description="Sync selected products to Gateways")
+    def sync_products(self, request, queryset):
+        # Trigger MQTT/Sync logic
+        self.message_user(request, f"Sync command sent for {queryset.count()} products.")
 
     def image_status(self, obj):
         has_img = obj.esl_tags.filter(tag_image__gt='').exists()
@@ -88,17 +146,47 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 # =================================================================
 
 @admin.register(ESLTag)
-class TagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
-    list_display = ('image_status', 'tag_mac', 'model_info', 'battery_status', 'sync_button')
-    autocomplete_fields = ['paired_product']
-    readonly_fields = ['tag_image', 'display_last_updated', 'updated_by']
+class ESLTag(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
+    list_display = ('tag_mac', 'paired_product', 'hardware_spec', 'updated_at', 'created_at', 'updated_by')
+    list_editable = ('paired_product', 'hardware_spec')
+    readonly_fields = ('updated_at', 'created_at', 'updated_by')
     change_list_template = "admin/core/esltag/change_list.html"
-    
+    # AJAX Search for Product (Autocomplete)
+    autocomplete_fields = ['paired_product']    
+
+    actions = ['regenerate_tag_images', 'sync_tags']
+
     fieldsets = (
         ('Identity', {'fields': ('tag_mac', 'gateway', 'hardware_spec', 'battery_level')}),
         ('Linkage', {'fields': ('paired_product',)}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
     )
+
+    def get_product_name(self, obj):
+        return f"{obj.paired_product.name} ({obj.paired_product.sku})" if obj.paired_product else "-"
+    get_product_name.short_description = 'Paired Product'
+
+    def tag_image_thumbnail(self, obj):
+        if obj.tag_image:
+            return format_html('<img src="{}" style="width: 50px; height: auto;" />', obj.tag_image.url)
+        return "No Image"
+    
+    def tag_image_preview(self, obj):
+        if obj.tag_image:
+            return format_html('<img src="{}" style="max-width: 300px; height: auto;" />', obj.tag_image.url)
+        return "No Image Preview Available"
+
+    @admin.action(description="Regenerate Images for selected tags")
+    def regenerate_tag_images(self, request, queryset):
+        self.message_user(request, "Regenerating selected tags...")
+
+    @admin.action(description="Sync selected tags to Gateway")
+    def sync_tags(self, request, queryset):
+        self.message_user(request, "Syncing tags...")
+
+
+
+
 
     def model_info(self, obj):
         return f"{obj.hardware_spec.model_number}" if obj.hardware_spec else "-"
@@ -184,14 +272,6 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
         group, _ = Group.objects.get_or_create(name=group_name)
         obj.groups.add(group)
 
-@admin.register(Gateway)
-class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
-    list_display = ('gateway_mac', 'store', 'is_online')
 
-@admin.register(TagHardware)
-class TagHardwareAdmin(admin.ModelAdmin):
-    list_display = ('model_number', 'display_size_inch', 'color_scheme')
-    def has_change_permission(self, request, obj=None): return request.user.is_superuser
 
-admin.site.register(Company)
-admin.site.register(Store)
+
