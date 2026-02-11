@@ -20,11 +20,18 @@ from django.urls import path, include
 from django.conf import settings  # Add this
 from django.conf.urls.static import static  # Add this
 from core import views
+from core.admin import admin_site # Import your custom site
+
 
 urlpatterns = [
-    path('admin/select-store/', select_store, name='select_store'), # MUST match the template tag
-    #path('admin/set-store/<int:store_id>/', set_active_store, name='set_active_store'),
-    path('admin/', admin.site.urls),
+    path('admin/select-store/', select_store, name='select_store'),
+    
+    # CHANGE THIS LINE:
+    # path('admin/', admin.site.urls),
+    
+    # TO THIS:
+    path('admin/', admin_site.urls), # Use the instance that has the 'sais_admin' name
+    
     path('set-store/<int:store_id>/', views.set_active_store, name='set_active_store'),
 ]
 

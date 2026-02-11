@@ -14,6 +14,53 @@ from core.tasks import update_tag_image_task  # Restored task import
 # =================================================================
 # 1. MIXINS & SECURITY
 # =================================================================
+class SAISAdminSite(admin.AdminSite):
+    site_header = "SAIS Platform Administration"
+    site_title = "SAIS Admin"
+    index_title = "Welcome to SAIS Control Panel"
+    
+    def get_app_list(self, request, app_label=None):
+        """
+        Customizes the main dashboard menu to group models into Inventory, 
+        Hardware, and Organisation.
+        """
+        app_dict = self._build_app_dict(request)
+        if not app_dict:
+            return []
+
+        # Extract the models from your 'core' app (and 'auth' for users/groups)
+        # Note: Adjust the 'core' label if your app name is different
+        all_models = []
+        for app in app_dict.values():
+            all_models.extend(app['models'])
+
+        # Create a helper function to find a model by its name
+        def find_model(name):
+            return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
+
+        # Define your custom groups
+        custom_groups = [
+            {
+                'name': 'Inventory',
+                'app_label': 'inventory',
+                'models': [m for m in [find_model('ESLTag'), find_model('Product')] if m],
+            },
+            {
+                'name': 'Hardware',
+                'app_label': 'hardware',
+                'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m],
+            },
+            {
+                'name': 'Organisation',
+                'app_label': 'organisation',
+                'models': [m for m in [find_model('Company'), find_model('Store'), 
+                                     find_model('User'), find_model('Group')] if m],
+            },
+        ]
+        return custom_groups
+
+# Instantiate the custom admin site
+admin_site = SAISAdminSite(name='sais_admin')
 
 class AuditAdminMixin:
     """Automatically stamps the user who last modified the record."""
@@ -75,10 +122,11 @@ class UIHelperMixin:
         return format_html('<a class="button" href="{}" style="background:#2563eb; color:white;">Sync</a>', url)
     sync_button.short_description = "Action"
 
+
 # =================================================================
 # 1. COMPANY ADMIN
 # =================================================================
-@admin.register(Company)
+@admin.register(Company, site=admin_site)
 class CompanyAdmin(CompanySecurityMixin, admin.ModelAdmin):
     list_display = ('name', 'contact_email', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('contact_email', 'is_active')
@@ -88,7 +136,7 @@ class CompanyAdmin(CompanySecurityMixin, admin.ModelAdmin):
 # =================================================================
 # 2. STORE ADMIN
 # =================================================================
-@admin.register(Store)
+@admin.register(Store, site=admin_site)
 class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
     list_display = ('name', 'company', 'location_code', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('location_code', 'is_active')
@@ -107,7 +155,7 @@ class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
 # =================================================================
 # 3. GATEWAY ADMIN
 # =================================================================
-@admin.register(Gateway)
+@admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
     list_display = ('gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('store', 'is_active')
@@ -116,7 +164,7 @@ class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
 # =================================================================
 # 3. TAG HARDWARE ADMIN
 # =================================================================
-@admin.register(TagHardware)
+@admin.register(TagHardware, site=admin_site)
 class TagHardwareAdmin(admin.ModelAdmin):
     list_display = ('model_number', 'width_px', 'height_px', 'color_scheme', 'display_size_inch', 'created_at', 'updated_at', 'updated_by')
     readonly_fields = ( 'updated_at', 'updated_by')
@@ -128,7 +176,7 @@ class TagHardwareAdmin(admin.ModelAdmin):
 # =================================================================
 
 
-@admin.register(Product)
+@admin.register(Product, site=admin_site)
 class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
 
@@ -205,7 +253,7 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
  
 
 
-@admin.register(ESLTag)
+@admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):  
     # Fixed UI Widths via CSS injection
     change_list_template = "admin/core/esltag/change_list.html" 
@@ -342,8 +390,6 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
 
 
-
-
     def model_info(self, obj):
         return f"{obj.hardware_spec.model_number}" if obj.hardware_spec else "-"
     
@@ -373,7 +419,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 # 4. SYSTEM & USER ADMIN
 # =================================================================
 
-@admin.register(User)
+@admin.register(User, site=admin_site)
 class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     list_display = ('username', 'company', 'role', 'is_staff')
     fieldsets = UserAdmin.fieldsets + (
@@ -439,3 +485,5 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
 
 
 
+from django.contrib.auth.models import Group
+admin_site.register(Group)
