@@ -12,6 +12,38 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 import environ
 from pathlib import Path
+import logging
+from datetime import datetime  # ADD THIS LINE
+from zoneinfo import ZoneInfo
+from django.utils import timezone
+
+# 2. Set the Timezone FIRST so other functions can use it
+
+LANGUAGE_CODE = 'en-us'
+
+# CHANGE THIS FROM 'UTC' TO:
+TIME_ZONE = 'America/Chicago' 
+
+USE_I18N = True
+USE_TZ = True
+CELERY_TIMEZONE = 'US/Central' # Update this to match
+
+# 3. Fix the Filename to use Texas time
+# We use pytz to ensure the filename itself is generated with the correct date
+texas_tz = ZoneInfo('US/Central')
+LOG_FILENAME = f"SAIS_log_{datetime.now(texas_tz).strftime('%Y%m%d')}.log"
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_PATH = os.path.join(BASE_DIR, 'logs', LOG_FILENAME)
+
+# 4. Fix the Formatter
+class LocalTimeFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # This helper ensures the timestamp inside the log file is Texas time
+        dt = timezone.localtime(timezone.now())
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+# Read .env file if it exists
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -19,11 +51,7 @@ env = environ.Env(
     DEBUG=(bool, False)
 )
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Read .env file if it exists
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -130,7 +158,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+#TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -182,7 +210,7 @@ CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
+#CELERY_TIMEZONE = 'UTC'
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
@@ -193,12 +221,17 @@ LOG_DIR = os.path.join(BASE_DIR, 'logs')
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
+
+
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+        'sais_formatter': {
+            '()': LocalTimeFormatter,
+            'format': '[{levelname}] {asctime} {module} {message}',
             'style': '{',
         },
     },
@@ -206,16 +239,19 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(LOG_DIR, 'django_worker.log'),
-            'formatter': 'verbose',
-        },
-        'console': {
-            'class': 'logging.StreamHandler',
+            'filename': LOG_PATH, # Uses the path defined above
+            'formatter': 'sais_formatter',
+            'encoding': 'utf-8',
         },
     },
     'loggers': {
-        'core': {  # This matches the logger = logging.getLogger('core') in your utils.py
-            'handlers': ['file', 'console'],
+        'django': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'core': {
+            'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': True,
         },

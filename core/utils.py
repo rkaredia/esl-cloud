@@ -13,6 +13,7 @@ from barcode.writer import ImageWriter
 import time
 
 
+
 logger = logging.getLogger('core')
 
 def get_font_by_type(size, font_type="bold"):
@@ -40,7 +41,9 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
     return font
 
 def generate_esl_image(tag):
+    
     start_time = time.time() # Start the clock
+
     tag.refresh_from_db()
     try:
         spec = tag.hardware_spec
@@ -51,9 +54,19 @@ def generate_esl_image(tag):
         color_scheme = (spec.color_scheme or "BW").upper()
         is_promo = getattr(product, 'is_on_special', False)
 
+
+        model_name = spec.model_number if spec else "N/A"
+        product_name = tag.paired_product.name if tag.paired_product else "Unpaired"
+
+        # The Fixed Log Line
+        logger.info(
+            f"***IMAGE_GEN*** | Start | MAC: {tag.tag_mac} | Res: {width}x{height} | "
+            f"Color scheme: {color_scheme} |Model: {model_name} | Product: {product_name} |Promo: {is_promo}"
+        )
+
         # 1. DYNAMIC COLOR SCHEME
         left_bg = 'yellow' if (is_promo and 'Y' in color_scheme) else 'white'
-        
+        logger.info(f"*IMAGE_GEN* | left_bg: {left_bg} ")
         if is_promo:
             # Red if BWR/BWRY, otherwise Black for BW
             price_bg = 'red' if ('R' in color_scheme or 'Y' in color_scheme) else 'black'
