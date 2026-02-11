@@ -10,15 +10,104 @@ from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware
 from core.tasks import update_tag_image_task  
 from .views import download_tag_template, preview_tag_import, preview_product_import
 from core.tasks import update_tag_image_task  # Restored task import
+import time
 
 # =================================================================
 # 1. MIXINS & SECURITY
 # =================================================================
 class SAISAdminSite(admin.AdminSite):
+
     site_header = "SAIS Platform Administration"
     site_title = "SAIS Admin"
     index_title = "Welcome to SAIS Control Panel"
     
+    def each_context(self, request):
+        context = super().each_context(request)
+    
+        # Unique version ID for this page load to break browser cache
+        v = int(time.time())
+        context['custom_admin_css'] = mark_safe("""
+            <style>
+                :root {
+                    --bg-sidebar: #f1f5f9;
+                    --navy: #003459;
+                    --dark-navy: #00171F;
+                    --azure: #C7EFFF;
+                    --white: #ffffff;
+                    --light-gray: #f1f5f9;
+                }
+
+                /* 1. BRANDING (Fixes circled logo color) */
+                #header { background: var(--navy); border-bottom: 3px solid var(--light-gray); }
+                #branding h1 a { color: var(--white) !important; }
+
+                /* 2. SIDEBAR HEADERS (Fixes full-width dark navy background) */
+                #nav-sidebar .section {
+                    color: var(--white) !important;
+                    background: #417690 !important;
+                    margin: 0 !important;
+                    display: flex;
+                    align-items: center;
+                    border: none !important;
+                }
+                
+                .app-inventory .section:before { content: "📦"; margin-right: 10px; }
+                .app-hardware .section:before { content: "📡"; margin-right: 10px; }
+                .app-organisation .section:before { content: "🏢"; margin-right: 10px; }
+
+                /* 3. MENU ITEMS & ICONS */
+                #nav-sidebar th a { color: var(--navy) !important; }
+                #nav-sidebar .model-esltag th a:before { content: "🏷️ "; }
+                #nav-sidebar .model-product th a:before { content: "🛒 "; }
+                #nav-sidebar .model-gateway th a:before { content: "📟 "; }
+                #nav-sidebar .model-taghardware th a:before { content: "🛠️ "; }
+                #nav-sidebar .model-company th a:before { content: "🏭 "; }
+                #nav-sidebar .model-store th a:before { content: "🏪 "; }
+                #nav-sidebar .model-user th a:before { content: "👤 "; }
+                #nav-sidebar .model-group th a:before { content: "👥 "; }
+
+                /* 4. FIX DOUBLE "ADD" & SIDEBAR BUTTONS */
+                #nav-sidebar .addlink {
+                    background: var(--navy) !important;
+                    color: var(--white) !important;
+                    padding: 3px 8px !important;
+                    border-radius: 4px;
+                    text-transform: uppercase;
+                    font-size: 10px;
+                    background-image: none !important; /* Removes default plus icon */
+                }
+                /* Removes the manual text we added that caused the double 'ADD' */
+                #nav-sidebar .addlink:after { content: "" !important; }
+
+                /* 5. TOP ACTION BUTTONS (Download/Import/Add ESL Tag) */
+                .object-tools a {
+                    background-color: #003459 !important;
+                    color: #ffffff !important;
+                    border-radius: 50px !important; /* Creates the pill effect */
+                    padding: 6px 15px !important;
+                    text-transform: uppercase;
+                    font-size: 11px;
+                    font-weight: bold;
+                }
+                .object-tools a:hover {
+                    background-color: #00A8E8 !important;
+                }
+                /* 6. SYNC BUTTON IN TABLE */
+                .field-sync_button a.button, a.button {
+                    background: var(--azure) !important;
+                    color: var(--dark-navy) !important;
+                    border-radius: 4px !important;
+                    padding: 4px 12px !important;
+                }
+
+                /* 7. SELECTED STATE */
+                #nav-sidebar tr.current-model { background: var(--azure) !important; }
+                #nav-sidebar tr.current-model th a { color: var(--dark-navy) !important; }
+            </style>
+        """)
+        return context
+
+
     def get_app_list(self, request, app_label=None):
         """
         Customizes the main dashboard menu to group models into Inventory, 
@@ -219,18 +308,9 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
             has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt=''))
         )
 
-    def sync_button(self, obj):
-        # Custom button for single-product sync
-        return format_html(
-            '<a class="button" href="#" onclick="alert(\'Syncing...\'); return false;" style="background-color: #2563eb; color: white; padding: 3px 10px;">Sync</a>'
-        )
-    sync_button.short_description = "Action"
 
-    def image_preview_large(self, obj):
-        tag = obj.esl_tags.first()
-        if tag and tag.tag_image:
-            return format_html('<img src="{}" style="max-width: 300px; border-radius: 8px;"/>', tag.tag_image.url)
-        return "No image available"
+
+
 
     def save_model(self, request, obj, form, change):
         obj.updated_by = request.user
@@ -302,7 +382,9 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
     def thumbnail(self, obj):
         if obj.tag_image:
-            return format_html('<img src="{}" style="width: 50px; height: auto; border-radius: 4px;"/>', obj.tag_image.url)
+            # Adding ?v= plus a timestamp forces the browser to bypass its cache
+            return format_html('<img src="{}?v={}" style="width: 50px; height: auto; border-radius: 4px;"/>', 
+                               obj.tag_image.url, int(time.time()))
         return "-"
 
     def battery_status(self, obj):
@@ -312,9 +394,22 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     battery_status.short_description = "Battery"
 
     def image_preview_large(self, obj):
+        # 1. Check if a product is even paired
+        if not obj.paired_product:
+            return mark_safe('<i style="color: #94a3b8;">No product paired - cannot generate image.</i>')
+            
+        # 2. If paired, check if the image exists
         if obj.tag_image:
-            return format_html('<img src="{}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url)
+            # The ?v= timestamp ensures you see the latest version without Shift+Refresh
+            return format_html(
+                '<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', 
+                obj.tag_image.url, 
+                int(time.time())
+            )
+            
+        # 3. If paired but no image file yet
         return "Waiting for background generation..."
+    
     image_preview_large.short_description = "Current Tag Image"
 
     def get_product_name(self, obj):
@@ -323,7 +418,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
     def tag_image_thumbnail(self, obj):
         if obj.tag_image:
-            return format_html('<img src="{}" style="width: 50px; height: auto;" />', obj.tag_image.url)
+            return format_html('<img src="{}?v={}" style="width: 50px; height: auto;" />', 
+                               obj.tag_image.url, int(time.time()))
         return "No Image"
     
     def tag_image_preview(self, obj):
@@ -336,6 +432,11 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['custom_css'] = mark_safe("""
             <style>
+                .column-image_status { 
+                    width: 100px !important; 
+                    min-width: 100px !important; 
+                }
+
                 /* Target the exact class name found via Inspect */
                 .column-get_paired_info { 
                     width: 450px !important; 

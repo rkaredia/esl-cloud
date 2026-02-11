@@ -1,4 +1,12 @@
 {% extends "admin/base.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {# This renders the colors and icons on every admin page #}
+    {{ custom_admin_css }}
+{% endblock %}
+
+
 {% load static %}
 
 {% block title %}{{ title }} | SAIS Platform{% endblock %}
@@ -22,7 +30,7 @@
         font-weight: bold;
         font-size: 11px;
         margin-right: 8px;
-        color: #ffca28; /* Highlight color */
+        color: #ffffff  ; /* Highlight color */
     }
     .header-store-selector select {
         background: #fff;
