@@ -83,7 +83,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_results',
     'core',
+
 ]
 
 
@@ -127,6 +129,8 @@ WSGI_APPLICATION = 'esl_cloud.wsgi.application'
 # Force the redirect to the login page and bypass middleware checks
 LOGOUT_REDIRECT_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
+
+
 
 # Ensure the session is actually flushed
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
@@ -184,32 +188,27 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"), # If you have a global static folder
 ]
 
-# Custom Sidebar Ordering Logic
-ADMIN_REORDER = (
-    {'app': 'core', 'label': 'Core Management',
-     'models': (
-         'core.Company',
-         'core.Store',
-         'core.Gateway',
-         'core.Product',
-         'core.ESLTag',
-         'core.TagHardware',  # <--- Add this line here
-         'core.User',
-     )
-    },
-    {'app': 'auth', 'label': 'Permissions',
-     'models': ('auth.Group',)},
-)
+
 
 # --- CELERY / REDIS (Cloud Ready) ---
 # Instead of 'localhost', we use the 'redis' hostname defined in Docker
 REDIS_URL = env('REDIS_URL', default='redis://redis:6379/0')
 
 CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+# Use the Django database to store task results
+CELERY_RESULT_BACKEND = 'django-db'
+# Optional: Shows the task as "STARTED" in the admin (useful for long image generations)
+CELERY_TRACK_STARTED = True
+# Crucial: This ensures task names and arguments are saved to the DB
+CELERY_RESULT_EXTENDED = True # This ensures that 'group_id' is saved in the database results
+# Optional but recommended:
+CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+# Results will expire after 3 days (259200 seconds)
+CELERY_RESULT_EXPIRES = 259200
+
 #CELERY_TIMEZONE = 'UTC'
 
 # Create logs directory if it doesn't exist

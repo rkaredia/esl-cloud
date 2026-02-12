@@ -9,7 +9,7 @@ from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 import barcode
 from barcode.writer import ImageWriter
-
+from celery import group
 import time
 
 
@@ -40,12 +40,14 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
         font = get_font_by_type(size, font_type)
     return font
 
-def generate_esl_image(tag):
-    
+def generate_esl_image(tag_id):
+    from .models import ESLTag
     start_time = time.time() # Start the clock
 
-    tag.refresh_from_db()
+
     try:
+        tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
+        tag.refresh_from_db()
         spec = tag.hardware_spec
         product = tag.paired_product
         
@@ -67,12 +69,12 @@ def generate_esl_image(tag):
         # 1. DYNAMIC COLOR SCHEME
         left_bg = 'yellow' if (is_promo and 'Y' in color_scheme) else 'white'
         logger.info(f"*IMAGE_GEN* | left_bg: {left_bg} ")
-        if is_promo:
+        if ('R' in color_scheme or 'Y' in color_scheme):
             # Red if BWR/BWRY, otherwise Black for BW
-            price_bg = 'red' if ('R' in color_scheme or 'Y' in color_scheme) else 'black'
+            price_bg = 'red' 
             price_txt_col = 'white'
         else:
-            price_bg = left_bg
+            price_bg = 'white'
             price_txt_col = 'black'
 
         image = Image.new('RGB', (width, height), color=left_bg)
@@ -164,10 +166,40 @@ def generate_esl_image(tag):
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
         tag.save()
         duration = time.time() - start_time
-        logger.info(f"SUCCESS: {tag.tag_mac} generated in {duration:.3f}s")
-        return True
+        logger.info(f"***IMAGE_GEN*** | SUCCESS: {tag.tag_mac} generated in {duration:.3f}s")
+        return f"MAC: {tag.tag_mac} generated in {duration:.3f}s"
+     
 
-
+    except ESLTag.DoesNotExist:
+        logger.error(f"Tag ID {tag_id} not found")
+        return False
     except Exception as e:
-        logger.error(f"CRITICAL ERROR for {tag.tag_mac}: {e}", exc_info=True)
-        return False    
+        logger.error(f"CRITICAL ERROR for Tag {tag_id}: {e}", exc_info=True)
+        raise e # Re-raise so Celery catches the failure properly  
+
+
+# utils.py
+
+
+
+
+def trigger_bulk_sync(tag_ids):
+    from core.tasks import update_tag_image_task
+    from .models import ESLTag
+
+    # Efficiency check: filter only valid tags
+    valid_tag_ids = list(ESLTag.objects.filter(
+        id__in=tag_ids,
+        paired_product__isnull=False,
+        hardware_spec__isnull=False
+    ).values_list('id', flat=True))
+
+    if not valid_tag_ids:
+        return None
+
+    job_group = group(update_tag_image_task.s(tid) for tid in valid_tag_ids)
+    result = job_group.apply_async()
+    
+    # result.save() persists the list of task IDs so the Admin can see them
+    result.save() 
+    return result

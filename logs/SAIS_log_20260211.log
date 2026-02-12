@@ -1,0 +1,970 @@
+[INFO] 2026-02-11 17:29:10 basehttp "GET /admin/core/esltag/2/change/ HTTP/1.1" 200 31006
+[INFO] 2026-02-11 17:29:10 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:29:10 basehttp "GET /media/sais-global/main-branch/tag_images/Mi_AG_5.png?v=1770852550 HTTP/1.1" 200 7170
+[INFO] 2026-02-11 17:29:14 basehttp "GET /admin/autocomplete/?app_label=core&model_name=esltag&field_name=paired_product HTTP/1.1" 200 1291
+[INFO] 2026-02-11 17:29:18 basehttp "POST /admin/core/esltag/2/change/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 17:29:18 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29613
+[INFO] 2026-02-11 17:29:18 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:29:21 basehttp "GET /admin/core/esltag/2/sync/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 17:29:21 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 17:29:21 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 17:29:21 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29526
+[INFO] 2026-02-11 17:29:21 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 17:29:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:29:21 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.040s
+[INFO] 2026-02-11 17:29:58 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29403
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:58 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:29:59 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23490
+[INFO] 2026-02-11 17:29:59 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:29:59 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 17:30:03 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 17:30:03 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:04 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 17:30:04 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:05 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 17:30:05 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:06 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23490
+[INFO] 2026-02-11 17:30:06 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:07 basehttp "GET /admin/django_celery_results/taskresult/2/change/ HTTP/1.1" 200 28666
+[INFO] 2026-02-11 17:30:07 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:07 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:07 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:37 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29403
+[INFO] 2026-02-11 17:30:37 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:40 basehttp "GET /admin/core/esltag/2/change/ HTTP/1.1" 200 31002
+[INFO] 2026-02-11 17:30:40 basehttp "GET /static/admin/css/vendor/select2/select2.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:40 basehttp "GET /static/admin/css/autocomplete.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:40 basehttp "GET /static/admin/js/autocomplete.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:40 basehttp "GET /static/admin/js/vendor/select2/select2.full.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:40 basehttp "GET /static/admin/js/vendor/select2/i18n/en.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:30:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:40 basehttp "GET /media/sais-global/main-branch/tag_images/Mi_AG_5.png?v=1770852640 HTTP/1.1" 200 6291
+[INFO] 2026-02-11 17:30:46 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23490
+[INFO] 2026-02-11 17:30:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:30:53 basehttp "GET /admin/django_celery_results/taskresult/2/change/ HTTP/1.1" 200 28666
+[INFO] 2026-02-11 17:30:53 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:44:02 basehttp "GET /admin/django_celery_results/taskresult/2/change/ HTTP/1.1" 200 28666
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:44:02 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 17:45:12 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 17:45:12 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:45:12 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[INFO] 2026-02-11 17:45:12 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 17:45:38 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23490
+[INFO] 2026-02-11 17:45:39 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:45:39 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 17:45:40 basehttp "GET /admin/django_celery_results/taskresult/2/change/ HTTP/1.1" 200 28666
+[INFO] 2026-02-11 17:45:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 17:55:50 autoreload /app/esl_cloud/settings.py changed, reloading.
+[INFO] 2026-02-11 17:55:51 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 17:58:55 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 17:58:56 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:01:09 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:01:09 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:02:59 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:02:59 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:04:10 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:04:10 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:06:47 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:06:47 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:08:00 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:08:00 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:11:17 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:11:18 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:11:42 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:11:43 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:11:44 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29403
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 200 6878
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 200 978
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 18:11:44 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:11:47 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23490
+[INFO] 2026-02-11 18:11:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:11:47 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[INFO] 2026-02-11 18:11:47 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 18:11:48 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:11:48 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:11:50 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29403
+[INFO] 2026-02-11 18:11:50 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:11:55 basehttp "GET /admin/core/product/ HTTP/1.1" 200 132124
+[INFO] 2026-02-11 18:11:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:14:37 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:14:38 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:15:35 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:15:35 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:32:11 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:32:11 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:34:22 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:34:22 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:36:55 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:36:55 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:37:20 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 18:37:20 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:40:59 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 18:41:00 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:41:38 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:41:38 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:41:59 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 18:41:59 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:42:01 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 18:42:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:08 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 18:42:08 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29593
+[INFO] 2026-02-11 18:42:08 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:20 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:42:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:20 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[INFO] 2026-02-11 18:42:22 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:42:22 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:23 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:42:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:25 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 24931
+[INFO] 2026-02-11 18:42:25 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:42:25 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 18:42:27 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 24931
+[INFO] 2026-02-11 18:42:27 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:43:59 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:43:59 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:44:13 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 24931
+[INFO] 2026-02-11 18:44:13 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:44:18 basehttp "GET /admin/django_celery_results/taskresult/4/change/ HTTP/1.1" 200 29713
+[INFO] 2026-02-11 18:44:18 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:44:18 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:44:18 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:44:40 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 24931
+[INFO] 2026-02-11 18:44:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:44:43 basehttp "GET /admin/django_celery_results/taskresult/3/change/ HTTP/1.1" 200 29713
+[INFO] 2026-02-11 18:44:43 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:45:13 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 24931
+[INFO] 2026-02-11 18:45:13 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:45:45 basehttp "GET /admin/django_celery_results/taskresult/4/change/ HTTP/1.1" 200 29713
+[INFO] 2026-02-11 18:45:45 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:48:47 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:48:47 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:49:19 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:49:20 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:54:15 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:54:16 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:54:54 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 18:54:54 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:55:31 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 18:55:31 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 18:55:35 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 18:55:35 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29593
+[INFO] 2026-02-11 18:55:35 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:55:46 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:55:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:55:46 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:47 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 26175
+[INFO] 2026-02-11 18:55:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:55:47 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:53 basehttp "GET /admin/django_celery_results/taskresult/6/change/ HTTP/1.1" 200 29713
+[INFO] 2026-02-11 18:55:53 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:53 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 18:55:53 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:57:29 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 18:57:30 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 18:58:21 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 26175
+[INFO] 2026-02-11 18:58:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:27 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 200 18496
+[INFO] 2026-02-11 18:58:27 basehttp "GET /static/admin/js/cancel.js HTTP/1.1" 200 884
+[INFO] 2026-02-11 18:58:28 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 18:58:28 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20190
+[INFO] 2026-02-11 18:58:28 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:29 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 18:58:29 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:30 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 18:58:30 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:33 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 18:58:33 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:38 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 18:58:38 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29593
+[INFO] 2026-02-11 18:58:38 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:42 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23737
+[INFO] 2026-02-11 18:58:42 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 18:58:46 basehttp "GET /admin/django_celery_results/taskresult/7/change/ HTTP/1.1" 200 29723
+[INFO] 2026-02-11 18:58:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:15 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 19:00:16 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:00:40 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23737
+[INFO] 2026-02-11 19:00:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:44 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 200 17680
+[INFO] 2026-02-11 19:00:45 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:00:45 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20190
+[INFO] 2026-02-11 19:00:45 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:47 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 19:00:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:51 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:00:51 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 19:00:51 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 19:00:51 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:00:51 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 19:00:51 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29593
+[INFO] 2026-02-11 19:00:51 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 19:00:51 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 19:00:51 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.033s
+[INFO] 2026-02-11 19:00:51 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:51 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.048s
+[INFO] 2026-02-11 19:00:54 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23733
+[INFO] 2026-02-11 19:00:54 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:00:58 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 19:00:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:01:01 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23733
+[INFO] 2026-02-11 19:01:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:01:05 basehttp "GET /admin/django_celery_results/taskresult/10/change/ HTTP/1.1" 200 28887
+[INFO] 2026-02-11 19:01:05 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:01:44 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23733
+[INFO] 2026-02-11 19:01:44 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:01:46 basehttp "GET /admin/django_celery_results/taskresult/9/change/ HTTP/1.1" 200 28891
+[INFO] 2026-02-11 19:01:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:01:51 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23733
+[INFO] 2026-02-11 19:01:51 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:06:42 autoreload /app/esl_cloud/settings.py changed, reloading.
+[INFO] 2026-02-11 19:06:42 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:07:16 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 19:07:16 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:07:53 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 19:07:53 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:07:54 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 19:07:55 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:07:59 autoreload /app/core/tasks.py changed, reloading.
+[INFO] 2026-02-11 19:08:00 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:09:59 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 19:09:59 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:10:07 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 19:10:07 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:15:07 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 19:15:07 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:15:31 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 19:15:31 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:15:59 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23733
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 19:15:59 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 19:16:05 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 200 17682
+[INFO] 2026-02-11 19:16:05 basehttp "GET /static/admin/js/cancel.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:16:06 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:16:06 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20190
+[INFO] 2026-02-11 19:16:06 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:14 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 19:16:14 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:15 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29407
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:16:15 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:16:15 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 19:16:21 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:16:21 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29407
+[INFO] 2026-02-11 19:16:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:28 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:16:28 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:30 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 19:16:30 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:31 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:16:31 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:32 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 19:16:32 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:32 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:16:32 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:16:33 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 19:16:33 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:00 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29407
+[INFO] 2026-02-11 19:17:00 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:04 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:17:04 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 19:17:04 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:17:04 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 19:17:04 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 19:17:04 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 19:17:04 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 19:17:04 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29587
+[INFO] 2026-02-11 19:17:04 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.028s
+[INFO] 2026-02-11 19:17:04 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.031s
+[INFO] 2026-02-11 19:17:04 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:08 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:08 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:16 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:17 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:18 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:18 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:20 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:21 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:23 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:17:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:24 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:24 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:40 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:41 basehttp "GET /admin/django_celery_results/groupresult/1/change/ HTTP/1.1" 200 23083
+[INFO] 2026-02-11 19:17:41 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:17:41 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:17:41 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:46 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:17:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:47 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:55 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:57 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:57 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:58 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:17:58 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:17:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:19:20 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:19:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:19:57 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21212
+[INFO] 2026-02-11 19:19:57 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:24:07 autoreload /app/core/utils.py changed, reloading.
+[INFO] 2026-02-11 19:24:08 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:24:35 autoreload /app/esl_cloud/settings.py changed, reloading.
+[INFO] 2026-02-11 19:24:36 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:26:07 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 19:26:07 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 19:26:21 basehttp "GET /admin/django_celery_results/groupresult/1/change/ HTTP/1.1" 200 22144
+[INFO] 2026-02-11 19:26:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:24 basehttp "GET /admin/django_celery_results/groupresult/1/change/ HTTP/1.1" 200 22144
+[INFO] 2026-02-11 19:27:24 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:26 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 19:27:26 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:35 basehttp "GET /admin/core/product/ HTTP/1.1" 200 132134
+[INFO] 2026-02-11 19:27:35 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:37 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 29413
+[INFO] 2026-02-11 19:27:37 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:39 basehttp "GET /admin/core/esltag/add/ HTTP/1.1" 200 30550
+[INFO] 2026-02-11 19:27:39 basehttp "GET /static/admin/css/autocomplete.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:27:39 basehttp "GET /static/admin/css/vendor/select2/select2.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:27:39 basehttp "GET /static/admin/js/vendor/select2/select2.full.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:27:39 basehttp "GET /static/admin/js/autocomplete.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:27:39 basehttp "GET /static/admin/js/vendor/select2/i18n/en.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:27:39 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:27:56 basehttp "GET /admin/autocomplete/?app_label=core&model_name=esltag&field_name=paired_product HTTP/1.1" 200 1291
+[INFO] 2026-02-11 19:28:01 basehttp "POST /admin/core/esltag/add/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:28:01 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32772
+[INFO] 2026-02-11 19:28:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:10 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32564
+[INFO] 2026-02-11 19:28:10 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:11 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32564
+[INFO] 2026-02-11 19:28:11 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:17 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32564
+[INFO] 2026-02-11 19:28:17 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:20 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:21 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 19:28:22 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:22 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:22 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:23 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 19:28:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:25 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:25 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:26 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 19:28:26 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:29 basehttp "GET /admin/django_celery_results/groupresult/1/change/ HTTP/1.1" 200 22144
+[INFO] 2026-02-11 19:28:29 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:33 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 19:28:42 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:42 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:44 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32564
+[INFO] 2026-02-11 19:28:44 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:47 basehttp "GET /admin/core/esltag/3/sync/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:28:47 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 19:28:47 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:28:47 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32687
+[INFO] 2026-02-11 19:28:47 utils Starting image generation for Tag: 122222222 (250x122)
+[INFO] 2026-02-11 19:28:47 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.036s
+[INFO] 2026-02-11 19:28:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:51 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 19:28:51 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:52 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:52 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:54 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:55 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:57 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:57 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:28:58 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:28:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:00 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 19:29:00 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:01 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 19:29:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:01 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770859741 HTTP/1.1" 200 7291
+[INFO] 2026-02-11 19:29:15 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:15 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:19 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 19:29:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 19:29:23 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 19:29:23 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 19:29:23 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 19:29:23 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:29:23 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 19:29:23 utils Starting image generation for Tag: 122222222 (250x122)
+[INFO] 2026-02-11 19:29:23 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 19:29:23 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32746
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.031s
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.032s
+[INFO] 2026-02-11 19:29:23 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.033s
+[INFO] 2026-02-11 19:29:23 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:23 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:23 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:23 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:23 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 304 0
+[INFO] 2026-02-11 19:29:33 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21500
+[INFO] 2026-02-11 19:29:33 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:38 basehttp "GET /admin/django_celery_results/groupresult/2/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 19:29:38 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:44 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21500
+[INFO] 2026-02-11 19:29:44 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:46 basehttp "GET /admin/django_celery_results/groupresult/2/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 19:29:46 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:29:56 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 19:29:56 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:30:01 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 19:30:01 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 19:30:01 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 19:30:01 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 19:30:01 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:30:01 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 19:30:01 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 19:30:01 utils Starting image generation for Tag: 122222222 (250x122)
+[INFO] 2026-02-11 19:30:01 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 19:30:01 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 19:30:02 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.028s
+[INFO] 2026-02-11 19:30:02 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.028s
+[INFO] 2026-02-11 19:30:02 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.028s
+[INFO] 2026-02-11 19:30:02 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32746
+[INFO] 2026-02-11 19:30:02 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:30:04 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 19:30:05 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:30:06 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21957
+[INFO] 2026-02-11 19:30:06 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:30:15 basehttp "GET /admin/django_celery_results/groupresult/3/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 19:30:15 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 19:32:38 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21957
+[INFO] 2026-02-11 19:32:38 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:04:51 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:04:51 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:05:03 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:05:04 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:05:24 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:05:25 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:05:38 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:05:38 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:06:04 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:06:04 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:08:36 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:08:37 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:08:47 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:08:47 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:08:54 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21957
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:08:54 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[INFO] 2026-02-11 20:08:54 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[INFO] 2026-02-11 20:09:00 basehttp "POST /admin/django_celery_results/groupresult/ HTTP/1.1" 200 17877
+[INFO] 2026-02-11 20:09:00 basehttp "GET /static/admin/js/cancel.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:01 basehttp "POST /admin/django_celery_results/groupresult/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:09:01 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 19016
+[INFO] 2026-02-11 20:09:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:01 basehttp "GET /static/admin/img/icon-yes.svg HTTP/1.1" 200 436
+[INFO] 2026-02-11 20:09:02 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:02 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 20:09:02 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 20:09:05 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/js/vendor/select2/select2.full.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/css/vendor/select2/select2.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/js/vendor/select2/i18n/en.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/css/autocomplete.css HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/js/autocomplete.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 304 0
+[INFO] 2026-02-11 20:09:05 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:05 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862145 HTTP/1.1" 200 7291
+[INFO] 2026-02-11 20:09:10 basehttp "POST /admin/core/esltag/3/change/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:09:10 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32776
+[INFO] 2026-02-11 20:09:10 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:14 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:14 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:19 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:19 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:20 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:21 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 20:09:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:23 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 20:09:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:23 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 20:09:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:25 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:25 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:26 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:09:26 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:09:53 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:09:53 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:10:01 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:10:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[WARNING] 2026-02-11 20:10:01 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:01 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862201 HTTP/1.1" 404 3125
+[WARNING] 2026-02-11 20:10:01 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:01 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862201 HTTP/1.1" 404 3125
+[INFO] 2026-02-11 20:10:07 basehttp "POST /admin/core/esltag/3/change/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:10:07 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32776
+[INFO] 2026-02-11 20:10:07 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:10:12 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:10:12 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[WARNING] 2026-02-11 20:10:12 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:12 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862212 HTTP/1.1" 404 3125
+[WARNING] 2026-02-11 20:10:12 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:12 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862212 HTTP/1.1" 404 3125
+[INFO] 2026-02-11 20:10:14 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:10:14 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[WARNING] 2026-02-11 20:10:14 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:14 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862214 HTTP/1.1" 404 3125
+[WARNING] 2026-02-11 20:10:14 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:14 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862214 HTTP/1.1" 404 3125
+[INFO] 2026-02-11 20:10:16 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/base.css HTTP/1.1" 200 22092
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2810
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2804
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/forms.css HTTP/1.1" 200 8794
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 200 1653
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/autocomplete.css HTTP/1.1" 200 9185
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/vendor/select2/select2.css HTTP/1.1" 200 17358
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/vendor/select2/i18n/en.js HTTP/1.1" 200 844
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/vendor/select2/select2.full.js HTTP/1.1" 200 173566
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 200 347
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/core.js HTTP/1.1" 200 6208
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 200 8076
+[INFO] 2026-02-11 20:10:16 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/autocomplete.js HTTP/1.1" 200 1060
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 285314
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 200 7887
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 200 9097
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 200 1531
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/change_form.js HTTP/1.1" 200 606
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 200 17972
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 200 586
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 200 325171
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/css/widgets.css HTTP/1.1" 200 11564
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[INFO] 2026-02-11 20:10:16 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+[WARNING] 2026-02-11 20:10:16 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:10:16 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862216 HTTP/1.1" 404 3125
+[WARNING] 2026-02-11 20:10:16 log Not Found: /favicon.ico
+[WARNING] 2026-02-11 20:10:16 basehttp "GET /favicon.ico HTTP/1.1" 404 2762
+[INFO] 2026-02-11 20:10:50 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:10:50 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:10:50 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:10:50 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:10:50 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:10:50 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:10:50 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.062s
+[INFO] 2026-02-11 20:10:50 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.068s
+[INFO] 2026-02-11 20:11:10 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23741
+[INFO] 2026-02-11 20:11:10 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:16 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 200 17684
+[INFO] 2026-02-11 20:11:18 basehttp "POST /admin/django_celery_results/taskresult/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:11:18 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20190
+[INFO] 2026-02-11 20:11:18 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:19 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 20:11:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:20 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 20048
+[INFO] 2026-02-11 20:11:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:21 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:11:21 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:23 basehttp "GET /admin/core/esltag/3/change/ HTTP/1.1" 200 31004
+[INFO] 2026-02-11 20:11:23 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[WARNING] 2026-02-11 20:11:23 log Not Found: /media/sais-global/main-branch/tag_images/122222222.png
+[WARNING] 2026-02-11 20:11:23 basehttp "GET /media/sais-global/main-branch/tag_images/122222222.png?v=1770862283 HTTP/1.1" 404 3125
+[INFO] 2026-02-11 20:11:29 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:11:29 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:11:29 basehttp "POST /admin/core/esltag/3/change/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:11:29 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:11:29 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.047s
+[INFO] 2026-02-11 20:11:29 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32776
+[INFO] 2026-02-11 20:11:29 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:32 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23116
+[INFO] 2026-02-11 20:11:32 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:42 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 18873
+[INFO] 2026-02-11 20:11:42 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:43 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23116
+[INFO] 2026-02-11 20:11:43 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:49 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:11:49 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:54 basehttp "GET /admin/core/esltag/2/sync/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:11:54 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:11:54 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:11:54 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 20:11:54 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32689
+[INFO] 2026-02-11 20:11:54 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.035s
+[INFO] 2026-02-11 20:11:54 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:11:56 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 23741
+[INFO] 2026-02-11 20:11:56 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:14 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:12:14 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:12:18 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:12:18 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:12:18 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 20:12:18 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 20:12:18 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.029s
+[INFO] 2026-02-11 20:12:18 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32746
+[INFO] 2026-02-11 20:12:18 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 20:12:18 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.041s
+[INFO] 2026-02-11 20:12:18 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:18 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.063s
+[INFO] 2026-02-11 20:12:25 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 25613
+[INFO] 2026-02-11 20:12:25 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:30 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 20:12:30 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:32 basehttp "GET /admin/django_celery_results/groupresult/4/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 20:12:32 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:35 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 25613
+[INFO] 2026-02-11 20:12:35 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:36 basehttp "GET /admin/django_celery_results/taskresult/17/change/ HTTP/1.1" 200 28895
+[INFO] 2026-02-11 20:12:36 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:45 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 20:12:45 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:47 basehttp "GET /admin/django_celery_results/groupresult/4/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 20:12:47 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:12:51 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21042
+[INFO] 2026-02-11 20:12:51 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:13:19 basehttp "GET /admin/django_celery_results/groupresult/4/change/ HTTP/1.1" 200 22210
+[INFO] 2026-02-11 20:13:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:15:27 autoreload /app/core/admin.py changed, reloading.
+[INFO] 2026-02-11 20:15:28 autoreload Watching for file changes with StatReloader
+[INFO] 2026-02-11 20:16:05 basehttp "GET /admin/django_celery_results/groupresult/4/change/ HTTP/1.1" 200 22036
+[INFO] 2026-02-11 20:16:05 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:11 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:16:11 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:16:16 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 20:16:16 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:16:16 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:16:16 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:16:16 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 20:16:16 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 20:16:16 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32746
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.027s
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.030s
+[INFO] 2026-02-11 20:16:16 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:16:16 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:16 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.054s
+[INFO] 2026-02-11 20:16:22 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 27485
+[INFO] 2026-02-11 20:16:22 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:27 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21571
+[INFO] 2026-02-11 20:16:27 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:36 basehttp "GET /admin/django_celery_results/groupresult/5/change/ HTTP/1.1" 200 22036
+[INFO] 2026-02-11 20:16:36 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:39 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 27485
+[INFO] 2026-02-11 20:16:39 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:41 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21571
+[INFO] 2026-02-11 20:16:41 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:16:50 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:16:50 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:17:13 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 21571
+[INFO] 2026-02-11 20:17:13 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:35 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:18:35 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:42 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:18:42 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 250x122 | Color scheme: BWRY |Model: ET0213-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 20:18:42 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:18:42 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:18:42 utils Starting image generation for Tag: Mi AG 5 (250x122)
+[INFO] 2026-02-11 20:18:42 utils Starting image generation for Tag: 12:12:12:12:1 (250x122)
+[INFO] 2026-02-11 20:18:42 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32746
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.031s
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.033s
+[INFO] 2026-02-11 20:18:42 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:42 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:18:42 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.062s
+[INFO] 2026-02-11 20:18:45 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:18:45 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:56 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:18:56 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:57 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:18:57 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:57 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:18:57 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:18:58 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:18:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:19:48 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:19:48 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:19:55 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:19:55 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:19:55 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:19:55 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32707
+[INFO] 2026-02-11 20:19:55 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:19:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:19:55 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.062s
+[INFO] 2026-02-11 20:19:58 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 29984
+[INFO] 2026-02-11 20:19:58 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:20:17 basehttp "GET /admin/core/taghardware/ HTTP/1.1" 200 21187
+[INFO] 2026-02-11 20:20:17 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:20:40 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:20:40 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:20:55 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:20:55 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 296x128 | Color scheme: BWRY |Model: ET0290-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:20:55 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:20:55 utils Starting image generation for Tag: 122222222 (296x128)
+[INFO] 2026-02-11 20:20:55 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.024s
+[INFO] 2026-02-11 20:20:55 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32707
+[INFO] 2026-02-11 20:20:55 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:01 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:21:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:04 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 30608
+[INFO] 2026-02-11 20:21:04 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:06 basehttp "GET /admin/django_celery_results/taskresult/25/change/ HTTP/1.1" 200 28851
+[INFO] 2026-02-11 20:21:06 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:19 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:21:19 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:26 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 296x128 | Color scheme: BWRY |Model: ET0290-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:21:26 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:21:26 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:21:26 utils Starting image generation for Tag: 122222222 (296x128)
+[INFO] 2026-02-11 20:21:26 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32707
+[INFO] 2026-02-11 20:21:26 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.032s
+[INFO] 2026-02-11 20:21:26 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:30 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 31232
+[INFO] 2026-02-11 20:21:30 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:21:56 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:21:56 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:01 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:22:01 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:22:01 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:22:01 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32707
+[INFO] 2026-02-11 20:22:01 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:22:01 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:01 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.060s
+[INFO] 2026-02-11 20:22:08 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:22:08 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:22:08 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:22:08 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 20:22:08 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:22:08 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32709
+[INFO] 2026-02-11 20:22:08 utils Starting image generation for Tag: Mi AG 5 (400x300)
+[INFO] 2026-02-11 20:22:08 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:08 utils Starting image generation for Tag: 12:12:12:12:1 (400x300)
+[INFO] 2026-02-11 20:22:08 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.057s
+[INFO] 2026-02-11 20:22:08 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.056s
+[INFO] 2026-02-11 20:22:16 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 33104
+[INFO] 2026-02-11 20:22:16 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:31 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:22:31 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:22:44 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:22:44 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:22:44 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | Start | MAC: 12:12:12:12:1 | Res: 296x128 | Color scheme: BWRY |Model: ET0290-85 | Product: 12Oz.Can Soda |Promo: True
+[INFO] 2026-02-11 20:22:44 utils *IMAGE_GEN* | left_bg: yellow 
+[INFO] 2026-02-11 20:22:44 utils Starting image generation for Tag: 12:12:12:12:1 (296x128)
+[INFO] 2026-02-11 20:22:44 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32709
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | SUCCESS: 12:12:12:12:1 generated in 0.022s
+[INFO] 2026-02-11 20:22:44 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:22:44 utils Starting image generation for Tag: Mi AG 5 (400x300)
+[INFO] 2026-02-11 20:22:44 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.058s
+[INFO] 2026-02-11 20:22:44 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.059s
+[INFO] 2026-02-11 20:22:54 basehttp "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 22062
+[INFO] 2026-02-11 20:22:54 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:23:03 basehttp "GET /admin/django_celery_results/taskresult/ HTTP/1.1" 200 34976
+[INFO] 2026-02-11 20:23:03 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:23:09 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32566
+[INFO] 2026-02-11 20:23:09 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:23:20 utils ***IMAGE_GEN*** | Start | MAC: 122222222 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2633 $3 million cash |Promo: False
+[INFO] 2026-02-11 20:23:20 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:23:20 utils ***IMAGE_GEN*** | Start | MAC: Mi AG 5 | Res: 400x300 | Color scheme: BW |Model: ET0420-85 | Product: #2533 the perfect gift2 |Promo: False
+[INFO] 2026-02-11 20:23:20 utils *IMAGE_GEN* | left_bg: white 
+[INFO] 2026-02-11 20:23:20 basehttp "POST /admin/core/esltag/ HTTP/1.1" 302 0
+[INFO] 2026-02-11 20:23:20 basehttp "GET /admin/core/esltag/ HTTP/1.1" 200 32709
+[INFO] 2026-02-11 20:23:20 utils Starting image generation for Tag: Mi AG 5 (400x300)
+[INFO] 2026-02-11 20:23:20 utils Starting image generation for Tag: 122222222 (400x300)
+[INFO] 2026-02-11 20:23:20 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+[INFO] 2026-02-11 20:23:20 utils ***IMAGE_GEN*** | SUCCESS: Mi AG 5 generated in 0.055s
+[INFO] 2026-02-11 20:23:20 utils ***IMAGE_GEN*** | SUCCESS: 122222222 generated in 0.062s

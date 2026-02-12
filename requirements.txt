@@ -9,3 +9,4 @@ celery==5.4.0           #background image processing engine
 redis==5.2.1            #mailman to connect Celery and Django
 python-barcode==0.15.1
 msgpack==1.1.0         # Added for GooDisplay communication
+django-celery-results==2.5.1

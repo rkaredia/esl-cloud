@@ -11,6 +11,8 @@ from core.tasks import update_tag_image_task
 from .views import download_tag_template, preview_tag_import, preview_product_import
 from core.tasks import update_tag_image_task  # Restored task import
 import time
+from django_celery_results.models import GroupResult
+from django_celery_results.admin import GroupResultAdmin
 
 # =================================================================
 # 1. MIXINS & SECURITY
@@ -54,6 +56,8 @@ class SAISAdminSite(admin.AdminSite):
                 .app-inventory .section:before { content: "📦"; margin-right: 10px; }
                 .app-hardware .section:before { content: "📡"; margin-right: 10px; }
                 .app-organisation .section:before { content: "🏢"; margin-right: 10px; }
+                /* Header Icon for System Monitoring */
+                .app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
 
                 /* 3. MENU ITEMS & ICONS */
                 #nav-sidebar th a { color: var(--navy) !important; }
@@ -65,6 +69,9 @@ class SAISAdminSite(admin.AdminSite):
                 #nav-sidebar .model-store th a:before { content: "🏪 "; }
                 #nav-sidebar .model-user th a:before { content: "👤 "; }
                 #nav-sidebar .model-group th a:before { content: "👥 "; }
+                /* Icon for Task Results model */
+                #nav-sidebar .model-taskresult th a:before { content: "📊 "; }
+                #nav-sidebar .model-groupresult th a:before { content: "📁 "; }
 
                 /* 4. FIX DOUBLE "ADD" & SIDEBAR BUTTONS */
                 #nav-sidebar .addlink {
@@ -103,6 +110,17 @@ class SAISAdminSite(admin.AdminSite):
                 /* 7. SELECTED STATE */
                 #nav-sidebar tr.current-model { background: var(--azure) !important; }
                 #nav-sidebar tr.current-model th a { color: var(--dark-navy) !important; }
+
+                /* Hide the 'Add' buttons for Task and Group results in the sidebar */
+                #nav-sidebar .model-taskresult .addlink,
+                #nav-sidebar .model-groupresult .addlink {
+                    display: none !important;
+                }
+
+                /* Hide the 'Add' button on the actual list pages */
+                .app-django_celery_results .object-tools {
+                    display: none !important;
+                }
             </style>
         """)
         return context
@@ -145,6 +163,11 @@ class SAISAdminSite(admin.AdminSite):
                 'models': [m for m in [find_model('Company'), find_model('Store'), 
                                      find_model('User'), find_model('Group')] if m],
             },
+            {
+                'name': 'System Monitoring',
+                'app_label': 'monitoring',
+                'models': [m for m in [find_model('TaskResult'), find_model('GroupResult')] if m],
+            },
         ]
         return custom_groups
 
@@ -153,23 +176,24 @@ admin_site = SAISAdminSite(name='sais_admin')
 
 class AuditAdminMixin:
     """Automatically stamps the user who last modified the record."""
-    def save_model(self, request, obj, form, change):
+    def save_model(self, request, obj, form, change): #AuditAdminMixin
         if hasattr(obj, 'updated_by'):
             obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
-@admin.action(description='Regenerate images in background')
-def regenerate_product_tags(modeladmin, request, queryset):
-    count = 0
-    for item in queryset:
-        if isinstance(item, Product):
-            for tag in item.esl_tags.all():
-                update_tag_image_task.delay(tag.id)
-                count += 1
-        elif isinstance(item, ESLTag):
-            update_tag_image_task.delay(item.id)
-            count += 1
-    modeladmin.message_user(request, f"Queued {count} tasks for background image processing.")
+#---looks like this is not in use.
+#@admin.action(description='Regenerate images in background')
+#def regenerate_product_tags(modeladmin, request, queryset):
+#    count = 0
+#    for item in queryset:
+#        if isinstance(item, Product):
+#            for tag in item.esl_tags.all():
+#                update_tag_image_task.delay(tag.id)
+#                count += 1
+#        elif isinstance(item, ESLTag):
+#            update_tag_image_task.delay(item.id)
+#            count += 1
+#    modeladmin.message_user(request, f"Queued {count} tasks for background image processing.")
 
 
 class CompanySecurityMixin(AuditAdminMixin):
@@ -277,10 +301,25 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     change_list_template = "admin/core/product/change_list.html"
     actions = ['regenerate_product_images', 'sync_products']
 
-    @admin.action(description="Regenerate Tag Images for selected products")
+# admin.py (inside ProductAdmin class)
+
+    @admin.action(description="Regenerate Tag Images for selected products (Grouped)")
     def regenerate_product_images(self, request, queryset):
-        # Trigger your image generation logic here
-        self.message_user(request, f"Image regeneration started for {queryset.count()} products.")
+        from core.utils import trigger_bulk_sync
+        from .models import ESLTag
+        
+        # Get all tags associated with these products
+        tag_ids = list(ESLTag.objects.filter(
+            paired_product__in=queryset
+        ).values_list('id', flat=True))
+        
+        group_result = trigger_bulk_sync(tag_ids)
+        
+        if group_result:
+            self.message_user(
+                request, 
+                f"Queued {len(tag_ids)} tag updates across selected products."
+            )
 
     @admin.action(description="Sync selected products to Gateways")
     def sync_products(self, request, queryset):
@@ -308,11 +347,7 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
             has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt=''))
         )
 
-
-
-
-
-    def save_model(self, request, obj, form, change):
+    def save_model(self, request, obj, form, change):#product save_model
         obj.updated_by = request.user
         if not change and hasattr(request, 'active_store'):
             obj.store = request.active_store
@@ -327,12 +362,6 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 # 3. ESL TAG ADMIN
 # =================================================================
 
-
-
-
- 
-
-
 @admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):  
     # Fixed UI Widths via CSS injection
@@ -343,7 +372,6 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     # 2. Restored AJAX Autocomplete (Search as you type)
     autocomplete_fields = ['paired_product']
     
-    actions = ['regenerate_images_action']
     readonly_fields = ('get_paired_info', 
         'image_preview_large', 
         'updated_at', 
@@ -481,9 +509,18 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         """)
         return super().changelist_view(request, extra_context=extra_context)
 
-    @admin.action(description="Regenerate Images for selected tags")
+    @admin.action(description="Regenerate Images for selected tags (Grouped)")
     def regenerate_tag_images(self, request, queryset):
-        self.message_user(request, "Regenerating selected tags...")
+        from core.utils import trigger_bulk_sync # Local import to avoid circularity
+        
+        tag_ids = list(queryset.values_list('id', flat=True))
+        group_result = trigger_bulk_sync(tag_ids)
+        
+        if group_result:
+            self.message_user(
+                request, 
+                f"Queued bulk update for {len(tag_ids)} tags. Group ID: {group_result.id}"
+            )
 
     @admin.action(description="Sync selected tags to Gateway")
     def sync_tags(self, request, queryset):
@@ -504,6 +541,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
         messages.success(request, "Sync task queued.")
         return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
 
+    def save_model(self, request, obj, form, change):
+    # Save the object first
+        super().save_model(request, obj, form, change)
+    
+    # Trigger the image update task for this specific tag
+    # We use .delay() for individual saves
+        update_tag_image_task.delay(obj.id)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -573,7 +617,7 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
-    def save_model(self, request, obj, form, change):
+    def save_model(self, request, obj, form, change):#custom user save_model
         if not request.user.is_superuser:
             obj.company = request.user.company
         super().save_model(request, obj, form, change)
@@ -582,9 +626,56 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
         group_name = role_map.get(obj.role, 'Store Staff')
         group, _ = Group.objects.get_or_create(name=group_name)
         obj.groups.add(group)
+#------------------------------------------------------------------
+#--------------------------GROUP RESULT ADMIN CUSTOMIZATION--------------------------
+#-------------------------------------------------------------------
+
+# Unregister the default to apply our custom version
+try:
+    admin_site.unregister(GroupResult)
+except:
+    pass
 
 
+@admin.register(GroupResult, site=admin_site)
+class CustomGroupResultAdmin(GroupResultAdmin):
+    list_display = ('group_id', 'batch_summary', 'date_done')
+    readonly_fields = ('group_id', 'result', 'full_report')
+
+    def batch_summary(self, obj):
+        from django_celery_results.models import TaskResult
+        total = len(obj.result) if obj.result else 0
+        failures = TaskResult.objects.filter(task_id__in=obj.result, status='FAILURE').count()
+        successes = TaskResult.objects.filter(task_id__in=obj.result, status='SUCCESS').count()
+        return format_html("<b>Total: {}</b> | ✅ {} | ❌ {}", total, successes, failures)
+    batch_summary.short_description = "Status Overview"
+
+    def full_report(self, obj):
+        """Generates a list of failed tags and their reasons."""
+        from django_celery_results.models import TaskResult
+        failed_tasks = TaskResult.objects.filter(task_id__in=obj.result, status='FAILURE')
+        
+        if not failed_tasks.exists():
+            return "All tasks in this batch were successful."
+
+        html = "<ul>"
+        for task in failed_tasks:
+            html += f"<li>Task {task.task_id}: {task.result}</li>"
+        html += "</ul>"
+        return mark_safe(html)
+########----------------------------------------------------------
 
 
 from django.contrib.auth.models import Group
 admin_site.register(Group)
+
+# bottom of admin.py
+from django_celery_results.admin import TaskResultAdmin, GroupResultAdmin
+from django_celery_results.models import TaskResult, GroupResult
+
+# Re-register the 3rd party models into your custom admin_site
+try:
+    admin_site.register(TaskResult, TaskResultAdmin)
+    admin_site.register(GroupResult, GroupResultAdmin)
+except admin.sites.AlreadyRegistered:
+    pass
