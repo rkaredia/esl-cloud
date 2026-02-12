@@ -46,6 +46,7 @@ def generate_esl_image(tag_id):
 
 
     try:
+        
         tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
         tag.refresh_from_db()
         spec = tag.hardware_spec
@@ -173,7 +174,7 @@ def generate_esl_image(tag_id):
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
         # CRITICAL: We save ONLY the tag_image field. 
         # This prevents the signal from firing if we check for it in the signal.
-        tag.save(update_fields=['tag_image', 'last_updated']) 
+        tag.save(update_fields=['tag_image', 'updated_at']) 
         
         return f"MAC: {tag.tag_mac} generated."     
 

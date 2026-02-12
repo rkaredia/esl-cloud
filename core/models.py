@@ -7,7 +7,8 @@ from .storage import OverwriteStorage
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from django.db import transaction
+from django.core.cache import cache
 # =================================================================
 # 1. BASE AUDIT CLASS
 # =================================================================
@@ -186,18 +187,26 @@ class ESLTag(AuditModel):
         super().save(*args, **kwargs)
 
 
-#---------------
+
 @receiver(post_save, sender=ESLTag)
 def trigger_image_update_on_save(sender, instance, **kwargs):
-    from core.tasks import update_tag_image_task
-    
-    # 1. Skip if the worker is the one doing the saving
+    # 1. LOOP BREAKER: Don't trigger if the worker is the one saving the image
     update_fields = kwargs.get('update_fields')
     if update_fields and 'tag_image' in update_fields:
         return
 
-    # 2. Use a small delay (on_commit)
-    # This ensures Django has finished writing ALL changes (including inlines)
-    # to the database before the worker tries to read the new hardware spec.
-    from django.db import transaction
-    transaction.on_commit(lambda: update_tag_image_task.delay(instance.id))
+    # 2. DEBOUNCE: Don't trigger twice in 2 seconds for the same tag
+    cache_key = f"tag_sync_lock_{instance.id}"
+    if cache.get(cache_key):
+        return
+    cache.set(cache_key, True, timeout=2)
+
+    # 3. SAFETY: Only trigger if we have the data needed to draw
+    if instance.paired_product and instance.hardware_spec:
+        # Local import to prevent the Circular Import error you had
+        from core.tasks import update_tag_image_task
+        
+        # ON_COMMIT: The insurance policy to ensure the DB is finished saving
+        transaction.on_commit(
+            lambda: update_tag_image_task.delay(instance.id)
+        )

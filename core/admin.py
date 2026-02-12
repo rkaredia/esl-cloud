@@ -349,13 +349,21 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
             has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt=''))
         )
 
-    def save_model(self, request, obj, form, change):#product save_model
+    def save_model(self, request, obj, form, change):
+        # 1. Handle Audit (User tracking)
         obj.updated_by = request.user
+        
+        # 2. Handle Store Context (Assign store if it's a new product)
         if not change and hasattr(request, 'active_store'):
             obj.store = request.active_store
+        
+        # 3. Save the object
+        # This triggers the 'post_save' signal in signals.py 
+        # which now handles the background tasks correctly.
         super().save_model(request, obj, form, change)
-        for tag in obj.esl_tags.all():
-            update_tag_image_task.delay(tag.id)
+
+        # 4. REMOVE the loop calling update_tag_image_task.delay(tag.id)
+        # The signal in signals.py is the cleaner place for this!
 
     def get_urls(self):
         return [path('import-modisoft/', self.admin_site.admin_view(preview_product_import), name='import-modisoft')] + super().get_urls()
@@ -549,7 +557,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     
     # Trigger the image update task for this specific tag
     # We use .delay() for individual saves
-        update_tag_image_task.delay(obj.id)
+        update_tag_image_task(obj.id)
 
     def get_urls(self):
         urls = super().get_urls()
