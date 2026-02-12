@@ -1,0 +1,8 @@
+Key commnads
+
+docker exec -it sais_platform-web-1 python manage.py makemigrations
+
+
+docker exec -it sais_platform-web-1 python manage.py migrate       
+
+

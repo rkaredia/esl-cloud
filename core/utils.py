@@ -160,15 +160,22 @@ def generate_esl_image(tag_id):
         # Logging the start of the process
         logger.info(f"Starting image generation for Tag: {tag.tag_mac} ({width}x{height})")
 
-        # 8. SAVE
+
+    # 8. SAVE (The fix for the loop)
         temp = BytesIO()
         image.save(temp, format='PNG')
+        
+        # We fetch a fresh instance to avoid overwriting other field changes
+        tag = ESLTag.objects.get(pk=tag_id)
+        
+        # save=False on the file field prevents an immediate model save
+
         tag.tag_image.save(f"{tag.tag_mac}.png", ContentFile(temp.getvalue()), save=False)
-        tag.save()
-        duration = time.time() - start_time
-        logger.info(f"***IMAGE_GEN*** | SUCCESS: {tag.tag_mac} generated in {duration:.3f}s")
-        return f"MAC: {tag.tag_mac} generated in {duration:.3f}s"
-     
+        # CRITICAL: We save ONLY the tag_image field. 
+        # This prevents the signal from firing if we check for it in the signal.
+        tag.save(update_fields=['tag_image', 'last_updated']) 
+        
+        return f"MAC: {tag.tag_mac} generated."     
 
     except ESLTag.DoesNotExist:
         logger.error(f"Tag ID {tag_id} not found")

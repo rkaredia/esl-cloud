@@ -11,8 +11,10 @@ from core.tasks import update_tag_image_task
 from .views import download_tag_template, preview_tag_import, preview_product_import
 from core.tasks import update_tag_image_task  # Restored task import
 import time
-from django_celery_results.models import GroupResult
+from django_celery_results.models import TaskResult, GroupResult
 from django_celery_results.admin import GroupResultAdmin
+import json
+
 
 # =================================================================
 # 1. MIXINS & SECURITY
@@ -367,7 +369,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     # Fixed UI Widths via CSS injection
     change_list_template = "admin/core/esltag/change_list.html" 
     list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec','sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
-    list_editable = ( 'hardware_spec', 'aisle', 'section', 'shelf_row')
+    list_editable = (  'aisle', 'section', 'shelf_row')
 
     # 2. Restored AJAX Autocomplete (Search as you type)
     autocomplete_fields = ['paired_product']
@@ -630,39 +632,82 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
 #--------------------------GROUP RESULT ADMIN CUSTOMIZATION--------------------------
 #-------------------------------------------------------------------
 
-# Unregister the default to apply our custom version
+# Unregister if already registered to avoid admin.E002
 try:
-    admin_site.unregister(GroupResult)
-except:
+    admin.site.unregister(GroupResult)
+except admin.sites.NotRegistered:
     pass
 
-
-@admin.register(GroupResult, site=admin_site)
+@admin.register(GroupResult)
 class CustomGroupResultAdmin(GroupResultAdmin):
-    list_display = ('group_id', 'batch_summary', 'date_done')
-    readonly_fields = ('group_id', 'result', 'full_report')
+    # Match the function name exactly here
+    list_display = ('group_id', 'batch_progress', 'date_done')
+    readonly_fields = ('group_id', 'date_done', 'failure_details')
 
-    def batch_summary(self, obj):
-        from django_celery_results.models import TaskResult
-        total = len(obj.result) if obj.result else 0
-        failures = TaskResult.objects.filter(task_id__in=obj.result, status='FAILURE').count()
-        successes = TaskResult.objects.filter(task_id__in=obj.result, status='SUCCESS').count()
-        return format_html("<b>Total: {}</b> | ✅ {} | ❌ {}", total, successes, failures)
-    batch_summary.short_description = "Status Overview"
+    def batch_progress(self, obj):
+        """
+        Calculates progress based ONLY on tasks associated with this specific group.
+        """
+        try:
+            # Handle both string (JSON) and already-parsed list formats
+            task_ids = json.loads(obj.result) if isinstance(obj.result, str) else obj.result
+            if not task_ids:
+                return "0 Tasks"
+            
+            total = len(task_ids)
+            
+            # Filter TaskResults that match THIS group's IDs only
+            # This is what fixes your "218" global count issue
+            queryset = TaskResult.objects.filter(task_id__in=task_ids)
+            completed = queryset.filter(status='SUCCESS').count()
+            failed = queryset.filter(status='FAILURE').count()
+            
+            percent = int(((completed + failed) / total) * 100)
+            
+            return format_html(
+                "<b>{}%</b> (✅ {} | ❌ {} | Total {})",
+                percent, completed, failed, total
+            )
+        except Exception:
+            return "Pending/Invalid Data"
+    
+    batch_progress.short_description = "Batch Progress"
 
-    def full_report(self, obj):
-        """Generates a list of failed tags and their reasons."""
-        from django_celery_results.models import TaskResult
-        failed_tasks = TaskResult.objects.filter(task_id__in=obj.result, status='FAILURE')
-        
-        if not failed_tasks.exists():
-            return "All tasks in this batch were successful."
+    def failure_details(self, obj):
+        """
+        Displays a summary table of failed tasks in the detailed view.
+        """
+        try:
+            task_ids = json.loads(obj.result) if isinstance(obj.result, str) else obj.result
+            failed_tasks = TaskResult.objects.filter(task_id__in=task_ids).exclude(status='SUCCESS')
+            
+            if not failed_tasks.exists():
+                return "All tags in this batch processed successfully."
 
-        html = "<ul>"
-        for task in failed_tasks:
-            html += f"<li>Task {task.task_id}: {task.result}</li>"
-        html += "</ul>"
-        return mark_safe(html)
+            # Styling the table for the Django Admin UI
+            rows = "".join([
+                f"<tr><td style='padding:5px; border-bottom:1px solid #eee;'>{t.task_id}</td>"
+                f"<td style='padding:5px; border-bottom:1px solid #eee;'>{t.status}</td>"
+                f"<td style='padding:5px; border-bottom:1px solid #eee;'>{t.result}</td></tr>" 
+                for t in failed_tasks
+            ])
+            
+            html = f"""
+            <table style='width:100%; border-collapse: collapse; text-align: left;'>
+                <thead>
+                    <tr style='background: #f8f8f8;'>
+                        <th>Task ID</th><th>Status</th><th>Result/Error</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+            """
+            return mark_safe(html)
+        except Exception as e:
+            return f"Error parsing failures: {str(e)}"
+
+    failure_details.short_description = "Failure Report"
+
 ########----------------------------------------------------------
 
 
