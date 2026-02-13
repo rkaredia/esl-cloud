@@ -18,6 +18,9 @@ import os
 from django.core.files.storage import default_storage
 from django.conf import settings
 
+from django.db import transaction
+from .services import BulkMapProcessor
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -40,9 +43,6 @@ def set_active_store(request, store_id):
     
     # Redirect back to the page you were on
     return redirect(request.META.get('HTTP_REFERER', '/admin/'))
-
-
-
 
 @login_required
 def select_store(request):
@@ -84,8 +84,6 @@ def select_store(request):
         'user_company': user_company
     })
 
-  
-
 @login_required
 def set_active_store(request, store_id):
     from .models import Store
@@ -115,7 +113,6 @@ def set_active_store(request, store_id):
     # Redirect back to the Admin Dashboard (or wherever they came from)
     return redirect('admin:index')
 
-
 @login_required
 def store_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
@@ -123,9 +120,6 @@ def store_required(view_func):
             return redirect('select_store')
         return view_func(request, *args, **kwargs)
     return _wrapped_view    
-
-
-
 
 def download_tag_template(request):
     wb = Workbook()
@@ -246,7 +240,6 @@ def preview_tag_import(request):
 
     return redirect('admin:core_esltag_changelist')
 
-
 def process_modisoft_file(file_path, active_store, user, commit=False):
     """
     Modular helper to parse Modisoft Excel and update Products.
@@ -359,4 +352,57 @@ def preview_product_import(request):
 
     return render(request, "admin/core/product/import_upload.html", {"store": active_store})
     # Inside preview_product_import in views.py
-  
+
+
+
+def bulk_map_tags_view(request):
+    # Context for the admin look and feel
+    opts = ESLTag._meta
+    context = {
+        'opts': opts,
+        'app_label': opts.app_label,
+        'title': "Bulk Product-Tag Mapping",
+    }
+
+    if request.method == "POST":
+        # STAGE 2: COMMIT THE CHANGES
+        if 'confirm_mapping' in request.POST:
+            proposed_data = request.session.get('pending_bulk_maps', [])
+            
+            with transaction.atomic():
+                for item in proposed_data:
+                    tag = ESLTag.objects.get(id=item['tag_id'])
+                    tag.paired_product_id = item['product_id']
+                    tag.updated_by = request.user
+                    # Save triggers your existing post_save signal & Celery task
+                    tag.save()
+            
+            messages.success(request, f"Successfully mapped {len(proposed_data)} tags.")
+            del request.session['pending_bulk_maps']
+            return redirect("admin:core_esltag_changelist")
+
+        # STAGE 1: PARSE THE FILE
+        import_file = request.FILES.get('import_file')
+        if not import_file:
+            messages.error(request, "Please upload a text file.")
+            return redirect(request.path)
+
+        raw_text = import_file.read().decode('utf-8')
+        # Assuming your Middleware sets request.active_store
+        store = getattr(request, 'active_store', None) 
+        
+        processor = BulkMapProcessor(raw_text, store, request.user)
+        proposed, rejections = processor.process()
+
+        # Store IDs in session to prevent tampering between preview and confirm
+        request.session['pending_bulk_maps'] = proposed
+        
+        context.update({
+            'proposed': proposed,
+            'rejections': rejections,
+            'stage': 'preview'
+        })
+        return render(request, 'admin/core/esltag/bulk_map_preview.html', context)
+
+    # INITIAL UPLOAD UI
+    return render(request, 'admin/core/esltag/bulk_map_upload.html', context)  

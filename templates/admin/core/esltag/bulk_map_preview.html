@@ -1,0 +1,78 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Confirm Bulk Mapping</h1>
+    <p><b>Please review the proposed changes carefully. No data has been modified yet. Incorrect mapping may map wrong products to tags.</b></p>
+
+    <div class="module">
+        <h2 style="background: #28a745;">Valid Pairs Detected ({{ proposed|length }})</h2>
+        <table style="width:100%">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>SKU</th>
+                    <th>Tag MAC</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in proposed %}
+                <tr style="background: #f0fff4;">
+                    <td><strong>{{ item.product_name }}</strong></td>
+                    <td><code>{{ item.product_sku }}</code></td>
+                    <td><code>{{ item.tag_mac }}</code></td>
+                    <td>
+                        {% if item.old_product %}
+                            <span style="color: #856404; font-weight: bold;">⚠️ Reassigning from {{ item.old_product }}</span>
+                        {% else %}
+                            <span style="color: #28a745;">New Pair</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4">No valid pairs found in file.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if rejections %}
+    <div class="module" style="margin-top: 30px;">
+        <h2 style="background: #dc3545;">Rejected Scans ({{ rejections|length }})</h2>
+        <table style="width:100%">
+            <thead>
+                <tr>
+                    <th>Line #</th>
+                    <th>Scanned Code</th>
+                    <th>Error Type</th>
+                    <th>Explanation</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for err in rejections %}
+                <tr style="background: #fff5f5;">
+                    <td>{{ err.line }}</td>
+                    <td><code>{{ err.code }}</code></td>
+                    <td><strong>{{ err.reason }}</strong></td>
+                    <td style="color: #666;">{{ err.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="confirm_mapping" value="1">
+        <div class="submit-row" style="background: #f8f8f8; border: 1px solid #ccc; padding: 15px;">
+            {% if proposed %}
+                <input type="submit" value="Confirm and Process {{ proposed|length }} Mappings" class="default" style="background: #28a745;">
+            {% endif %}
+            <a href="." class="button" style="background: #6c757d; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">Cancel & Re-upload</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

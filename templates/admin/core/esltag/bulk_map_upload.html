@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:core_esltag_changelist' %}">{{ opts.verbose_name_plural }}</a>
+    &rsaquo; {% trans 'Bulk Map' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h2>Upload Mapping File</h2>
+        <p>Upload a <strong>.txt</strong> file containing a sequence of Product SKUs and Tag MAC addresses.</p>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-row">
+                <label for="import_file">Select Text File:</label>
+                <input type="file" name="import_file" id="import_file" accept=".txt" required>
+            </div>
+            
+            <div class="submit-row">
+                <input type="submit" value="Upload and Preview" class="default">
+                <a href="{% url 'admin:core_esltag_changelist' %}" class="closelink">Cancel</a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="module" style="margin-top: 20px; padding: 15px; background: #f8f8f8; border: 1px solid #ddd;">
+        <h3>How it works:</h3>
+        <ul style="line-height: 1.6;">
+            <li>The system looks for a <strong>Product</strong>. Once found, it waits for the next scan to be a <strong>Tag</strong>.</li>
+            <li>If you scan two products in a row, the first one is discarded (Mistake correction).</li>
+            <li>If a "garbage" or unknown code is scanned, the current sequence is <strong>aborted</strong> for safety.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

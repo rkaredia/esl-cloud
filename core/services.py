@@ -1,6 +1,6 @@
 import openpyxl
 from decimal import Decimal, InvalidOperation
-from .models import Product
+from .models import Product, ESLTag
 
 def get_column_map(sheet):
     """
@@ -169,3 +169,73 @@ def process_modisoft_xlsx(file, store):
             continue
             
     return count
+
+#----------------------------------------------------------------------------
+#        MAPPING PRODUCTS TO TAG VIA FILE IMPORT
+#----------------------------------------------------------------------------
+
+
+# core/services.py
+from .models import Product, ESLTag
+
+class BulkMapProcessor:
+    def __init__(self, raw_text, store, user):
+        self.lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+        self.store = store
+        self.user = user
+        self.proposed = []
+        self.rejections = []
+
+    def process(self):
+        pending_product = None
+        
+        for index, code in enumerate(self.lines):
+            line_num = index + 1
+            
+            # Lookups restricted to the active store
+            product = Product.objects.filter(sku=code, store=self.store).first()
+            tag = ESLTag.objects.filter(tag_mac=code, gateway__store=self.store).first()
+
+            if product:
+                if pending_product:
+                    self.rejections.append({
+                        'line': line_num, 'code': pending_product.sku,
+                        'reason': 'Overwritten', 'note': f'Followed by product {product.sku}'
+                    })
+                pending_product = product
+                continue
+
+            if tag:
+                if pending_product:
+                    # SUCCESS PAIR
+                    self.proposed.append({
+                        'product_id': pending_product.id,
+                        'product_name': pending_product.name,
+                        'product_sku': pending_product.sku,
+                        'tag_id': tag.id,
+                        'tag_mac': tag.tag_mac,
+                        'old_product': tag.paired_product.name if tag.paired_product else None
+                    })
+                    pending_product = None # Reset
+                else:
+                    self.rejections.append({
+                        'line': line_num, 'code': code,
+                        'reason': 'Orphaned Tag', 'note': 'No product scanned before this tag'
+                    })
+                continue
+
+            # If it's neither, it's garbage. 
+            # Per our rule: Garbage kills the pending product for safety.
+            if pending_product:
+                self.rejections.append({
+                    'line': line_num, 'code': pending_product.sku,
+                    'reason': 'Safety Abort', 'note': f'Product dropped because next scan ({code}) was invalid'
+                })
+                pending_product = None
+            
+            self.rejections.append({
+                'line': line_num, 'code': code,
+                'reason': 'Unknown/Foreign', 'note': 'Not a valid product or tag in this store'
+            })
+
+        return self.proposed, self.rejections

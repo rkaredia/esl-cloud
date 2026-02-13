@@ -8,7 +8,7 @@ from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware 
 from core.tasks import update_tag_image_task  
-from .views import download_tag_template, preview_tag_import, preview_product_import
+from .views import download_tag_template, preview_tag_import, preview_product_import, bulk_map_tags_view
 from core.tasks import update_tag_image_task  # Restored task import
 import time
 from django_celery_results.models import TaskResult, GroupResult
@@ -566,9 +566,9 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
             path('download-template/', self.admin_site.admin_view(download_tag_template), name='download_tag_template'),
             path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
             path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
+            path('bulk-map/', self.admin_site.admin_view(bulk_map_tags_view), name='bulk-map-tags'),
         ]
         return custom_urls + urls
-
 
 # =================================================================
 # 4. SYSTEM & USER ADMIN
