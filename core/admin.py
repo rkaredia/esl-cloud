@@ -281,6 +281,21 @@ class CompanyAdmin(CompanySecurityMixin, admin.ModelAdmin):
     list_editable = ('contact_email', 'is_active')
     readonly_fields = ('created_at', 'updated_at', 'updated_by')
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Superusers see everything; everyone else only sees their own company
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(id=request.user.company_id)
+
+    def has_add_permission(self, request):
+        # Prevent Store Owners/Managers from creating new Companies
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        # Prevent non-superusers from deleting their own company
+        return request.user.is_superuser
+
 
 # =================================================================
 # 2. STORE ADMIN
@@ -305,10 +320,27 @@ class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
 # 3. GATEWAY ADMIN
 # =================================================================
 @admin.register(Gateway, site=admin_site)
-class GatewayAdmin(CompanySecurityMixin, admin.ModelAdmin):
+class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     list_display = ('gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('store', 'is_active')
     readonly_fields = ( 'created_at', 'updated_at', 'updated_by')
+
+    def get_readonly_fields(self, request, obj=None):
+        # Always make store read-only for non-superusers.
+        # This prevents moving a physical gateway to another store via the UI.
+        if not request.user.is_superuser:
+            return self.readonly_fields + ('store',)
+        return self.readonly_fields
+
+    def save_model(self, request, obj, form, change):
+        # Automatically link the gateway to the active store in the header
+        # if it's a new record and the user isn't a superuser.
+        if not change and not request.user.is_superuser:
+            if hasattr(request, 'active_store'):
+                obj.store = request.active_store
+        
+        super().save_model(request, obj, form, change)    
+
 
 # =================================================================
 # 3. TAG HARDWARE ADMIN
