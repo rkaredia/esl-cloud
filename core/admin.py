@@ -224,6 +224,40 @@ class CompanySecurityMixin(AuditAdminMixin):
 
         return qs
 
+# core/admin.py
+
+
+# core/admin.py
+
+class StoreFilteredAdmin(admin.ModelAdmin):
+    """
+    Consolidated base for all store-specific models.
+    Handles List filtering and Dropdown filtering.
+    """
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_superuser and hasattr(request, 'active_store'):
+            # Filter logic based on model type
+            if self.model == Product:
+                return qs.filter(store=request.active_store)
+            if self.model == ESLTag:
+                return qs.filter(gateway__store=request.active_store)
+            if self.model == Gateway:
+                return qs.filter(store=request.active_store)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Filters dropdowns (Gateways, Products) to the active store only."""
+        if not request.user.is_superuser and hasattr(request, 'active_store'):
+            if db_field.name == "gateway":
+                kwargs["queryset"] = Gateway.objects.filter(store=request.active_store)
+            if db_field.name == "paired_product":
+                kwargs["queryset"] = Product.objects.filter(store=request.active_store)
+            if db_field.name == "store":
+                # Forces the 'Store' dropdown to only show the active one
+                kwargs["queryset"] = Store.objects.filter(id=request.active_store.id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)     
+
 class UIHelperMixin:
     """Shared display methods for cleaner list views."""
 #    def display_last_updated(self, obj):
@@ -292,7 +326,7 @@ class TagHardwareAdmin(admin.ModelAdmin):
 
 
 @admin.register(Product, site=admin_site)
-class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
+class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
 
     list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'created_at', 'updated_at', 'updated_by')
@@ -302,6 +336,12 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 
     change_list_template = "admin/core/product/change_list.html"
     actions = ['regenerate_product_images', 'sync_products']
+    def get_readonly_fields(self, request, obj=None):
+        # Make 'store' read-only for non-admins to prevent cross-store moves
+        fields = super().get_readonly_fields(request, obj)
+        if not request.user.is_superuser:
+            return fields + ('store',)
+        return fields
 
 # admin.py (inside ProductAdmin class)
 
@@ -373,7 +413,7 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
 # =================================================================
 
 @admin.register(ESLTag, site=admin_site)
-class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):  
+class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):  
     # Fixed UI Widths via CSS injection
     change_list_template = "admin/core/esltag/change_list.html" 
     list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec','sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
@@ -558,6 +598,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, admin.ModelAdmin):
     # Trigger the image update task for this specific tag
     # We use .delay() for individual saves
         update_tag_image_task(obj.id)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if hasattr(request, 'active_store') and request.active_store:
+            # Filter by the store attached to the gateway
+            return qs.filter(gateway__store=request.active_store)
+        return qs
 
     def get_urls(self):
         urls = super().get_urls()
@@ -583,8 +630,19 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         ('Store Allocation', {'fields': ('managed_stores', 'company', 'role')}),
     )
+    filter_horizontal = ('managed_stores',)
+    def get_readonly_fields(self, request, obj=None):
+        # Owners and Managers cannot change the company field
+        if not request.user.is_superuser:
+            return self.readonly_fields + ('company',)
+        return self.readonly_fields
 
-
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "company" and not request.user.is_superuser:
+            # Lockdown the company dropdown to just their own
+            kwargs["queryset"] = Company.objects.filter(id=request.user.company_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+        
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
