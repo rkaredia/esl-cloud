@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware 
-from core.tasks import update_tag_image_task  
+from core.tasks import update_tag_image_task
 from .views import download_tag_template, preview_tag_import, preview_product_import, bulk_map_tags_view
 from core.tasks import update_tag_image_task  # Restored task import
 import time
@@ -234,17 +234,28 @@ class StoreFilteredAdmin(admin.ModelAdmin):
     Consolidated base for all store-specific models.
     Handles List filtering and Dropdown filtering.
     """
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if not request.user.is_superuser and hasattr(request, 'active_store'):
-            # Filter logic based on model type
+        
+        # Superusers see everything UNLESS they have a store selected in the header
+        # Regular users ONLY see their active_store
+        active_store = getattr(request, 'active_store', None)
+        
+        if active_store:
             if self.model == Product:
-                return qs.filter(store=request.active_store)
+                return qs.filter(store=active_store)
             if self.model == ESLTag:
-                return qs.filter(gateway__store=request.active_store)
+                return qs.filter(gateway__store=active_store)
             if self.model == Gateway:
-                return qs.filter(store=request.active_store)
-        return qs
+                return qs.filter(store=active_store)
+        
+        # Fallback for Superusers with no store selected
+        if request.user.is_superuser:
+            return qs
+            
+        # Fallback for regular users: show nothing if no store is active (Security)
+        return qs.none()    
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Filters dropdowns (Gateways, Products) to the active store only."""
@@ -360,6 +371,7 @@ class TagHardwareAdmin(admin.ModelAdmin):
 @admin.register(Product, site=admin_site)
 class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
+# Set this to any number you like (e.g., 250 or 500)
 
     list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('name', 'price')
@@ -669,6 +681,20 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
             return self.readonly_fields + ('company',)
         return self.readonly_fields
 
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        fieldsets = list(fieldsets)
+        for i, (name, field_options) in enumerate(fieldsets):
+            # Remove both Groups and User Permissions for a clean Role-based UI
+            if name == 'Permissions':
+                fields = list(field_options.get('fields', []))
+                for f in ['groups', 'user_permissions', 'is_superuser']:
+                    if f in fields:
+                        fields.remove(f)
+                fieldsets[i] = (name, {**field_options, 'fields': tuple(fields)})
+        return fieldsets    
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "company" and not request.user.is_superuser:
             # Lockdown the company dropdown to just their own
@@ -717,15 +743,57 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
-    def save_model(self, request, obj, form, change):#custom user save_model
+
+    def save_model(self, request, obj, form, change):
+        # 1. Force company for non-superusers
         if not request.user.is_superuser:
             obj.company = request.user.company
+        
         super().save_model(request, obj, form, change)
         
+        # 2. Automated Group Assignment
         role_map = {'owner': 'Owner', 'manager': 'Store Manager', 'readonly': 'Read Only'}
         group_name = role_map.get(obj.role, 'Store Staff')
+        
         group, _ = Group.objects.get_or_create(name=group_name)
+        
+        # Clean up old groups and add the new one to avoid permission overlap
+        obj.groups.clear() 
         obj.groups.add(group)
+        if not request.user.is_superuser:
+            # Prevent a Manager from accidentally (or maliciously) promoting someone to Owner
+            if obj.role == 'owner' and request.user.role != 'owner':
+                 from django.core.exceptions import PermissionDenied
+                 raise PermissionDenied("You cannot assign a role higher than your own.")
+        
+        super().save_model(request, obj, form, change)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        
+        # Define the hierarchy of roles
+        # Global Admin (Superuser) can see everything
+        # Owner can see Manager, Staff, ReadOnly
+        # Manager can see Staff, ReadOnly
+        
+        if not request.user.is_superuser:
+            current_role = getattr(request.user, 'role', 'staff')
+            all_roles = dict(User.ROLE_CHOICES) # Assuming ROLE_CHOICES is in your User model
+            
+            allowed_roles = []
+            if current_role == 'owner':
+                allowed_roles = [('manager', 'Store Manager'), ('staff', 'Store Staff'), ('readonly', 'Read Only')]
+            elif current_role == 'manager':
+                allowed_roles = [('staff', 'Store Staff'), ('readonly', 'Read Only')]
+            else:
+                # Staff or ReadOnly generally shouldn't be creating users, but for safety:
+                allowed_roles = [('readonly', 'Read Only')]
+            
+            # Update the form field with restricted choices
+            if 'role' in form.base_fields:
+                form.base_fields['role'].choices = allowed_roles
+                
+        return form
 #------------------------------------------------------------------
 #--------------------------GROUP RESULT ADMIN CUSTOMIZATION--------------------------
 #-------------------------------------------------------------------

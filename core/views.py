@@ -406,3 +406,4 @@ def bulk_map_tags_view(request):
 
     # INITIAL UPLOAD UI
     return render(request, 'admin/core/esltag/bulk_map_upload.html', context)  
+

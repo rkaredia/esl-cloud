@@ -34,37 +34,36 @@ class StoreContextMiddleware:
                 return self.get_response(request)
 
             # --- 2. REGULAR USER LOGIC (Owners & Managers) ---
+                        
             user_company = getattr(request.user, 'company', None)
-            
-            if user_company:
-                user_stores = user_company.stores.all() 
-                store_count = user_stores.count()
 
-                # Case A: Only 1 store -> Set it automatically
+            if user_company:
+                # Get ONLY the stores explicitly assigned to this user in the Admin
+                allowed_stores = request.user.managed_stores.all()
+                store_count = allowed_stores.count()
+
+                # Case A: Only 1 assigned store -> Set it automatically
                 if store_count == 1:
-                    request.active_store = user_stores.first()
+                    request.active_store = allowed_stores.first()
                     request.active_company = user_company
                     request.session['active_store_id'] = request.active_store.id
                 
-                # Case B: Multiple stores, one is already in the session
+                # Case B: Multiple assigned stores, one is already in the session
                 elif active_store_id:
-                    if request.user.role == 'owner':
-                        # Owners can see any store in their company
-                        request.active_store = user_company.stores.filter(id=active_store_id).first()
-                    else:
-                        # Managers are restricted to their assigned list
-                        request.active_store = request.user.managed_stores.filter(id=active_store_id).first()
+                    # We check allowed_stores for BOTH owners and managers now.
+                    # This respects the 'Managed Stores' selection you just fixed.
+                    request.active_store = allowed_stores.filter(id=active_store_id).first()
 
                     if request.active_store:
                         request.active_company = user_company
                     else:
-                        # If the store in session is invalid for this user, clear it
-                        del request.session['active_store_id']
+                        # Security: If the session ID isn't in their managed list, kick them out
+                        if 'active_store_id' in request.session:
+                            del request.session['active_store_id']
                         return redirect('select_store')
                         
-                # Case C: Multiple stores, nothing selected yet
+                # Case C: Multiple stores assigned, nothing selected yet
                 elif store_count > 1:
                     if 'admin' in request.path and request.path != reverse('select_store'):
                         return redirect('select_store')
-
         return self.get_response(request)

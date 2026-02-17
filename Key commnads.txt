@@ -13,4 +13,19 @@ git add filename
 git commit -m "Fix save of image"
 git push origin feature/enhanced-task-tracking 
 
-    
+
+---------
+Steps to merge the feature branch to main/master
+# 1. Update master
+git checkout main
+git pull origin main
+
+# 2. Rebase or Merge your feature branch
+git merge feature/enhanced-task-tracking
+
+# 3. Final Test
+# Run your server one last time on the master branch
+python manage.py test core
+
+# 4. Push to production
+git push origin main    
