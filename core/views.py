@@ -541,137 +541,245 @@ def download_tag_template(request):
     return response
 
 
+# @login_required
+# def preview_tag_import(request):
+# #    \"\"\"Preview and process ESL tag import from Excel file.\"\"\"
+#     if request.method != 'POST' or not request.FILES.get('file'):
+#         return redirect('admin:core_esltag_changelist')
+    
+#     active_store = getattr(request, 'active_store', None)
+#     if not active_store:
+#         messages.error(request, "Please select a store first.")
+#         return redirect('admin:core_esltag_changelist')
+
+#     excel_file = request.FILES['file']
+    
+#     # Validate file size (max 5MB)
+#     if excel_file.size > 5 * 1024 * 1024:
+#         messages.error(request, "File too large. Maximum size is 5MB.")
+#         return redirect('admin:core_esltag_changelist')
+
+#     try:
+#         wb = openpyxl.load_workbook(excel_file)
+#     except Exception as e:
+#         logger.error(f"Failed to load Excel file: {e}")
+#         messages.error(request, "Invalid Excel file format.")
+#         return redirect('admin:core_esltag_changelist')
+    
+#     sheet = wb.active
+    
+#     summary = {'added': 0, 'updated': 0, 'rejected': 0, 'unchanged': 0}
+#     results = []
+    
+#     # Get bulk operation limit from settings
+#     max_rows = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
+#     row_count = 0
+
+#     for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+#         row_count += 1
+#         if row_count > max_rows:
+#             messages.warning(request, f"Only first {max_rows} rows processed (limit reached).")
+#             break
+            
+#         try:
+#             tag_mac, gw_mac, model_name = row[0:3]
+#         except (ValueError, IndexError):
+#             summary['rejected'] += 1
+#             results.append({
+#                 'mac': 'N/A', 
+#                 'status': 'rejected', 
+#                 'message': f"Line {row_idx}: Row is incomplete."
+#             })
+#             continue
+
+#         # Validate required fields
+#         if not all([tag_mac, gw_mac, model_name]):
+#             summary['rejected'] += 1
+#             results.append({
+#                 'mac': str(tag_mac or 'Unknown'), 
+#                 'status': 'rejected', 
+#                 'message': f"Line {row_idx}: Missing required data."
+#             })
+#             continue
+
+#         # Validate and sanitize MAC address
+#         sanitized_mac = InputSanitizationMiddleware.sanitize_mac(tag_mac)
+#         if not sanitized_mac:
+#             summary['rejected'] += 1
+#             results.append({
+#                 'mac': str(tag_mac), 
+#                 'status': 'rejected', 
+#                 'message': "Invalid MAC format. Must be 12 hex chars."
+#             })
+#             continue
+
+#         # Validate hardware spec
+#         spec = TagHardware.objects.filter(model_number=str(model_name).strip()).first()
+#         if not spec:
+#             summary['rejected'] += 1
+#             results.append({
+#                 'mac': sanitized_mac, 
+#                 'status': 'rejected', 
+#                 'message': f"Hardware Model '{model_name}' not found."
+#             })
+#             continue
+
+#         # Validate gateway
+#         gateway = Gateway.objects.filter(
+#             gateway_mac=str(gw_mac).strip(), 
+#             store=active_store,
+#             is_active=True
+#         ).first()
+#         if not gateway:
+#             summary['rejected'] += 1
+#             results.append({
+#                 'mac': sanitized_mac, 
+#                 'status': 'rejected', 
+#                 'message': f"Gateway {gw_mac} not found in {active_store.name}."
+#             })
+#             continue
+
+#         # Process the tag
+#         tag = ESLTag.objects.filter(tag_mac=sanitized_mac).first()
+#         if tag:
+#             has_changed = (tag.gateway != gateway or tag.hardware_spec != spec)
+#             if has_changed:
+#                 tag.gateway = gateway
+#                 tag.hardware_spec = spec
+#                 tag.updated_by = request.user
+#                 tag.save()
+#                 summary['updated'] += 1
+#                 status, msg = 'updated', "Metadata updated."
+#             else:
+#                 summary['unchanged'] += 1
+#                 status, msg = 'unchanged', "Already up to date."
+#         else:
+#             ESLTag.objects.create(
+#                 tag_mac=sanitized_mac, 
+#                 gateway=gateway, 
+#                 hardware_spec=spec,
+#                 updated_by=request.user
+#             )
+#             summary['added'] += 1
+#             status, msg = 'added', "New tag registered."
+            
+#         results.append({'mac': sanitized_mac, 'status': status, 'message': msg})
+
+#     return render(request, 'admin/core/esltag/import_preview.html', {
+#         'summary': summary,
+#         'results': results,
+#         'opts': ESLTag._meta,
+#     })
+
 @login_required
 def preview_tag_import(request):
-#    \"\"\"Preview and process ESL tag import from Excel file.\"\"\"
+    """
+    Processes tag imports without row limits. 
+    Accepts 8-15 alphanumeric characters.
+    """
     if request.method != 'POST' or not request.FILES.get('file'):
         return redirect('admin:core_esltag_changelist')
     
     active_store = getattr(request, 'active_store', None)
     if not active_store:
-        messages.error(request, "Please select a store first.")
+        messages.error(request, "Please select a store in the header first.")
         return redirect('admin:core_esltag_changelist')
 
     excel_file = request.FILES['file']
     
-    # Validate file size (max 5MB)
-    if excel_file.size > 5 * 1024 * 1024:
-        messages.error(request, "File too large. Maximum size is 5MB.")
-        return redirect('admin:core_esltag_changelist')
-
     try:
-        wb = openpyxl.load_workbook(excel_file)
+        # Load workbook in read-only mode for better performance with large files
+        wb = openpyxl.load_workbook(excel_file, data_only=True, read_only=True)
+        sheet = wb.active
     except Exception as e:
-        logger.error(f"Failed to load Excel file: {e}")
-        messages.error(request, "Invalid Excel file format.")
+        messages.error(request, f"Error reading Excel: {str(e)}")
         return redirect('admin:core_esltag_changelist')
-    
-    sheet = wb.active
     
     summary = {'added': 0, 'updated': 0, 'rejected': 0, 'unchanged': 0}
     results = []
     
-    # Get bulk operation limit from settings
-    max_rows = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
-    row_count = 0
-
+    # iterate_rows with read_only=True is very memory efficient
     for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
-        row_count += 1
-        if row_count > max_rows:
-            messages.warning(request, f"Only first {max_rows} rows processed (limit reached).")
-            break
-            
-        try:
-            tag_mac, gw_mac, model_name = row[0:3]
-        except (ValueError, IndexError):
+        
+        # Handle rows that might be partially empty
+        raw_tag_id = row[0] if len(row) > 0 else None
+        raw_gw_mac = row[1] if len(row) > 1 else None
+        model_name = row[2] if len(row) > 2 else None
+        
+        # Skip completely empty rows
+        if not any([raw_tag_id, raw_gw_mac, model_name]):
+            continue
+
+        # 1. Clean the Tag ID (8-15 chars, Alpha-numeric only)
+        sanitized_id = InputSanitizationMiddleware.sanitize_tag_id(raw_tag_id)
+        
+        if not sanitized_id:
             summary['rejected'] += 1
             results.append({
-                'mac': 'N/A', 
+                'mac': str(raw_tag_id or "Empty"), 
                 'status': 'rejected', 
-                'message': f"Line {row_idx}: Row is incomplete."
+                'message': f"Line {row_idx}: ID must be 8-15 alphanumeric characters (No symbols)."
             })
             continue
 
-        # Validate required fields
-        if not all([tag_mac, gw_mac, model_name]):
-            summary['rejected'] += 1
-            results.append({
-                'mac': str(tag_mac or 'Unknown'), 
-                'status': 'rejected', 
-                'message': f"Line {row_idx}: Missing required data."
-            })
-            continue
-
-        # Validate and sanitize MAC address
-        sanitized_mac = InputSanitizationMiddleware.sanitize_mac(tag_mac)
-        if not sanitized_mac:
-            summary['rejected'] += 1
-            results.append({
-                'mac': str(tag_mac), 
-                'status': 'rejected', 
-                'message': "Invalid MAC format. Must be 12 hex chars."
-            })
-            continue
-
-        # Validate hardware spec
-        spec = TagHardware.objects.filter(model_number=str(model_name).strip()).first()
+        # 2. Hardware Model Check
+        spec = TagHardware.objects.filter(model_number=str(model_name or "").strip()).first()
         if not spec:
             summary['rejected'] += 1
             results.append({
-                'mac': sanitized_mac, 
+                'mac': sanitized_id, 
                 'status': 'rejected', 
-                'message': f"Hardware Model '{model_name}' not found."
+                'message': f"Model '{model_name}' not recognized."
             })
             continue
 
-        # Validate gateway
-        gateway = Gateway.objects.filter(
-            gateway_mac=str(gw_mac).strip(), 
-            store=active_store,
-            is_active=True
-        ).first()
+        # 3. Gateway Check (Strictly within the active store)
+        # We clean the Gateway input too just in case it has colons or dots
+        clean_gw = re.sub(r'[^0-9A-Za-z]', '', str(raw_gw_mac or ""))
+        gateway = Gateway.objects.filter(gateway_mac__iexact=clean_gw, store=active_store).first()
+        
         if not gateway:
             summary['rejected'] += 1
             results.append({
-                'mac': sanitized_mac, 
+                'mac': sanitized_id, 
                 'status': 'rejected', 
-                'message': f"Gateway {gw_mac} not found in {active_store.name}."
+                'message': f"Gateway '{raw_gw_mac}' not found in {active_store.name}."
             })
             continue
 
-        # Process the tag
-        tag = ESLTag.objects.filter(tag_mac=sanitized_mac).first()
-        if tag:
-            has_changed = (tag.gateway != gateway or tag.hardware_spec != spec)
-            if has_changed:
+        # 4. Save/Update Logic
+        tag, created = ESLTag.objects.get_or_create(
+            tag_mac=sanitized_id,
+            defaults={
+                'gateway': gateway, 
+                'hardware_spec': spec, 
+                'updated_by': request.user
+            }
+        )
+
+        if created:
+            summary['added'] += 1
+            status, msg = 'added', "New tag registered."
+        else:
+            # Check if assignment has changed
+            if tag.gateway != gateway or tag.hardware_spec != spec:
                 tag.gateway = gateway
                 tag.hardware_spec = spec
                 tag.updated_by = request.user
                 tag.save()
                 summary['updated'] += 1
-                status, msg = 'updated', "Metadata updated."
+                status, msg = 'updated', "Moved/Updated metadata."
             else:
                 summary['unchanged'] += 1
-                status, msg = 'unchanged', "Already up to date."
-        else:
-            ESLTag.objects.create(
-                tag_mac=sanitized_mac, 
-                gateway=gateway, 
-                hardware_spec=spec,
-                updated_by=request.user
-            )
-            summary['added'] += 1
-            status, msg = 'added', "New tag registered."
+                status, msg = 'unchanged', "No changes."
             
-        results.append({'mac': sanitized_mac, 'status': status, 'message': msg})
+        results.append({'mac': sanitized_id, 'status': status, 'message': msg})
 
     return render(request, 'admin/core/esltag/import_preview.html', {
         'summary': summary,
         'results': results,
         'opts': ESLTag._meta,
     })
-
-
 # =================================================================
 # PRODUCT IMPORT VIEWS
 # =================================================================
@@ -681,7 +789,7 @@ def process_modisoft_file(file_path, active_store, user, commit=False):
     results = {'new': [], 'update': [], 'rejected': [], 'unchanged_count': 0}
     
     try:
-        wb = openpyxl.load_workbook(file_path, data_only=True)
+        wb = openpyxl.load_workbook(file_path, data_only=True,read_only=True)
         sheet = wb.active
        
         # Header mapping

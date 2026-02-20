@@ -177,36 +177,31 @@ class SecurityHeadersMiddleware:
 
 
 class InputSanitizationMiddleware:
-#    Middleware to sanitize and validate common inputs.
-#    Provides an additional layer of input validation.
-   
-    
-    # Valid MAC address pattern
-    MAC_PATTERN = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^[0-9A-Fa-f]{12}$')
-    
+    """
+    Flexible validator for ESL Tag IDs.
+    Accepts alphanumeric serials (0-9, A-Z) between 8 and 15 characters.
+    """
+
+    @classmethod
+    def sanitize_tag_id(cls, raw_id):
+        """
+        Removes special characters and spaces.
+        Ensures length is within 8-15 characters.
+        """
+        if not raw_id:
+            return None
+        
+        # Strip spaces and remove anything not 0-9 or A-Z
+        cleaned = re.sub(r'[^0-9A-Za-z]', '', str(raw_id).strip())
+        
+        # Flexible length check: allowing 8 to 15 chars
+        if 8 <= len(cleaned) <= 15:
+            # We normalize to Upper for consistency in DB and MQTT topics
+            return cleaned.upper()
+        return None
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         return self.get_response(request)
-    
-    @classmethod
-    def is_valid_mac(cls, mac_address):
-        "\"\"Validate MAC address format.\"\""
-        if not mac_address:
-            return False
-        return bool(cls.MAC_PATTERN.match(str(mac_address).strip()))
-    
-    @classmethod
-    def sanitize_mac(cls, mac_address):
-        "\"\"Sanitize and normalize MAC address format.\"\""
-        if not mac_address:
-            return None
-        
-        # Remove any non-hex characters except separators
-        cleaned = re.sub(r'[^0-9A-Fa-f:-]', '', str(mac_address).strip())
-        
-        # Validate the cleaned MAC
-        if cls.is_valid_mac(cleaned):
-            return cleaned.upper()
-        return None
