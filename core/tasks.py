@@ -37,3 +37,27 @@ def update_tag_image_task(self, tag_id):
         }
     except ESLTag.DoesNotExist:
         return {"status": "FAILURE", "message": f"Tag ID {tag_id} not found."}
+
+
+@shared_task(name="core.tasks.refresh_store_products_task")
+def refresh_store_products_task(store_id):
+    """
+    Finds all tags in a store and triggers image refresh.
+    Uses throttling (sleep) to protect Redis/Message Broker.
+    """
+    # Query IDs for tags belonging to this store via the Gateway
+    tag_ids = ESLTag.objects.filter(
+        gateway__store_id=store_id
+    ).values_list('id', flat=True).iterator()
+
+    count = 0
+    for tag_id in tag_ids:
+        update_tag_image_task.apply_async(args=[tag_id])
+        count += 1
+        
+        # Throttle: 20 tasks per second
+        # Prevents Redis 'Memory Limit Exceeded' or 'Connection Timeout'
+        if count % 10 == 0:
+            time.sleep(0.05)
+            
+    return f"Successfully throttled and queued {count} tags for Store {store_id}"

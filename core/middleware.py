@@ -1,69 +1,212 @@
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.http import HttpResponse
+import re
+
+#class StoreContextMiddleware:
+#    def __init__(self, get_response):
+#        self.get_response = get_response
+#
+#    def __call__(self, request):
+#        # Initialize our "Global Variables" as None
+#        request.active_store = None
+#        request.active_company = None
+#
+#        # Bypass for static files, logout, and the setter view itself
+#        if any(request.path.startswith(p) for p in ['/admin/logout/', '/static/', '/set-store/']):
+#            return self.get_response(request)
+#
+#        if request.user.is_authenticated:
+#            active_store_id = request.session.get('active_store_id')
+#
+#            # --- 1. SUPERUSER LOGIC (The "God Mode" bypass) ---
+#            if request.user.is_superuser:
+#                if active_store_id:
+#                    from .models import Store
+#                    # Use select_related to get the company in one database query
+#                    store = Store.objects.select_related('company').filter(id=active_store_id).first()
+#                    if store:
+#                        request.active_store = store
+#                        request.active_company = store.company
+#                
+#                # If a superuser is in Admin but hasn't picked a store, send them to the list
+#                if not request.active_store and 'admin' in request.path and request.path != reverse('select_store'):
+#                    return redirect('select_store')
+#                
+#                return self.get_response(request)
+#
+#            # --- 2. REGULAR USER LOGIC (Owners & Managers) ---
+#                        
+#            user_company = getattr(request.user, 'company', None)
+#
+#            if user_company:
+#                # Get ONLY the stores explicitly assigned to this user in the Admin
+#                allowed_stores = request.user.managed_stores.all()
+#                store_count = allowed_stores.count()
+#
+#                # Case A: Only 1 assigned store -> Set it automatically
+#                if store_count == 1:
+#                    request.active_store = allowed_stores.first()
+#                    request.active_company = user_company
+#                    request.session['active_store_id'] = request.active_store.id
+#                
+#                # Case B: Multiple assigned stores, one is already in the session
+#                elif active_store_id:
+#                    # We check allowed_stores for BOTH owners and managers now.
+#                    # This respects the 'Managed Stores' selection you just fixed.
+#                    request.active_store = allowed_stores.filter(id=active_store_id).first()
+#
+#                    if request.active_store:
+#                        request.active_company = user_company
+#                    else:
+#                        # Security: If the session ID isn't in their managed list, kick them out
+#                        if 'active_store_id' in request.session:
+#                            del request.session['active_store_id']
+#                        return redirect('select_store')
+#                        
+#                # Case C: Multiple stores assigned, nothing selected yet
+#                elif store_count > 1:
+#                    if 'admin' in request.path and request.path != reverse('select_store'):
+#                        return redirect('select_store')
+#        return self.get_response(request)
+
+
+
 
 class StoreContextMiddleware:
+
+#    Middleware to manage store context for multi-tenant access control.
+#    Sets request.active_store and request.active_company based on user role.
+
+    
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Initialize our "Global Variables" as None
+        # Initialize context variables
         request.active_store = None
         request.active_company = None
 
-        # Bypass for static files, logout, and the setter view itself
-        if any(request.path.startswith(p) for p in ['/admin/logout/', '/static/', '/set-store/']):
+        # Bypass for static files, logout, and store setter
+        bypass_paths = ['/admin/logout/', '/static/', '/media/', '/set-store/']
+        if any(request.path.startswith(p) for p in bypass_paths):
             return self.get_response(request)
 
         if request.user.is_authenticated:
             active_store_id = request.session.get('active_store_id')
 
-            # --- 1. SUPERUSER LOGIC (The "God Mode" bypass) ---
+            # SUPERUSER LOGIC
             if request.user.is_superuser:
                 if active_store_id:
                     from .models import Store
-                    # Use select_related to get the company in one database query
                     store = Store.objects.select_related('company').filter(id=active_store_id).first()
                     if store:
                         request.active_store = store
                         request.active_company = store.company
                 
-                # If a superuser is in Admin but hasn't picked a store, send them to the list
+                # Redirect to store selection if in admin without store
                 if not request.active_store and 'admin' in request.path and request.path != reverse('select_store'):
                     return redirect('select_store')
                 
                 return self.get_response(request)
 
-            # --- 2. REGULAR USER LOGIC (Owners & Managers) ---
-                        
+            # REGULAR USER LOGIC
             user_company = getattr(request.user, 'company', None)
 
             if user_company:
-                # Get ONLY the stores explicitly assigned to this user in the Admin
                 allowed_stores = request.user.managed_stores.all()
                 store_count = allowed_stores.count()
 
-                # Case A: Only 1 assigned store -> Set it automatically
+                # Single store - auto-select
                 if store_count == 1:
                     request.active_store = allowed_stores.first()
                     request.active_company = user_company
                     request.session['active_store_id'] = request.active_store.id
                 
-                # Case B: Multiple assigned stores, one is already in the session
+                # Multiple stores with session selection
                 elif active_store_id:
-                    # We check allowed_stores for BOTH owners and managers now.
-                    # This respects the 'Managed Stores' selection you just fixed.
                     request.active_store = allowed_stores.filter(id=active_store_id).first()
 
                     if request.active_store:
                         request.active_company = user_company
                     else:
-                        # Security: If the session ID isn't in their managed list, kick them out
+                        # Security: Clear invalid session
                         if 'active_store_id' in request.session:
                             del request.session['active_store_id']
                         return redirect('select_store')
                         
-                # Case C: Multiple stores assigned, nothing selected yet
+                # Multiple stores, nothing selected
                 elif store_count > 1:
                     if 'admin' in request.path and request.path != reverse('select_store'):
                         return redirect('select_store')
+                        
         return self.get_response(request)
+
+
+class SecurityHeadersMiddleware:
+#    Middleware to add security headers to all responses.
+#    Implements defense-in-depth security measures.
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Content Security Policy - restrictive but allows Django admin to work
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",  # Django admin needs inline scripts
+            "style-src 'self' 'unsafe-inline'",   # Django admin needs inline styles
+            "img-src 'self' data: blob:",
+            "font-src 'self'",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "form-action 'self'",
+            "base-uri 'self'",
+        ]
+        response['Content-Security-Policy'] = "; ".join(csp_directives)
+        
+        # Additional security headers
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['X-Frame-Options'] = 'DENY'
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        return response
+
+
+class InputSanitizationMiddleware:
+#    Middleware to sanitize and validate common inputs.
+#    Provides an additional layer of input validation.
+   
+    
+    # Valid MAC address pattern
+    MAC_PATTERN = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^[0-9A-Fa-f]{12}$')
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+    
+    @classmethod
+    def is_valid_mac(cls, mac_address):
+        "\"\"Validate MAC address format.\"\""
+        if not mac_address:
+            return False
+        return bool(cls.MAC_PATTERN.match(str(mac_address).strip()))
+    
+    @classmethod
+    def sanitize_mac(cls, mac_address):
+        "\"\"Sanitize and normalize MAC address format.\"\""
+        if not mac_address:
+            return None
+        
+        # Remove any non-hex characters except separators
+        cleaned = re.sub(r'[^0-9A-Fa-f:-]', '', str(mac_address).strip())
+        
+        # Validate the cleaned MAC
+        if cls.is_valid_mac(cleaned):
+            return cleaned.upper()
+        return None

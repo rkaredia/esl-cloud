@@ -13,68 +13,88 @@ import os
 import environ
 from pathlib import Path
 import logging
-from datetime import datetime  # ADD THIS LINE
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from django.utils import timezone
 
-# 2. Set the Timezone FIRST so other functions can use it
-
-LANGUAGE_CODE = 'en-us'
-
-# CHANGE THIS FROM 'UTC' TO:
-TIME_ZONE = 'America/Chicago' 
-
-USE_I18N = True
-USE_TZ = True
-CELERY_TIMEZONE = 'US/Central' # Update this to match
-
-# 3. Fix the Filename to use Texas time
-# We use pytz to ensure the filename itself is generated with the correct date
-texas_tz = ZoneInfo('US/Central')
-LOG_FILENAME = f"SAIS_log_{datetime.now(texas_tz).strftime('%Y%m%d')}.log"
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_PATH = os.path.join(BASE_DIR, 'logs', LOG_FILENAME)
 
-# 4. Fix the Formatter
-class LocalTimeFormatter(logging.Formatter):
-    def formatTime(self, record, datefmt=None):
-        # This helper ensures the timestamp inside the log file is Texas time
-        dt = timezone.localtime(timezone.now())
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
 # Read .env file if it exists
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-
-# SECURITY WARNING: don't run with debug turned on in production!
 env = environ.Env(
-    DEBUG=(bool, False)
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, []),
 )
 
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+# =================================================================
+# SECURITY SETTINGS
+# =================================================================
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-local-dev-key')
+# Generate a proper key with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\"
+SECRET_KEY = env('SECRET_KEY')  # No default - must be set in .env
+#SECRET_KEY = env('SECRET_KEY', default='django-insecure-local-dev-key')  # No default - must be set in .env
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
-# --- DATABASE (Cloud Ready) ---
-# This looks for a DATABASE_URL. If it doesn't find one (like during local dev), 
-# it falls back to your local SQLite file.
+# CSRF and Cookie Security
+CSRF_COOKIE_SECURE = not DEBUG  # True in production
+CSRF_COOKIE_HTTPONLY = True
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+SESSION_COOKIE_SECURE = not DEBUG  # True in production
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# HTTPS settings for production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
+    SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# =================================================================
+# TIMEZONE SETTINGS
+# =================================================================
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'America/Chicago'
+USE_I18N = True
+USE_TZ = True
+CELERY_TIMEZONE = 'US/Central'
+
+# Logging time formatting
+texas_tz = ZoneInfo('US/Central')
+LOG_FILENAME = f"SAIS_log_{datetime.now(texas_tz).strftime('%Y%m%d')}.log"
+LOG_PATH = os.path.join(BASE_DIR, 'logs', LOG_FILENAME)
+
+class LocalTimeFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt = timezone.localtime(timezone.now())
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+# =================================================================
+# DATABASE
+# =================================================================
+
 DATABASES = {
     'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
 }
 
-# MQTT Settings for your Gateway listener
-MQTT_SERVER = env('MQTT_SERVER', default='mqtt_broker')
-MQTT_PORT = 1883
-MQTT_TOPIC = "gw/+/status"
-
-# Application definition
+# =================================================================
+# APPLICATION DEFINITION
+# =================================================================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -85,9 +105,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_results',
     'core',
-
 ]
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -97,19 +115,16 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
-    # YOUR NEW MIDDLEWARE HERE:
-    'core.middleware.StoreContextMiddleware', 
+    'core.middleware.StoreContextMiddleware',
+    'core.middleware.SecurityHeadersMiddleware',
 ]
-
 
 ROOT_URLCONF = 'esl_cloud.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'], # Ensure this is first
- #       'DIRS': [os.path.join(BASE_DIR, 'templates')],# Tell Django to look in the root templates folder
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -117,111 +132,69 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'core.context_processors.store_context',  # ADD THIS LINE            
-                ],
+                'core.context_processors.store_context',
+            ],
         },
     },
 ]
 
-
 WSGI_APPLICATION = 'esl_cloud.wsgi.application'
 
-# Force the redirect to the login page and bypass middleware checks
-LOGOUT_REDIRECT_URL = '/admin/login/'
-LOGIN_REDIRECT_URL = '/admin/'
-
-
-
-# Ensure the session is actually flushed
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-# Ensure cookies work across redirects
-SESSION_COOKIE_HTTPONLY = True
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-#TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
-STATIC_URL = 'static/'
+# =================================================================
+# AUTHENTICATION
+# =================================================================
 
 AUTH_USER_MODEL = 'core.User'
 
-# Where the browser looks for files
-MEDIA_URL = '/media/' 
+LOGOUT_REDIRECT_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/admin/'
 
-# Where the files actually sit on your computer
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# 3. Add this if you want to be 100% sure Django finds the folder
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"), # If you have a global static folder
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 10}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# =================================================================
+# STATIC & MEDIA FILES
+# =================================================================
 
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
-# --- CELERY / REDIS (Cloud Ready) ---
-# Instead of 'localhost', we use the 'redis' hostname defined in Docker
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# =================================================================
+# CELERY / REDIS
+# =================================================================
+
 REDIS_URL = env('REDIS_URL', default='redis://redis:6379/0')
-
 CELERY_BROKER_URL = REDIS_URL
-# Use the Django database to store task results
 CELERY_RESULT_BACKEND = 'django-db'
-# Optional: Shows the task as "STARTED" in the admin (useful for long image generations)
 CELERY_TRACK_STARTED = True
-# Crucial: This ensures task names and arguments are saved to the DB
-CELERY_RESULT_EXTENDED = True # This ensures that 'group_id' is saved in the database results
-# Optional but recommended:
+CELERY_RESULT_EXTENDED = True
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-# Results will expire after 3 days (259200 seconds)
-CELERY_RESULT_EXPIRES = 259200
+CELERY_RESULT_EXPIRES = 259200  # 3 days
 
-#CELERY_TIMEZONE = 'UTC'
+# =================================================================
+# MQTT SETTINGS
+# =================================================================
 
-# Create logs directory if it doesn't exist
+MQTT_SERVER = env('MQTT_SERVER', default='mqtt_broker')
+MQTT_PORT = 1883
+MQTT_TOPIC = "gw/+/status"
+
+# =================================================================
+# LOGGING
+# =================================================================
+
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOGS_DIR, exist_ok=True)
-
-# Create a logs directory if it doesn't exist
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-
-
-
 
 
 LOGGING = {
@@ -238,7 +211,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': LOG_PATH, # Uses the path defined above
+            'filename': LOG_PATH,
             'formatter': 'sais_formatter',
             'encoding': 'utf-8',
         },
@@ -256,3 +229,12 @@ LOGGING = {
         },
     },
 }
+
+LANGUAGE_CODE = 'en-us'
+
+# =================================================================
+# RATE LIMITING (for future API expansion)
+# =================================================================
+
+# Maximum items that can be processed in bulk operations
+BULK_OPERATION_LIMIT = env.int('BULK_OPERATION_LIMIT', default=100)
