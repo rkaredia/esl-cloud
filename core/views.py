@@ -683,7 +683,7 @@ def process_modisoft_file(file_path, active_store, user, commit=False):
     try:
         wb = openpyxl.load_workbook(file_path, data_only=True)
         sheet = wb.active
-        
+       
         # Header mapping
         header_map = {
             str(cell.value).strip().lower(): idx 
@@ -705,13 +705,13 @@ def process_modisoft_file(file_path, active_store, user, commit=False):
             return None, f"Missing columns: {', '.join(missing)}"
 
         # Get bulk operation limit
-        max_rows = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
+        #max_rows = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
         row_count = 0
 
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             row_count += 1
-            if row_count > max_rows:
-                break
+            #if row_count > max_rows:
+            #    break
                 
             raw_sku = str(row[sku_idx]).strip() if row[sku_idx] else None
             raw_name = str(row[name_idx]).strip() if row[name_idx] else None
@@ -814,8 +814,8 @@ def preview_product_import(request):
             myfile = request.FILES["import_file"]
             
             # Validate file size
-            if myfile.size > 5 * 1024 * 1024:
-                messages.error(request, "File too large. Maximum size is 5MB.")
+            if myfile.size > 10 * 1024 * 1024:
+                messages.error(request, "File too large. Maximum size is 10MB.")
                 return redirect('admin:core_product_changelist')
             
             filename = default_storage.save(f'tmp/{myfile.name}', myfile)

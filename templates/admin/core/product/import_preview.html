@@ -16,6 +16,10 @@
             <h3 style="margin:0; color: #991b1b;">Rejected</h3>
             <span style="font-size: 24px; font-weight: bold;">{{ results.rejected|length }}</span>
         </div>
+        <div style="background: #dddddd; padding: 15px; border-radius: 8px; border: 1px solid #bebebe;">
+            <h3 style="margin:0; color: #424242;">No Change</h3>
+            <span style="font-size: 24px; font-weight: bold;">{{ results.unchanged_count }}</span>
+        </div>
     </div>
 
     {% if results.new %}
