@@ -2,7 +2,7 @@ import time
 from celery import shared_task
 from .models import ESLTag
 from .utils import generate_esl_image  # Your existing image function
-
+from django.utils import timezone
 
 
 @shared_task
@@ -28,7 +28,9 @@ def update_tag_image_task(self, tag_id):
 
         # Proceed to image generation
         result_msg = generate_esl_image(tag_id)
-        
+        tag.last_image_gen_success = timezone.now()
+        tag.last_image_task_id = self.request.id
+        tag.save()
         return {
             "tag_id": tag_id,
             "status": "SUCCESS",

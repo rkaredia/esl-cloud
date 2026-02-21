@@ -157,7 +157,7 @@ class Product(AuditModel):
 
 class ESLTag(AuditModel):
     gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE, related_name='tags')
-    tag_mac = models.CharField(max_length=50, unique=True)
+    tag_mac = models.CharField(max_length=50, unique=True, verbose_name="Tag ID/MAC")
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
     paired_product = models.ForeignKey(
         Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='esl_tags'
@@ -171,6 +171,8 @@ class ESLTag(AuditModel):
         null=True, 
         blank=True
     )
+    last_image_gen_success = models.DateTimeField(null=True, blank=True, verbose_name="Last Successful Image Sync")
+    last_image_task_id = models.CharField(max_length=255, null=True, blank=True, verbose_name="Last Task ID")
     
     # NEW: Physical Location Information
     aisle = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Aisle 4")
@@ -185,7 +187,12 @@ class ESLTag(AuditModel):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+    def __str__(self):
+        return f"{self.tag_mac} -> {self.paired_product.name if self.paired_product else 'Unpaired'}"
 
+    class Meta:
+        verbose_name = "ESL Tag"
+        verbose_name_plural = "ESL Tags"
 
 
 @receiver(post_save, sender=ESLTag)

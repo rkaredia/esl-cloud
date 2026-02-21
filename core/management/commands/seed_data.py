@@ -5,7 +5,7 @@ from core.models import User, Company, Store, TagHardware, Gateway, ESLTag, Prod
 from decimal import Decimal
 
 class Command(BaseCommand):
-    help = "Seeds hardware specs, roles, and base company data."
+    help = "Seeds hardware specs, roles, base company data, and monitoring permissions."
 
     def handle(self, *args, **options):
         # 1. Seed Global Hardware Catalog (TagHardware)
@@ -67,9 +67,17 @@ class Command(BaseCommand):
             }
         }
 
+        # 2b. Monitoring and Group View permissions (Applied to ALL roles)
+        monitoring_perms_config = [
+            {'app': 'django_celery_results', 'model': 'taskresult', 'action': 'view'},
+            {'app': 'auth', 'model': 'group', 'action': 'view'},
+        ]
+
         for role_name, config in role_permissions.items():
             group, _ = Group.objects.get_or_create(name=role_name)
             perms_to_set = []
+            
+            # Add Standard Model Permissions
             for model, actions in config.items():
                 ct = ContentType.objects.get_for_model(model)
                 for action in actions:
@@ -79,16 +87,27 @@ class Command(BaseCommand):
                         perms_to_set.append(perm)
                     except Permission.DoesNotExist:
                         continue
+            
+            # Add System Monitoring Permissions
+            for m_perm in monitoring_perms_config:
+                try:
+                    ct = ContentType.objects.get(app_label=m_perm['app'], model=m_perm['model'])
+                    codename = f"{m_perm['action']}_{m_perm['model']}"
+                    perm = Permission.objects.get(content_type=ct, codename=codename)
+                    perms_to_set.append(perm)
+                except (ContentType.DoesNotExist, Permission.DoesNotExist):
+                    self.stdout.write(self.style.WARNING(f"Monitoring perm {m_perm['model']} not found."))
+
             group.permissions.set(perms_to_set)
-            self.stdout.write(f"Permissions applied to {role_name}")
+            self.stdout.write(f"Permissions (including Monitoring) applied to {role_name}")
 
         # 3. Base Setup (Company/Store)
         company, _ = Company.objects.get_or_create(
-            name="SAIS Global", 
+            name="Admin Company", 
             defaults={'is_active': True, 'contact_email': 'info@sais.com'}
         )
         store, _ = Store.objects.get_or_create(
-            name="Main Branch", 
+            name="Admin Store", 
             company=company, 
             defaults={'is_active': True, 'location_code': 'MB-01'}
         )
@@ -98,7 +117,6 @@ class Command(BaseCommand):
             User.objects.create_superuser('admin', 'admin@sais.com', 'admin123', company=company)
             self.stdout.write(self.style.SUCCESS("Admin created: admin / admin123"))
         else:
-            # Ensure staff flag is set if user exists but can't login
             u = User.objects.get(username='admin')
             u.is_staff = True
             u.save()
@@ -113,8 +131,8 @@ class Command(BaseCommand):
 
         # 6. Pre-populate Test Gateway
         Gateway.objects.get_or_create(
-            gateway_mac="00:1A:2B:3C:4D:5E",
+            gateway_mac="testGateway",
             defaults={'store': store, 'is_active': True}
         )
 
-        self.stdout.write(self.style.SUCCESS('Successfully seeded all base data.'))
+        self.stdout.write(self.style.SUCCESS('Successfully seeded all base data with monitoring access.'))

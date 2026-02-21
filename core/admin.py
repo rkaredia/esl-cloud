@@ -1003,35 +1003,26 @@ class SAISAdminSite(admin.AdminSite):
             return []
 
         all_models = []
-        for app in app_dict.values():
+        for app in app_dict.values(): 
             all_models.extend(app['models'])
-
-        def find_model(name):
-            return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
-
-        return [
-            {
-                'name': 'Inventory',
-                'app_label': 'inventory',
-                'models': [m for m in [find_model('ESLTag'), find_model('Product')] if m],
-            },
-            {
-                'name': 'Hardware',
-                'app_label': 'hardware',
-                'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m],
-            },
-            {
-                'name': 'Organisation',
-                'app_label': 'organisation',
-                'models': [m for m in [find_model('Company'), find_model('Store'), 
-                                     find_model('User'), find_model('Group')] if m],
-            },
-            {
-                'name': 'System Monitoring',
-                'app_label': 'monitoring',
-                'models': [m for m in [find_model('TaskResult'), find_model('GroupResult')] if m],
-            },
-        ]
+            
+        def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
+        
+        inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product')] if m]}
+        hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
+        org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'),find_model('Group')] if m]}
+        
+        # System Monitoring - Visible to Superusers, Owners, and Managers
+        monitoring = {'name': 'System Monitoring', 'models': []}
+        if request.user.is_superuser or request.user.role in ['owner', 'manager']:
+            # Celery results registration
+            celery_res = find_model('TaskResult')
+            if celery_res: monitoring['models'].append(celery_res)
+            
+        groups = [inventory, hardware, org]
+        if monitoring['models']: groups.append(monitoring)
+        
+        return groups
 
 
 admin_site = SAISAdminSite(name='sais_admin')
@@ -1386,11 +1377,11 @@ class ProductAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 @admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec', 
+    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec', 'gateway',
                    'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
     list_editable = ('aisle', 'section', 'shelf_row')
     autocomplete_fields = ['paired_product']
-    readonly_fields = ('get_paired_info', 'image_preview_large', 'updated_at', 'updated_by', 'created_at')
+    readonly_fields = ('get_paired_info', 'image_preview_large', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link','updated_at', 'updated_by', 'created_at')
 #    actions = ['regenerate_tag_images', 'refresh_all_store_tags']
     actions = ['regenerate_tag_images']
     show_full_result_count = False
@@ -1403,10 +1394,30 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             'description': 'Search for a product by SKU or Name below.',
             'fields': ('paired_product',),
         }),
-        ('Visuals', {'fields': ('image_preview_large',)}),
+        ('Visuals', {'fields': ('image_preview_large','last_image_gen_success', 'last_image_task_id', 'audit_log_link')}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
         ('Audit', {'fields': ('updated_by', 'updated_at')}),
     )
+
+    def last_sync_status(self, obj):
+        if obj.last_image_gen_success:
+            return format_html(
+                '<span class="sync-success">✔ {}</span>',
+                obj.last_image_gen_success.strftime('%Y-%m-%d %H:%M')
+            )
+        return format_html('<span class="sync-pending">Pending Sync</span>')
+    last_sync_status.short_description = "Status"
+
+    def audit_log_link(self, obj):
+        if not obj.last_image_task_id:
+            return "No task record"
+        try:
+            # Dynamically build the URL for the TaskResult admin
+            url = reverse('admin:django_celery_results_taskresult_changelist') + f"?task_id={obj.last_image_task_id}"
+            return format_html('<a href="{}" target="_blank">View Task Results ↗</a>', url)
+        except:
+            return obj.last_image_task_id
+    audit_log_link.short_description = "Audit Trail"
 
     @admin.action(description="Regenerate images for selected tags (Max 100)")
     def safe_regenerate_images(self, request, queryset):
