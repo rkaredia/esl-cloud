@@ -1,5 +1,7 @@
 Key commnads
-
+#----------------
+# Docker
+#------------------
 docker exec -it sais_platform-web-1 python manage.py makemigrations
 
 
@@ -9,7 +11,11 @@ docker-compose down && docker-compose up -d
 ----
 Open shell on command line.
 docker compose exec web python manage.py shell
--------------
+
+#-------------------------------------------------------------
+#           Git
+#-------------------------------------------------------------
+
 git status
 git add filename
 git commit -m "Fix save of image"
@@ -31,3 +37,53 @@ python manage.py test core
 
 # 4. Push to production
 git push origin main    
+
+#------------------------------------------------------
+Recreate Docker environment. 
+
+The "Total Reset" Command
+
+Run this from your project root (where docker-compose.yml is located):
+Bash
+
+docker compose down -v --rmi all --remove-orphans
+
+What this does:
+
+    down: Stops and removes containers and networks.
+
+    -v: Crucial. Removes named volumes (this wipes your Postgres database and media files).
+
+    --rmi all: Removes all images used by any service (forces a fresh pull/build).
+
+    --remove-orphans: Cleans up any containers defined in old versions of your compose file.
+
+2. Recreating the Environment
+
+After cleaning, you'll want to rebuild and start up again:
+Bash
+
+docker compose up -d --build
+
+3. Fresh Initialization (The Workflow)
+
+Since you've wiped the database, you'll need to run your migrations and your updated seed script:
+Bash
+
+# 1. Run Migrations
+docker exec -it sais_platform-web-1 python manage.py migrate
+
+# 2. Create Superuser (if needed)
+docker exec -it sais_platform-web-1 python manage.py createsuperuser
+
+# 3. Run your updated Seed Script (to setup Groups/Permissions)
+docker exec -it sais_platform-web-1 python manage.py seed_data
+
+Pro-Tip: The "Nuke" Alias
+
+If you find yourself doing this often during development, you can combine it into one line:
+Bash
+
+docker compose down -v && docker compose up -d --build && sleep 5 && docker exec -it sais_platform-web-1 python manage.py migrate && docker exec -it sais_platform-web-1 python manage.py seed_data
+
+(The sleep 5 ensures the Postgres database is fully initialized and ready to accept connections before the migrations run.)

@@ -735,7 +735,8 @@ def preview_tag_import(request):
 
         # 3. Gateway Check (Strictly within the active store)
         # We clean the Gateway input too just in case it has colons or dots
-        clean_gw = re.sub(r'[^0-9A-Za-z]', '', str(raw_gw_mac or ""))
+#        clean_gw = re.sub(r'[^0-9A-Za-z]', '', str(raw_gw_mac or ""))
+        clean_gw = str(raw_gw_mac or "")
         gateway = Gateway.objects.filter(gateway_mac__iexact=clean_gw, store=active_store).first()
         
         if not gateway:

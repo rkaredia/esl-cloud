@@ -9,6 +9,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db import transaction
 from django.core.cache import cache
+
 # =================================================================
 # 1. BASE AUDIT CLASS
 # =================================================================
@@ -31,6 +32,8 @@ class AuditModel(models.Model):
     class Meta:
         abstract = True
 
+
+
 # =================================================================
 # functions
 # =================================================================
@@ -44,6 +47,8 @@ def get_tag_path(instance, filename):
         return os.path.join(company_name, store_name, 'tag_images', new_filename)
     except Exception:
         return os.path.join('tag_images', 'orphaned', filename)
+
+
 
 # =================================================================
 # 2. CORE MODELS
@@ -132,6 +137,8 @@ class TagHardware(AuditModel):
         return f"{self.model_number}"
 
 class Gateway(AuditModel):
+        # Field to match eStation 4-digit ID
+    estation_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     is_online = models.BooleanField(default=False)
     gateway_mac = models.CharField(max_length=100, unique=True)
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
@@ -156,6 +163,12 @@ class Product(AuditModel):
 
 
 class ESLTag(AuditModel):
+    SYNC_STATES = [
+        ('IDLE', 'No Pending Tasks'),
+        ('PENDING', 'Syncing to Tag...'),
+        ('SUCCESS', 'Update Confirmed'),
+        ('FAILED', 'Transmission Failed'),
+    ]
     gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE, related_name='tags')
     tag_mac = models.CharField(max_length=50, unique=True, verbose_name="Tag ID/MAC")
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
@@ -163,8 +176,7 @@ class ESLTag(AuditModel):
         Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='esl_tags'
     )
     # Location fields...
-    battery_level = models.IntegerField(default=100)
-#    tag_image = models.ImageField(upload_to='tag_images/', null=True, blank=True)
+    # Image Generation Data
     tag_image = models.ImageField(
         upload_to=get_tag_path, 
         storage=OverwriteStorage(),
@@ -172,10 +184,15 @@ class ESLTag(AuditModel):
         blank=True
     )
     last_image_gen_success = models.DateTimeField(null=True, blank=True, verbose_name="Last Successful Image Sync")
-    last_image_task_id = models.CharField(max_length=255, null=True, blank=True, verbose_name="Last Task ID")
     
-    # NEW: Physical Location Information
-    aisle = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Aisle 4")
+    # Transmission / Sync Data (Closed-Loop)
+    sync_state = models.CharField(max_length=20, choices=SYNC_STATES, default='IDLE', verbose_name="Sync Status")
+    last_image_task_id = models.CharField(max_length=255, null=True, blank=True, verbose_name="Last Task ID")
+    last_image_task_token = models.IntegerField(null=True, blank=True, verbose_name="Task Token (1-255)")
+
+    # Health & Location
+    battery_level = models.IntegerField(default=100)
+    aisle = models.CharField(max_length=20, blank=True, null=True,help_text="e.g., Aisle 4")
     section = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Dairy")
     shelf_row = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Row 2")
 
