@@ -1183,7 +1183,7 @@ class StoreAdmin(CompanySecurityMixin, admin.ModelAdmin):
 
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
-    list_display = ('gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
+    list_display = ('estation_id','gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
     list_editable = ('store', 'is_active')
     readonly_fields = ('created_at', 'updated_at', 'updated_by')
 
@@ -1377,124 +1377,210 @@ class ProductAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 @admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'battery_status', 'hardware_spec', 'gateway',
+    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'sync_state', 'battery_status', 'hardware_spec', 'gateway',
                    'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
-    list_editable = ('aisle', 'section', 'shelf_row')
+    
+    list_display = (
+        'image_status', 
+        'tag_mac', 
+        'get_paired_info', 
+        'last_sync_status', 
+        'battery_level_display', # This replaces battery_status
+        'hardware_spec', 
+        'gateway',
+        'sync_button', 
+        'aisle', 
+        'section', 
+        'shelf_row',
+        'updated_at', 
+        'created_at', 
+        'updated_by',
+    )
+    
+   # list_editable = ('aisle', 'section', 'shelf_row')
+    list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
     autocomplete_fields = ['paired_product']
-    readonly_fields = ('get_paired_info', 'image_preview_large', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link','updated_at', 'updated_by', 'created_at')
+    readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state','last_image_gen_success', 'last_image_task_id', 'audit_log_link','updated_at', 'updated_by', 'created_at')
 #    actions = ['regenerate_tag_images', 'refresh_all_store_tags']
-    actions = ['regenerate_tag_images']
+    actions = ['safe_delete','safe_regenerate_images', 'refresh_all_store_tags']
     show_full_result_count = False
     list_max_show_all = 100
     
-    actions = ['safe_delete','safe_regenerate_images', 'refresh_all_store_tags']
     fieldsets = (
         ('Hardware', {'fields': ('tag_mac', 'gateway', 'hardware_spec', 'battery_level')}),
         ('Pairing', {
             'description': 'Search for a product by SKU or Name below.',
             'fields': ('paired_product',),
         }),
-        ('Visuals', {'fields': ('image_preview_large','last_image_gen_success', 'last_image_task_id', 'audit_log_link')}),
+        ('Visuals', {'fields': ('image_preview_large','last_image_gen_success', 'sync_state','last_image_task_id', 'audit_log_link')}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
         ('Audit', {'fields': ('updated_by', 'updated_at')}),
     )
 
-    def last_sync_status(self, obj):
-        if obj.last_image_gen_success:
-            return format_html(
-                '<span class="sync-success">✔ {}</span>',
-                obj.last_image_gen_success.strftime('%Y-%m-%d %H:%M')
-            )
-        return format_html('<span class="sync-pending">Pending Sync</span>')
-    last_sync_status.short_description = "Status"
+    def get_queryset(self, request):
+        """
+        Custom Queryset to handle Store Filtering and Optimization.
+        """
+        qs = super().get_queryset(request).select_related('gateway__store', 'paired_product')
+        if hasattr(request, 'active_store') and request.active_store:
+            return qs.filter(gateway__store=request.active_store)
+        return qs
 
-    def audit_log_link(self, obj):
-        if not obj.last_image_task_id:
-            return "No task record"
-        try:
-            # Dynamically build the URL for the TaskResult admin
-            url = reverse('admin:django_celery_results_taskresult_changelist') + f"?task_id={obj.last_image_task_id}"
-            return format_html('<a href="{}" target="_blank">View Task Results ↗</a>', url)
-        except:
-            return obj.last_image_task_id
-    audit_log_link.short_description = "Audit Trail"
-
-    @admin.action(description="Regenerate images for selected tags (Max 100)")
-    def safe_regenerate_images(self, request, queryset):
-        # 1. Selection Guard
-        count = queryset.count()
-        if count > 100:
-            self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
-            return
-
-        # 2. Process selection
-        for tag in queryset:
-            update_tag_image_task.delay(tag.id)
-            
-        self.message_user(request, f"Queued {count} tags for image regeneration.")
-
-    @admin.action(description="Refresh ALL tags for this Store (Background)")
-    def refresh_all_store_tags(self, request, queryset):
-        if not request.active_store:
-            self.message_user(request, "Please select a store first.", messages.WARNING)
-            return
-
-        from core.tasks import refresh_store_products_task
-        refresh_store_products_task.delay(request.active_store.id)
-        
-        self.message_user(
-            request, 
-            f"Throttled background refresh started for ALL tags in {request.active_store.name}."
-        )
-
-    @admin.action(description="Delete selected (Max 100)")
-    def safe_delete(self, request, queryset):
-        # Double-check the count just in case
-        if queryset.count() > 100:
-            self.message_user(request, "Error: You cannot delete more than 100 items.", messages.ERROR)
-            return
-        queryset.delete()
-
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        # Force users to use our safe actions
-        if 'delete_selected' in actions:
-            del actions['delete_selected']
-        return actions
-
-
-    def get_paired_info(self, obj):
-        if obj.paired_product:
-            return f"{obj.paired_product.sku} - {obj.paired_product.name}"
-        return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
-    get_paired_info.short_description = "Paired Product"
-
+    # 2. SORTABLE Image Status
     def image_status(self, obj):
         if not obj.paired_product:
             return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
         color = "#059669" if obj.tag_image else "#ea580c"
         label = "Generated" if obj.tag_image else "Pending"
         return mark_safe(f'<span style="color:{color}; font-weight:bold;">● {label}</span>')
-    image_status.short_description = "Status"
+    image_status.short_description = "Image"
+    image_status.admin_order_field = 'tag_image' # Sort by whether image exists
 
-    def battery_status(self, obj):
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+    # 3. SORTABLE Paired Info
+    def get_paired_info(self, obj):
+        if obj.paired_product:
+            return f"{obj.paired_product.sku} - {obj.paired_product.name}"
+        return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
+    get_paired_info.short_description = "Paired Product"
+    get_paired_info.admin_order_field = 'paired_product__name' # Sort by product name
+
+    def last_sync_status(self, obj):
+        color_map = {
+            'SUCCESS': '#059669',
+            'PROCESSING': '#2563eb',
+            'PUSHED': '#7c3aed',
+            'IDLE': '#a2a2a3',
+            'GEN_FAILED': '#f50000',
+            'PUSH_FAILED': '#f50000',
+            'IMAGE_READY': '#f5ac00',
+            'FAILED': '#f50000'
+        }
+
+        color = color_map.get(obj.sync_state, '#ea580c')
+        status_text = obj.get_sync_state_display()
+        if obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
+            status_text = f"✔ {obj.last_image_gen_success.strftime('%H:%M')}"
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, status_text)
+    last_sync_status.short_description = "Sync Status"
+    last_sync_status.admin_order_field = 'sync_state'
+
+    # 4. SORTABLE Battery Display
+    def battery_level_display(self, obj):
         val = obj.battery_level or 0
-        color = "#059669" if val > 50 else "#ea580c" if val > 20 else "#dc2626"
-        return format_html('<b style="color: {};">{}%</b>', color, val)
-    battery_status.short_description = "Battery"
+        color = "#059669" if val > 20 else "#dc2626"
+        return format_html(
+            '<div style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;">'
+            '<div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div>'
+            '</div><small>{}%</small>',
+            val, color, val
+        )
+    battery_level_display.short_description = "Battery"
+    battery_level_display.admin_order_field = 'battery_level'
+
+    def sync_button(self, obj):
+        url = reverse('admin:sync-tag-manual', args=[obj.pk])
+        return format_html('<a style="background:#2563eb; color:white; padding:2px 8px; border-radius:4px; font-size:10px; text-decoration:none;" href="{}">SYNC</a>', url)
+    sync_button.short_description = "Action"
+
+    def audit_log_link(self, obj):
+        if not obj.last_image_task_id:
+            return "No task record"
+        try:
+            url = reverse('admin:django_celery_results_taskresult_changelist') + f"?task_id={obj.last_image_task_id}"
+            return format_html('<a href="{}" target="_blank">View Task Results ↗</a>', url)
+        except:
+            return obj.last_image_task_id
+    audit_log_link.short_description = "Audit Trail"
 
     def image_preview_large(self, obj):
         if not obj.paired_product:
-            return mark_safe('<i style="color: #94a3b8;">No product paired - cannot generate image.</i>')
+            return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
         if obj.tag_image:
             return format_html(
                 '<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', 
-                obj.tag_image.url, 
-                int(time.time())
+                obj.tag_image.url, int(time.time())
             )
         return "Waiting for background generation..."
     image_preview_large.short_description = "Current Tag Image"
+
+    # --- ACTIONS ---
+    @admin.action(description="Regenerate selected (Max 100)")
+    def safe_regenerate_images(self, request, queryset):
+        count = queryset.count()
+        if count > 100:
+            self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
+            return
+        for tag in queryset:
+            update_tag_image_task.delay(tag.id)
+        self.message_user(request, f"Queued {count} tags for image regeneration.")
+
+    @admin.action(description="Delete selected (Max 100)")
+    def safe_delete(self, request, queryset):
+        if queryset.count() > 100:
+            self.message_user(request, "Error: Max 100 items allowed.", messages.ERROR)
+            return
+        queryset.delete()
+
+    @admin.action(description="Refresh ALL tags in Store")
+    def refresh_all_store_tags(self, request, queryset):
+        active_store = getattr(request, 'active_store', None)
+        if not active_store:
+            self.message_user(request, "Please select a store first.", messages.WARNING)
+            return
+        # Filter for tags in this store with product pairing
+        tags = ESLTag.objects.filter(gateway__store=active_store, paired_product__isnull=False)
+        count = tags.count()
+        for tag in tags[:200]: # Safety limit for bulk refresh
+            update_tag_image_task.delay(tag.id)
+        self.message_user(request, f"Queued refresh for {min(count, 200)} tags in {active_store.name}.")
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    def manual_sync_view(self, request, object_id):
+        update_tag_image_task.delay(object_id)
+        messages.success(request, "Sync task queued.")
+        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
+
+    def bulk_map_view(self, request):
+        """
+        View to handle the Bulk Mapping workflow.
+        Matches the 'admin:bulk-map-tags' name used in the template.
+        """
+        opts = self.model._meta
+        active_store = getattr(request, 'active_store', None)
+        
+        if not active_store:
+            messages.error(request, "Please select a store first.")
+            return redirect('admin:core_esltag_changelist')
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Bulk Map Tags',
+            'opts': opts,
+            'active_store': active_store,
+        }
+        # Render the scanner UI (which eventually posts to a preview view or handles via JS)
+        return render(request, 'admin/core/esltag/bulk_map_preview.html', context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
+            path('bulk-map/', self.admin_site.admin_view(self.bulk_map_view), name='bulk-map-tags'),
+        ]
+        return custom_urls + urls
+    #----
+
+
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
@@ -1512,90 +1598,6 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """)
         return super().changelist_view(request, extra_context=extra_context)
 
-    @admin.action(description="Regenerate Images for selected tags")
-    def regenerate_tag_images(self, request, queryset):
-        from core.utils import trigger_bulk_sync
-        
-        # max_items = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
-        # if queryset.count() > max_items:
-        #     self.message_user(
-        #         request, 
-        #         f"Please select no more than {max_items} tags at once.",
-        #         messages.ERROR
-        #     )
-        #     return
-        
-        tag_ids = list(queryset.values_list('id', flat=True))
-        group_result = trigger_bulk_sync(tag_ids)
-        
-        if group_result:
-            self.message_user(
-                request, 
-                f"Queued bulk update for {len(tag_ids)} tags. Group ID: {group_result.id}"
-            )
-
-    @admin.action(description="🔄 Refresh All Store Tags (Regenerate all paired tag images)")
-    def refresh_all_store_tags(self, request, queryset):
-        """
-        Refresh all tags in the current store that have paired products.
-        This is a safer alternative to bulk delete.
-        """
-        from core.utils import trigger_bulk_sync
-        
-        active_store = getattr(request, 'active_store', None)
-        if not active_store:
-            self.message_user(request, "Please select a store first.", messages.ERROR)
-            return
-        
-        tag_ids = list(ESLTag.objects.filter(
-            gateway__store=active_store,
-            paired_product__isnull=False,
-            hardware_spec__isnull=False
-        ).values_list('id', flat=True))
-        
-        if not tag_ids:
-            self.message_user(request, "No paired tags found in this store.", messages.WARNING)
-            return
-        
-        max_items = getattr(settings, 'BULK_OPERATION_LIMIT', 100)
-        if len(tag_ids) > max_items:
-            tag_ids = tag_ids[:max_items]
-            self.message_user(
-                request,
-                f"Processing first {max_items} tags. Run again for remaining tags.",
-                messages.WARNING
-            )
-        
-        group_result = trigger_bulk_sync(tag_ids)
-        if group_result:
-            self.message_user(
-                request,
-                f"Queued {len(tag_ids)} tags for image regeneration."
-            )
-
-    def manual_sync_view(self, request, object_id):
-        update_tag_image_task.delay(object_id)
-        messages.success(request, "Sync task queued.")
-        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
-
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        update_tag_image_task(obj.id)
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if hasattr(request, 'active_store') and request.active_store:
-            return qs.filter(gateway__store=request.active_store)
-        return qs
-
-    def get_urls(self):
-        custom_urls = [
-            path('download-template/', self.admin_site.admin_view(download_tag_template), name='download_tag_template'),
-            path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
-            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
-            path('bulk-map/', self.admin_site.admin_view(bulk_map_tags_view), name='bulk-map-tags'),
-        ]
-        return custom_urls + super().get_urls()
 
 
 # =================================================================

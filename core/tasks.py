@@ -2,115 +2,152 @@ import io
 import time
 import random
 import logging
+import sys
 from celery import shared_task
 from django.utils import timezone
-from PIL import Image
+from django.core.files.base import ContentFile
+from django.core.cache import cache
 from .models import ESLTag
-from .utils import generate_esl_image  # Your existing drawing logic
-from .mqtt_client import mqtt_service   # The MQTT v5 / MsgPack handler
+from .utils import generate_esl_image
+from .mqtt_client import mqtt_service
 
 logger = logging.getLogger(__name__)
 
-@shared_task
-def add_test_task(x, y):
-    # This is just a test to make sure things are working!
-    time.sleep(5) # Simulate a heavy job
-    return x + y        
+def log_info(message):
+    logger.info(message)
+    print(message, file=sys.stdout)
 
-@shared_task(bind=True, name="core.tasks.update_tag_image_task", ignore_result=False)
+@shared_task(bind=True, name="core.tasks.update_tag_image_task")
 def update_tag_image_task(self, tag_id):
     """
-    Orchestrates the full ESL update flow:
-    Validation -> Image Generation -> MQTT Publish -> State Tracking
+    STAGE 1: Generate and Store.
+    Processes the pixel drawing and saves the BMP to storage.
     """
+    # 1. Jitter to stagger concurrent starts (prevents race conditions on lock)
+    time.sleep(random.uniform(0, 0.1))
+
+    # 2. Atomic Lock check & set (30s timeout)
+    # This is our primary defense against duplicate signal triggers
+    lock_id = f"lock-tag-gen-{tag_id}"
+    if not cache.add(lock_id, self.request.id, 30): 
+        log_info(f"[STAGE 1] Aborting duplicate task for Tag {tag_id}. Lock already held.")
+        return "Duplicate aborted"
+
+    log_info(f"[STAGE 1 START] Processing Tag ID: {tag_id} | Task: {self.request.id}")
+    
     try:
-        # Fetch with select_related for efficiency
-        tag = ESLTag.objects.select_related('hardware_spec', 'paired_product', 'gateway').get(pk=tag_id)
+        # We use select_related to minimize DB queries during generation
+        tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
         
-        # 1. Validation Logic
+        # Set status to Processing immediately
+        tag.sync_state = 'PROCESSING'
+        tag.save(update_fields=['sync_state'])
+
         if not tag.paired_product:
+            log_info(f"[STAGE 1] Tag {tag.tag_mac} has no paired product. Reverting to IDLE.")
             tag.sync_state = 'IDLE'
-            tag.save()
-            return {"status": "SKIPPED", "tag": tag.tag_mac, "message": "No product paired."}
-            
-        if not tag.hardware_spec:
-            return {"status": "SKIPPED", "tag": tag.tag_mac, "message": "Missing hardware spec."}
+            tag.save(update_fields=['sync_state'])
+            cache.delete(lock_id)
+            return "Skipped: No product"
 
-        # 2. Update state to Pending
-        tag.sync_state = 'PENDING'
-        tag.save()
+        # 3. Pixel Generation
+        try:
+            log_info(f"[STAGE 1] Calling generate_esl_image for {tag.tag_mac}")
+            pil_img = generate_esl_image(tag_id)
+            if pil_img.mode != 'RGB':
+                pil_img = pil_img.convert('RGB')
+        except Exception as e:
+            log_info(f"[STAGE 1 ERROR] Image gen failed for {tag.tag_mac}: {str(e)}")
+            tag.sync_state = 'GEN_FAILED'
+            tag.save(update_fields=['sync_state'])
+            cache.delete(lock_id)
+            return f"Generation Failed: {str(e)}"
 
-        # 3. Generate Image (Using your utility)
-        # result_msg should ideally return the raw bytes or path to the generated image
-        # For this flow, we generate the image and convert to BMP for the eStation
-        image_data = generate_esl_image(tag_id) 
+        # 4. BMP Conversion
+        buf = io.BytesIO()
+        pil_img.save(buf, format='BMP')
+        bmp_bytes = buf.getvalue()
+
+        # 5. Save Image
+        # Timestamp prevents browser cache issues in the admin preview
+        filename = f"{tag.tag_mac.replace(':', '')}_{int(time.time())}.bmp"
+        tag.tag_image.save(filename, ContentFile(bmp_bytes), save=False)
         
-        # Ensure image is in 1-bit BMP format if generate_esl_image returns a PIL object
-        # If generate_esl_image already returns bytes, skip this conversion
-        if isinstance(image_data, Image.Image):
-            buf = io.BytesIO()
-            image_data.convert('1').save(buf, format='BMP')
-            image_bytes = buf.getvalue()
-        else:
-            image_bytes = image_data
-
-        # 4. Token Generation (1-255 for Task Result matching)
-        token = random.randint(1, 255)
-        
-        # 5. Publish to MQTT via Service
-        # Targets the specific eStation ID mapped to the gateway
-        mqtt_service.publish_tag_update(
-            gateway_id=tag.gateway.estation_id,
-            tag_mac=tag.tag_mac,
-            image_bytes=image_bytes,
-            token=token
-        )
-
-        # 6. Record metadata for closed-loop confirmation
+        tag.sync_state = 'IMAGE_READY'
         tag.last_image_gen_success = timezone.now()
         tag.last_image_task_id = self.request.id
-        tag.last_image_task_token = token
-        tag.save()
-
-        logger.info(f"Published update for Tag {tag.tag_mac} with Token {token}")
         
-        return {
-            "tag_id": tag_id,
-            "status": "SUCCESS",
-            "token": token,
-            "message": f"Queued for eStation {tag.gateway.estation_id}",
-            "group_id": getattr(self.request, 'group', None) 
-        }
+        # We update specific fields to ensure the ESLTag post_save signal doesn't loop
+        tag.save(update_fields=['tag_image', 'sync_state', 'last_image_gen_success', 'last_image_task_id'])
+        
+        log_info(f"[STAGE 1 SUCCESS] Image stored for {tag.tag_mac}. Dispatching Stage 2...")
 
-    except ESLTag.DoesNotExist:
-        return {"status": "FAILURE", "message": f"Tag ID {tag_id} not found."}
+        # 6. Dispatch to Stage 2 (MQTT Delivery)
+        dispatch_tag_image_task.delay(tag_id)
+        
+        return f"BMP Generated for {tag.tag_mac}"
+
     except Exception as e:
-        if 'tag' in locals():
-            tag.sync_state = 'FAILED'
-            tag.save()
-        logger.error(f"Error in update_tag_image_task: {str(e)}")
+        log_info(f"[STAGE 1 CRITICAL ERROR] {tag_id}: {str(e)}")
+        ESLTag.objects.filter(pk=tag_id).update(sync_state='FAILED')
+        cache.delete(lock_id)
         raise e
 
-
-@shared_task(name="core.tasks.refresh_store_products_task")
-def refresh_store_products_task(store_id):
+@shared_task(name="core.tasks.dispatch_tag_image_task")
+def dispatch_tag_image_task(tag_id):
     """
-    Finds all tags in a store and triggers image refresh.
-    Uses throttling (20 tasks/sec) to protect MQTT broker and eStation queue.
+    STAGE 2: MQTT Communication.
+    Publishes the generated image to the Gateway.
     """
-    tag_ids = ESLTag.objects.filter(
-        gateway__store_id=store_id
-    ).values_list('id', flat=True).iterator()
-
-    count = 0
-    for tag_id in tag_ids:
-        update_tag_image_task.apply_async(args=[tag_id])
-        count += 1
+    lock_id = f"lock-tag-gen-{tag_id}"
+    log_info(f"[STAGE 2 START] Dispatching Tag ID: {tag_id}")
+    try:
+        tag = ESLTag.objects.select_related('gateway').get(pk=tag_id)
         
-        # Throttle logic: protects against burst loads
-        if count % 10 == 0:
-            time.sleep(0.05) # 0.05s * 2 = 0.1s per 20 tags
-            
-    return f"Successfully queued {count} tags for Store {store_id} with throttling."
+        if not tag.gateway or not tag.gateway.estation_id:
+            log_info(f"[STAGE 2 ERROR] Gateway ID missing for Tag {tag.tag_mac}")
+            tag.sync_state = 'PUSH_FAILED'
+            tag.save(update_fields=['sync_state'])
+            cache.delete(lock_id)
+            return "Gateway ID missing"
 
-  #Admin Save -> Signal -> Celery Task -> Image Gen -> MQTT Publish (with Token) -> Wait for MQTT Result -> Update sync_state.  
+        if not tag.tag_image:
+            log_info(f"[STAGE 2 ERROR] No image found for Tag {tag.tag_mac}")
+            tag.sync_state = 'GEN_FAILED'
+            tag.save(update_fields=['sync_state'])
+            cache.delete(lock_id)
+            return "No image to push"
+
+        with tag.tag_image.open('rb') as f:
+            image_bytes = f.read()
+
+        token = random.randint(1, 255)
+        log_info(f"[STAGE 2] Publishing to Gateway: {tag.gateway.estation_id} | Token: {token}")
+        
+        success = mqtt_service.publish_tag_update(
+            tag.gateway.estation_id,
+            tag.tag_mac,
+            image_bytes,
+            token
+        )
+
+        if success:
+            tag.sync_state = 'PUSHED'
+            tag.last_image_task_token = token
+            tag.save(update_fields=['sync_state', 'last_image_task_token'])
+            log_info(f"[STAGE 2 SUCCESS] {tag.tag_mac} sent to broker.")
+            # Final clearance of the lock after the full pipeline is complete
+            cache.delete(lock_id)
+            return "MQTT Pushed"
+        else:
+            log_info(f"[STAGE 2 ERROR] MQTT Publish failed for {tag.tag_mac}")
+            tag.sync_state = 'PUSH_FAILED'
+            tag.save(update_fields=['sync_state'])
+            cache.delete(lock_id)
+            return "MQTT Failed"
+
+    except Exception as e:
+        log_info(f"[STAGE 2 CRITICAL ERROR] {tag_id}: {str(e)}")
+        ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
+        cache.delete(lock_id)
+        raise e

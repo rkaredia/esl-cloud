@@ -153,7 +153,7 @@ class Product(AuditModel):
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_on_special = models.BooleanField(default=False)
-
+    
     class Meta:
         unique_together = ('sku', 'store')
     def __str__(self):
@@ -161,13 +161,17 @@ class Product(AuditModel):
         return f"{self.sku} - {self.name}"
 
 
-
 class ESLTag(AuditModel):
     SYNC_STATES = [
         ('IDLE', 'No Pending Tasks'),
-        ('PENDING', 'Syncing to Tag...'),
+        ('PROCESSING', 'Generating Image...'),
+        ('IMAGE_READY', 'Image Prepared'),
+        ('PUSHED', 'Sent to Gateway'),
         ('SUCCESS', 'Update Confirmed'),
-        ('FAILED', 'Transmission Failed'),
+        ('GEN_FAILED', 'Image Generation Failed'),
+        ('PUSH_FAILED', 'Gateway Delivery Failed'),
+        ('FAILED', 'General Failure'),
+        #('RETRY_PENDING', 'Retry Pending'),
     ]
     gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE, related_name='tags')
     tag_mac = models.CharField(max_length=50, unique=True, verbose_name="Tag ID/MAC")
@@ -211,26 +215,3 @@ class ESLTag(AuditModel):
         verbose_name = "ESL Tag"
         verbose_name_plural = "ESL Tags"
 
-
-@receiver(post_save, sender=ESLTag)
-def trigger_image_update_on_save(sender, instance, **kwargs):
-    # 1. LOOP BREAKER: Don't trigger if the worker is the one saving the image
-    update_fields = kwargs.get('update_fields')
-    if update_fields and 'tag_image' in update_fields:
-        return
-
-    # 2. DEBOUNCE: Don't trigger twice in 2 seconds for the same tag
-    cache_key = f"tag_sync_lock_{instance.id}"
-    if cache.get(cache_key):
-        return
-    cache.set(cache_key, True, timeout=2)
-
-    # 3. SAFETY: Only trigger if we have the data needed to draw
-    if instance.paired_product and instance.hardware_spec:
-        # Local import to prevent the Circular Import error you had
-        from core.tasks import update_tag_image_task
-        
-        # ON_COMMIT: The insurance policy to ensure the DB is finished saving
-        transaction.on_commit(
-            lambda: update_tag_image_task.delay(instance.id)
-        )
