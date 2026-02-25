@@ -481,8 +481,6 @@ class ProductAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 @admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'sync_state', 'battery_status', 'hardware_spec', 'gateway',
-                   'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
     
     list_display = (
         'image_status', 
@@ -491,6 +489,7 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         'last_sync_status', 
         'battery_level_display', # This replaces battery_status
         'hardware_spec', 
+        'template_id',
         'gateway',
         'sync_button', 
         'aisle', 
@@ -501,12 +500,12 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         'updated_by',
     )
     
-   # list_editable = ('aisle', 'section', 'shelf_row')
+    list_editable = ('template_id', 'aisle', 'section', 'shelf_row')
     list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
     autocomplete_fields = ['paired_product']
     readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state','last_image_gen_success', 'last_image_task_id', 'audit_log_link','updated_at', 'updated_by', 'created_at')
 #    actions = ['regenerate_tag_images', 'refresh_all_store_tags']
-    actions = ['safe_delete','safe_regenerate_images', 'refresh_all_store_tags']
+    actions = ['safe_delete','safe_regenerate_images', 'refresh_all_store_tags','set_template_v1', 'set_template_v2',]
     show_full_result_count = False
     list_max_show_all = 100
     
@@ -642,6 +641,16 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         for tag in tags[:200]: # Safety limit for bulk refresh
             update_tag_image_task.delay(tag.id)
         self.message_user(request, f"Queued refresh for {min(count, 200)} tags in {active_store.name}.")
+
+    @admin.action(description="Set template to Standard (V1)")
+    def set_template_v1(self, request, queryset):
+        queryset.update(template_id=1)
+        self.message_user(request, "Updated selected tags to Template V1.")
+
+    @admin.action(description="Set template to High-Vis (V2)")
+    def set_template_v2(self, request, queryset):
+        queryset.update(template_id=2)
+        self.message_user(request, "Updated selected tags to Template V2.")
 
     def get_actions(self, request):
         actions = super().get_actions(request)

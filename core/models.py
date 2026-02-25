@@ -200,6 +200,16 @@ class ESLTag(AuditModel):
     section = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Dairy")
     shelf_row = models.CharField(max_length=20, blank=True, null=True, help_text="e.g., Row 2")
 
+    TEMPLATE_CHOICES = [
+        (1, 'Standard Split (V1)'),
+        (2, 'High-Visibility Promo (V2)'),
+    ]
+    
+    template_id = models.IntegerField(
+        choices=TEMPLATE_CHOICES, 
+        default=1,
+        help_text="Visual layout style for this tag."
+    )
 
     def clean(self):
         if self.paired_product and self.gateway.store != self.paired_product.store:
