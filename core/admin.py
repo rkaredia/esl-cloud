@@ -9,25 +9,133 @@ from django.shortcuts import redirect,render
 from django.conf import settings
 import time
 import json
-
+import logging
+import traceback
 from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware
 from .views import download_tag_template, preview_tag_import, preview_product_import, bulk_map_tags_view
 from core.tasks import update_tag_image_task
 from django_celery_results.models import TaskResult, GroupResult
 from django_celery_results.admin import GroupResultAdmin, TaskResultAdmin
-
+from PIL import Image, ImageDraw
+from .utils import template_v1, template_v2
+from django.http import HttpResponse
 
 # =================================================================
 # CUSTOM ADMIN SITE
 # =================================================================
+# Initialize logger at the module level
+logger = logging.getLogger(__name__)
 
 class SAISAdminSite(admin.AdminSite):
-#    """Custom admin site with SAIS branding and grouped menu."""
+    """Custom admin site with SAIS branding, grouped menu, and Design Lab."""
 
     site_header = "SAIS Platform Administration"
     site_title = "SAIS Admin"
     index_title = "Welcome to SAIS Control Panel"
     
+    # --- CUSTOM ADMIN URLS ---
+    def get_urls(self):
+        """
+        Registers the Template Lab views directly within the Admin Site.
+        This removes the need for entries in the main urls.py.
+        """
+        urls = super().get_urls()
+        custom_urls = [
+            path('template-lab/', self.admin_view(self.template_gallery), name='template-gallery'),
+            path('template-render/<int:spec_id>/', self.admin_view(self.mock_render_view), name='template-render'),
+        ]
+        return custom_urls + urls
+
+    # --- GALLERY VIEW ---
+    def template_gallery(self, request):
+        """Renders the gallery of hardware specs for template testing."""
+        specs = TagHardware.objects.all()
+        return render(request, 'admin/core/template_gallery.html', {
+            'specs': specs,
+            'title': 'ESL Template Design Lab',
+            **self.each_context(request), # Includes sidebar and branding
+        })
+
+    # --- MOCK RENDERER ---
+    def mock_render_view(self, request, spec_id):
+        """Generates a mock preview image using the current template code."""
+        try:
+            spec = TagHardware.objects.get(pk=spec_id)
+            template_id = int(request.GET.get('t', 1))
+            is_promo_active = request.GET.get('promo', 'false') == 'true'
+            
+            logger.info(f"[LAB DEBUG] Starting render for Spec: {spec.model_number}, Template: {template_id}, Promo: {is_promo_active}")
+            
+            # Simple mock product to match your single-price logic
+            class MockProduct:
+                def __init__(self, name, price, sku, is_on_special):
+                    self.name = name
+                    self.price = price 
+                    self.sku = sku
+                    self.is_on_special = is_on_special
+
+            mock_product = MockProduct(
+                name="PREVIEW PRODUCT NAME LONG DESCRIPTION",
+                price="88.50" if is_promo_active else "124.50",
+                sku="SKU12345678",
+                is_on_special=is_promo_active
+            )
+
+            # Ensure we have valid dimensions
+            width = int(spec.width_px) if spec.width_px else 296
+            height = int(spec.height_px) if spec.height_px else 128
+            # Normalizing color scheme to match production (BWR, BWRY, BW)
+            color_scheme = (spec.color_scheme or "BW").upper()
+            
+            # 1. Initialize the Image
+            image = Image.new('RGB', (width, height), color=(255, 255, 255))
+            draw = ImageDraw.Draw(image)
+
+            # 2. Call your template logic (modifies 'image' in place)
+            # This now correctly passes the color_scheme from the DB spec
+            logger.info(f"[LAB DEBUG] Executing template_{template_id} draw logic with scheme: {color_scheme}")
+            if template_id == 2:
+                template_v2(image, draw, mock_product, width, height, color_scheme)
+            else:
+                template_v1(image, draw, mock_product, width, height, color_scheme)
+
+            # --- PERSISTENCE FOR DEBUGGING ---
+            try:
+                from django.conf import settings
+                debug_dir = os.path.join(settings.MEDIA_ROOT, 'debug_renders')
+                if not os.path.exists(debug_dir):
+                    os.makedirs(debug_dir)
+                
+                timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"lab_preview_{spec.model_number}_{timestamp}.png"
+                image.save(os.path.join(debug_dir, filename), "PNG")
+                logger.info(f"[LAB DEBUG] Preview persisted to media/debug_renders/{filename}")
+            except Exception as save_err:
+                logger.warning(f"[LAB DEBUG] Persistence failed (non-critical): {save_err}")
+
+            # 3. Prepare response
+            response = HttpResponse(content_type="image/png")
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+            
+            # 4. Save to the response stream
+            image.save(response, "PNG")
+            logger.info(f"[LAB DEBUG] Render complete. Bytes sent to browser.")
+            return response
+            
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            logger.error(f"Design Lab Render Error: {error_trace}")
+            
+            err_img = Image.new('RGB', (400, 150), color='#fee2e2')
+            d = ImageDraw.Draw(err_img)
+            d.text((10, 10), "PYTHON RENDER ERROR:", fill="black")
+            d.text((10, 30), str(e)[:100], fill="red")
+            d.text((10, 50), "Check console logs for full traceback.", fill="blue")
+            
+            response = HttpResponse(content_type="image/png")
+            err_img.save(response, "PNG")
+            return response
+
     def each_context(self, request):
         context = super().each_context(request)
         context['custom_admin_css'] = mark_safe("""
@@ -54,6 +162,10 @@ class SAISAdminSite(admin.AdminSite):
                 .app-hardware .section:before { content: "📡"; margin-right: 10px; }
                 .app-organisation .section:before { content: "🏢"; margin-right: 10px; }
                 .app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
+                
+                /* Sidebar Icon for the Design Lab */
+                #nav-sidebar .model-design-lab th a:before { content: "🧪 "; }
+
                 #nav-sidebar th a { color: var(--navy) !important; }
                 #nav-sidebar .model-esltag th a:before { content: "🏷️ "; }
                 #nav-sidebar .model-product th a:before { content: "🛒 "; }
@@ -65,6 +177,7 @@ class SAISAdminSite(admin.AdminSite):
                 #nav-sidebar .model-group th a:before { content: "👥 "; }
                 #nav-sidebar .model-taskresult th a:before { content: "📊 "; }
                 #nav-sidebar .model-groupresult th a:before { content: "📁 "; }
+                
                 #nav-sidebar .addlink {
                     background: var(--navy) !important;
                     color: var(--white) !important;
@@ -93,6 +206,8 @@ class SAISAdminSite(admin.AdminSite):
                 }
                 #nav-sidebar tr.current-model { background: var(--azure) !important; }
                 #nav-sidebar tr.current-model th a { color: var(--dark-navy) !important; }
+                
+                #nav-sidebar .model-design-lab .addlink,
                 #nav-sidebar .model-taskresult .addlink,
                 #nav-sidebar .model-groupresult .addlink { display: none !important; }
                 .app-django_celery_results .object-tools { display: none !important; }
@@ -101,7 +216,7 @@ class SAISAdminSite(admin.AdminSite):
         return context
 
     def get_app_list(self, request, app_label=None):
-        """Custom menu grouping."""
+        """Custom menu grouping including the Virtual Design Lab link."""
         app_dict = self._build_app_dict(request)
         if not app_dict:
             return []
@@ -114,12 +229,18 @@ class SAISAdminSite(admin.AdminSite):
         
         inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product')] if m]}
         hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
-        org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'),find_model('Group')] if m]}
+        org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
         
-        # System Monitoring - Visible to Superusers, Owners, and Managers
         monitoring = {'name': 'System Monitoring', 'models': []}
         if request.user.is_superuser or request.user.role in ['owner', 'manager']:
-            # Celery results registration
+            # INJECTING VIRTUAL MODEL LINK
+            monitoring['models'].append({
+                'name': 'Template Design Lab',
+                'object_name': 'design-lab',
+                'admin_url': reverse('sais_admin:template-gallery'),
+                'view_only': True,
+            })
+            
             celery_res = find_model('TaskResult')
             if celery_res: monitoring['models'].append(celery_res)
             
@@ -128,9 +249,7 @@ class SAISAdminSite(admin.AdminSite):
         
         return groups
 
-
 admin_site = SAISAdminSite(name='sais_admin')
-
 
 # =================================================================
 # MIXINS

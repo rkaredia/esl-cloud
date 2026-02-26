@@ -23,6 +23,8 @@ from core import views
 from core.admin import admin_site # Import your custom site
 from django.views.generic import RedirectView
 from django.conf.urls import handler500
+from django.urls import path
+
 
 urlpatterns = [
     path('admin/select-store/', select_store, name='select_store'),
@@ -32,9 +34,8 @@ urlpatterns = [
     
     # TO THIS:
     path('admin/', admin_site.urls), # Use the instance that has the 'sais_admin' name
-    
     path('set-store/<int:store_id>/', views.set_active_store, name='set_active_store'),
-    path('', RedirectView.as_view(url='/admin/', permanent=True))
+    path('', RedirectView.as_view(url='/admin/', permanent=True)),
 ]
 
 # This line is the "magic" that tells Django to serve the tag images

@@ -58,17 +58,28 @@ def template_v1(image, draw, product, width, height, color_scheme):
     
     # Right side (Price Box): 
     # Red for promo tags, Black for BW-only promo tags, else White
-    if is_promo:
-        if 'R' in color_scheme or 'Y' in color_scheme:
-            price_bg = (255, 0, 0) 
-            price_txt_col = (255, 255, 255)
-        else:
-            # BW Tag Special handling
-            price_bg = (0, 0, 0)
-            price_txt_col = (255, 255, 255)
+    if 'R' in color_scheme or 'Y' in color_scheme:
+        price_bg = (255, 0, 0) 
+        price_txt_col = (255, 255, 255)        
     else:
-        price_bg = (255, 255, 255)
-        price_txt_col = (0, 0, 0)
+        if is_promo and is_bw_only:
+            price_bg = (0, 0, 0) 
+            price_txt_col = (255, 255, 255)   
+        else:
+            price_bg = (255, 255, 255) 
+            price_txt_col = (0, 0, 0)                 
+
+    # if is_promo:
+    #     if 'R' in color_scheme or 'Y' in color_scheme:
+    #         price_bg = (255, 0, 0) 
+    #         price_txt_col = (255, 255, 255)
+    #     else:
+    #         # BW Tag Special handling
+    #         price_bg = (0, 0, 0)
+    #         price_txt_col = (255, 255, 255)
+    # else:
+    #     price_bg = (255, 255, 255)
+    #     price_txt_col = (0, 0, 0)
 
     # Fill Background
     draw.rectangle([0, 0, width, height], fill=left_bg)
@@ -111,8 +122,8 @@ def template_v1(image, draw, product, width, height, color_scheme):
         y_offset = int(height * 0.12) if is_promo else 0 # Slightly lower to fit "SPECIAL" text
 
         # Draw "SPECIAL" text for BW tags if on promo
-        if is_promo and is_bw_only:
-            promo_font = get_font_by_type(10, "bold")
+        if is_promo:
+            promo_font = get_font_by_type(20, "bold")
             draw.text((split_x + (width - split_x)//2, 10), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
 
         # Draw Dollars

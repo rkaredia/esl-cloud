@@ -1,0 +1,63 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<style>
+    .gallery-container { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; background: #f4f4f4; }
+    .card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; width: fit-content; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .card h3 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+    .preview-box { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+    .preview-item { text-align: center; }
+    .preview-item p { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #666; }
+    .esl-img { border: 1px solid #000; display: block; max-width: 100%; height: auto; background: #eee; }
+    .refresh-bar { margin-bottom: 20px; background: #fff; padding: 10px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
+    .btn-refresh { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-refresh:hover { background: #1d4ed8; }
+</style>
+
+<div class="refresh-bar">
+    <strong>Design Lab:</strong> Use this page to verify how templates render across different screen sizes and color schemes.
+    <button class="btn-refresh" onclick="refreshImages()">Force Refresh All Previews</button>
+</div>
+
+<div class="gallery-container">
+    {% for spec in specs %}
+    <div class="card">
+        <h3>{{ spec.model_number }} ({{ spec.width_px }}x{{ spec.height_px }} - {{ spec.color_scheme }})</h3>
+        
+        <div class="preview-box">
+            <!-- Template 1 -->
+            <div class="preview-item">
+                <p>V1 Standard</p>
+                 <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=false" alt="V1 Std">
+            </div>
+            <div class="preview-item">
+                <p>V1 Promo</p>
+                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=true" alt="V1 Promo">
+            </div>
+            
+            <!-- Template 2 -->
+            <div class="preview-item">
+                <p>V2 Standard</p>
+                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=false" alt="V2 Std">
+            </div>
+            <div class="preview-item">
+                <p>V2 Promo</p>
+                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=true" alt="V2 Promo">
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    function refreshImages() {
+        const images = document.querySelectorAll('.esl-img');
+        const timestamp = new Date().getTime();
+        images.forEach(img => {
+            const url = new URL(img.src);
+            url.searchParams.set('v', timestamp);
+            img.src = url.toString();
+        });
+    }
+</script>
+{% endblock %}
