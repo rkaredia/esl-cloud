@@ -1,18 +1,24 @@
-
 services:
   db:
     image: postgres:15
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Use env_file to keep credentials out of this YAML
+    env_file: .env
     environment:
-      - POSTGRES_DB=esl_db
-      - POSTGRES_USER=sais_user
-      - POSTGRES_PASSWORD=sais_pass
+      # If these variables exist in your .env file, 
+      # you can map them like this or just rely on env_file entirely.
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # We use the variable here too so the healthcheck doesn't break if you change users
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s
       timeout: 5s
-      retries: 5  
+      retries: 5
 
   mqtt_broker:
     image: eclipse-mosquitto:latest
@@ -65,7 +71,7 @@ services:
       - db
     volumes:
       - .:/app
-      - ./media:/app/media  # Crucial: the worker needs to write to the same place
+      - ./media:/app/media
 
 volumes:
   postgres_data:
