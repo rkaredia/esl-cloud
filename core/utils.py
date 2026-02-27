@@ -174,9 +174,10 @@ def template_v1(image, draw, product, width, height, color_scheme):
 def template_v2(image, draw, product, width, height, color_scheme):
     """
     NEW DESIGN (Template 2)
-    Handles its own background logic (full-width centered layout).
+    High visibility centered layout with bottom-left 'SPECIAL' indicator.
     """
     is_promo = getattr(product, 'is_on_special', False)
+    color_scheme = color_scheme.upper()
     bg_color = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     draw.rectangle([0, 0, width, height], fill=bg_color)
 
@@ -193,9 +194,70 @@ def template_v2(image, draw, product, width, height, color_scheme):
     p_color = (255, 0, 0) if ('R' in color_scheme) else (0,0,0)
     draw.text((width//2, height//2 + 5), price_str, fill=p_color, font=price_font, anchor="mm")
 
-    # Bottom SKU
+    # Bottom Right SKU
     sku_font = get_font_by_type(10, "condensed")
     draw.text((width - 5, height - 5), f"SKU: {product.sku}", fill=(0,0,0), font=sku_font, anchor="rb")
+
+    # --- NEW: SPECIAL TAG FOR V2 ---
+    if is_promo:
+        promo_tag_font = get_font_by_type(20, "bold")
+        draw.text((5, height - 5), "SPECIAL", fill=(0,0,0), font=promo_tag_font, anchor="lb")
+
+def template_v3(image, draw, product, width, height, color_scheme):
+    """
+    SIDE-BY-SIDE PROMO (Template 3)
+    Inspired by 'Organic Blueberries' design.
+    Left: Product Info (White). Right: Special Offer (Yellow/Red).
+    """
+    is_promo = getattr(product, 'is_on_special', False)
+    color_scheme = color_scheme.upper()
+    
+    # 1. Background Split
+    split_x = int(width * 0.45)
+    draw.rectangle([0, 0, split_x, height], fill=(255, 255, 255)) # Left Info
+    
+    # Right side is Yellow if on promo, else White
+    right_bg = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
+    draw.rectangle([split_x, 0, width, height], fill=right_bg)
+
+    if not product: return
+
+    # 2. Left Side: Product Details
+    safe_pad = 8
+    # SKU at top
+    sku_font = get_font_by_type(10, "bold")
+    draw.text((safe_pad, safe_pad), f"SKU: {product.sku}", fill=(0,0,0), font=sku_font)
+
+    # Product Name (Wrapped)
+    name_font = get_font_by_type(16, "bold")
+    wrapper = textwrap.TextWrapper(width=12)
+    lines = wrapper.wrap(text=product.name.upper())[:4]
+    curr_y = safe_pad + 18
+    for line in lines:
+        draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=name_font)
+        curr_y += 18
+
+    # Bottom Border Line on Left
+    draw.line([safe_pad, height - 35, split_x - safe_pad, height - 35], fill=(0,0,0), width=1)
+
+    # 3. Right Side: Pricing
+    if is_promo:
+        # "SALE!" or "SPECIAL OFFER" Banner
+        banner_font = get_font_by_type(18, "bold")
+        banner_color = (255, 0, 0) if 'R' in color_scheme else (0,0,0)
+        draw.text((split_x + (width - split_x)//2, 25), "SALE!", fill=banner_color, font=banner_font, anchor="mm")
+        
+        # Sub-header
+        sub_font = get_font_by_type(10, "bold")
+        draw.rectangle([split_x + 10, 40, width - 10, 55], fill=banner_color)
+        draw.text((split_x + (width - split_x)//2, 47), "SPECIAL OFFER", fill=(255,255,255), font=sub_font, anchor="mm")
+    
+    # Main Price
+    price_str = f"${product.price}"
+    max_p_w = (width - split_x) - 10
+    price_font = get_dynamic_font_size(price_str, max_p_w, height // 2, 45)
+    draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
+
 
 def generate_esl_image(tag_id):
     """
@@ -214,8 +276,10 @@ def generate_esl_image(tag_id):
         image = Image.new('RGB', (width, height), color=(255, 255, 255))
         draw = ImageDraw.Draw(image)
 
-        template_choice = getattr(tag, 'template_id', 1) 
-        if template_choice == 2:
+        tid = getattr(tag, 'template_id', 1)
+        if tid == 3:
+            template_v3(image, draw, product, width, height, color_scheme)
+        elif tid == 2:
             template_v2(image, draw, product, width, height, color_scheme)
         else:
             template_v1(image, draw, product, width, height, color_scheme)

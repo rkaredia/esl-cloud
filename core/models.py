@@ -203,7 +203,8 @@ class ESLTag(AuditModel):
     TEMPLATE_CHOICES = [
         (1, 'Standard Split (V1)'),
         (2, 'High-Visibility Promo (V2)'),
-    ]
+        (3, 'Modern (V3)'),
+        ]
     
     template_id = models.IntegerField(
         choices=TEMPLATE_CHOICES, 

@@ -43,8 +43,67 @@ class SAISAdminSite(admin.AdminSite):
         custom_urls = [
             path('template-lab/', self.admin_view(self.template_gallery), name='template-gallery'),
             path('template-render/<int:spec_id>/', self.admin_view(self.mock_render_view), name='template-render'),
+            path('dashboard/', self.admin_view(self.dashboard_view), name="dashboard"),
         ]
         return custom_urls + urls
+
+    def dashboard_view(self, request):
+        active_store = getattr(request, 'active_store', None)
+        if not active_store:
+            return redirect('admin:index')
+
+        tags_qs = ESLTag.objects.filter(gateway__store=active_store)
+        gateways_qs = Gateway.objects.filter(store=active_store)
+        products_qs = Product.objects.filter(store=active_store)
+
+        tag_count = tags_qs.count()
+        low_battery_count = tags_qs.filter(battery_level__lte=20).count()
+
+        tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
+            count=Count('id')
+        ).order_by('-count'))
+        
+        for item in tag_types:
+            item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
+
+        gateway_loads = []
+        for gw in gateways_qs:
+            count = tags_qs.filter(gateway=gw).count()
+            gateway_loads.append({
+                'gateway_mac': gw.gateway_mac,
+                'estation_id': gw.estation_id,
+                'is_active': gw.is_active,
+                'tag_count': count,
+                'load_percent': min(int((count / 500) * 100), 100)
+            })
+
+        # --- SYNC STATS MAPPING ---
+        context = {
+            'active_store': active_store,
+            'gateway_count': gateways_qs.count(),
+            'active_gateways': gateways_qs.filter(is_active=True).count(),
+            'tag_count': tag_count,
+            'tags_with_products': tags_qs.exclude(paired_product__isnull=True).count(),
+            'low_battery_count': low_battery_count,
+            'product_count': products_qs.count(),
+            'tag_types': tag_types,
+            'gateway_loads': gateway_loads,
+            'sync_stats': {
+                'success': tags_qs.filter(sync_state='SUCCESS').count(),
+                'pushed': tags_qs.filter(sync_state='PUSHED').count(),
+                'ready': tags_qs.filter(sync_state='IMAGE_READY').count(),
+                'processing': tags_qs.filter(sync_state='PROCESSING').count(),
+                'idle': tags_qs.filter(sync_state='IDLE').count(),
+                'failed_total': tags_qs.filter(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED')).count(),
+                'gen_failed': tags_qs.filter(sync_state='GEN_FAILED').count(),
+                'push_failed': tags_qs.filter(sync_state='PUSH_FAILED').count(),
+            }
+        }
+
+        context.update(self.each_context(request))
+        #context['title'] = f"Dashboard - {active_store.name}"
+        return render(request, "admin/dashboard.html", context)
+
 
     # --- GALLERY VIEW ---
     def template_gallery(self, request):
@@ -138,6 +197,7 @@ class SAISAdminSite(admin.AdminSite):
 
     def each_context(self, request):
         context = super().each_context(request)
+        context['dashboard_url'] = reverse('sais_admin:dashboard')
         context['custom_admin_css'] = mark_safe("""
             <style>
                 :root {
@@ -150,6 +210,42 @@ class SAISAdminSite(admin.AdminSite):
                 }
                 #header { background: var(--navy); border-bottom: 3px solid var(--light-gray); }
                 #branding h1 a { color: var(--white) !important; }
+                /* Dashboard Layout Fixes */
+                .dashboard-grid { 
+                    display: grid !important; 
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important; 
+                    gap: 1.5rem !important; 
+                    padding: 1.5rem !important; 
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                }
+                .stat-card { 
+                    background: white !important; 
+                    padding: 1.5rem !important; 
+                    border-radius: 8px !important; 
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; 
+                    border: 1px solid #e2e8f0 !important;
+                    min-height: 120px !important;
+                }
+                .stat-card h3 { 
+                    margin: 0 0 0.5rem 0 !important; 
+                    font-size: 0.75rem !important; 
+                    color: #64748b !important; 
+                    text-transform: uppercase !important; 
+                    letter-spacing: 0.05em !important; 
+                }
+                .stat-card .value { 
+                    font-size: 2rem !important; 
+                    font-weight: 800 !important; 
+                    color: #1e293b !important; 
+                    line-height: 1 !important;
+                }
+                .load-bar-bg { background: #f1f5f9; height: 6px; border-radius: 3px; margin-top: 10px; }
+                .load-bar-fill { background: #3b82f6; height: 100%; border-radius: 3px; }
+                .tag-list { list-style: none; padding: 0; margin: 10px 0 0 0; font-size: 0.85rem; }
+                .tag-list li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+
+
                 #nav-sidebar .section {
                     color: var(--white) !important;
                     background: #417690 !important;
@@ -162,7 +258,23 @@ class SAISAdminSite(admin.AdminSite):
                 .app-hardware .section:before { content: "📡"; margin-right: 10px; }
                 .app-organisation .section:before { content: "🏢"; margin-right: 10px; }
                 .app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
-                
+
+
+                .dashboard-link {
+                    background: #2563eb !important;
+                    margin: 10px !important;
+                    border-radius: 4px;
+                    padding: 8px !important;
+                    display: block;
+                    text-align: center;
+                    color: white !important;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    font-size: 11px;
+                    text-decoration: none;
+                }
+                .dashboard-link:hover { background: #1d4ed8 !important; }
+
                 /* Sidebar Icon for the Design Lab */
                 #nav-sidebar .model-design-lab th a:before { content: "🧪 "; }
 
@@ -211,6 +323,11 @@ class SAISAdminSite(admin.AdminSite):
                 #nav-sidebar .model-taskresult .addlink,
                 #nav-sidebar .model-groupresult .addlink { display: none !important; }
                 .app-django_celery_results .object-tools { display: none !important; }
+                .sync-success { color: #059669; font-weight: bold; }
+                .sync-pending { color: #ea580c; font-style: italic; }
+
+                
+
             </style>
         """)
         return context
@@ -232,6 +349,14 @@ class SAISAdminSite(admin.AdminSite):
         org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
         
         monitoring = {'name': 'System Monitoring', 'models': []}
+        # Inject Dashboard as the FIRST item in monitoring or its own section
+        monitoring['models'].append({
+            'name': '📊 Analytics Dashboard',
+            'object_name': 'dashboard',
+            'admin_url': reverse('sais_admin:dashboard'),
+            'view_only': True,
+        })
+
         if request.user.is_superuser or request.user.role in ['owner', 'manager']:
             # INJECTING VIRTUAL MODEL LINK
             monitoring['models'].append({

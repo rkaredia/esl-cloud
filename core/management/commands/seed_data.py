@@ -10,9 +10,22 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # 1. Seed Global Hardware Catalog (TagHardware)
         specs = [
-            {'model_number': 'ET0213-85', 'width': 250, 'height': 122, 'size': 2.13, 'colors': 'BWR'},
-            {'model_number': 'ET0290-85', 'width': 296, 'height': 128, 'size': 2.90, 'colors': 'BWRY'},
-            {'model_number': 'ET0420-85', 'width': 400, 'height': 300, 'size': 4.20, 'colors': 'BWRY'},
+
+            {'model_number': 'ET0213-81', 'width': 250, 'height': 122, 'size': 2.13, 'colors': 'BWRY'},
+            {'model_number': 'ET0213-36', 'width': 250, 'height': 122, 'size': 2.13, 'colors': 'BWR'},
+            {'model_number': 'ET0213-39', 'width': 250, 'height': 122, 'size': 2.13, 'colors': 'BW'},
+
+
+            {'model_number': 'ET0266-82', 'width': 296, 'height': 152, 'size': 2.66, 'colors': 'BWRY'},
+            {'model_number': 'ET0266-36', 'width': 296, 'height': 152, 'size': 2.66, 'colors': 'BWR'},
+            {'model_number': 'ET0266-39', 'width': 296, 'height': 152, 'size': 2.66, 'colors': 'BW'},
+
+            {'model_number': 'ET0290-85', 'width': 384, 'height': 168, 'size': 2.90, 'colors': 'BWRY'},
+            {'model_number': 'ET0290-84', 'width': 296, 'height': 128, 'size': 2.90, 'colors': 'BWRY'},
+            {'model_number': 'ET0290-3D', 'width': 296, 'height': 128, 'size': 2.90, 'colors': 'BWR'},
+            {'model_number': 'ET0290-3F', 'width': 296, 'height': 128, 'size': 2.90, 'colors': 'BW'},
+            {'model_number': 'ET0290-54', 'width': 296, 'height': 128, 'size': 2.90, 'colors': 'BW'},
+
         ]
         
         for spec in specs:

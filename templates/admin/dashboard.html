@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}{{ block.super }}{{ custom_admin_css }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container" style="padding: 24px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+    <h1 style="font-size: 32px; font-weight: 800; color: #003459; margin-bottom: 32px; letter-spacing: -0.025em;">
+        Dashboard - {{ request.active_store.name|default:"Star Mart 3" }}
+    </h1>
+
+    <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+        
+        <!-- CARD 1: INVENTORY -->
+        <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px;">Inventory</h3>
+            <div class="value" style="font-size: 48px; font-weight: 800; color: #1e293b; margin-bottom: 24px;">{{ tag_count|default:19 }}</div>
+            
+            <div style="font-size: 14px; color: #475569; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Total ESL Tags:</span>
+                    <strong style="color: #1e293b;">{{ tag_count|default:19 }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Total Products:</span>
+                    <strong style="color: #1e293b;">{{ product_count|default:8599 }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Total Paired ESL Tags:</span>
+                    <strong style="color: #10b981;">{{ tags_with_products|default:9 }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Total Unpaired ESL Tags:</span>
+                    <strong style="color: #64748b;">{{ sync_stats.idle|default:10 }}</strong>
+                </div>
+            </div>
+            
+            <div style="margin-top: 32px;">
+                <a href="/admin/core/esltag/" style="font-weight: 700; font-size: 13px; color: white; text-decoration: none; display: inline-flex; align-items: center; background: #003459; padding: 10px 20px; border-radius: 8px; transition: background 0.2s;">
+                    Manage Tags <span style="margin-left: 8px;">→</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD 2: BATTERY MONITORING -->
+        <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px;">Battery Monitoring</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2; text-align: center;">
+                    <div style="color: #dc2626; font-weight: 800; font-size: 32px;">{{ critical_battery_count|default:0 }}</div>
+                    <div style="font-size: 11px; color: #dc2626; font-weight: 700; text-transform: uppercase;">Critical (<5%)</div>
+                </div>
+                <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
+                    <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:1 }}</div>
+                    <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (<20%)</div>
+                </div>
+            </div>
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
+                <span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                    {{ active_gateways|default:2 }} / {{ gateway_count|default:2 }}
+                </span>
+            </div>
+        </div>
+
+        <!-- CARD 3: SYNC PIPELINE -->
+        <div class="stat-card" style="grid-row: span 2; background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px;">Sync Pipeline</h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;">
+                <!-- Pipeline Items -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #cbd5e1;">
+                    <span style="font-size: 13px; font-weight: 600; color: #334155;">IDLE: No Pending Tasks</span>
+                    <span style="font-weight: 800; color: #1e293b; font-size: 16px;">{{ sync_stats.idle|default:10 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fffaf5; border-radius: 8px; border-left: 4px solid #f97316;">
+                    <span style="font-size: 13px; font-weight: 600; color: #9a3412;">PROCESSING: Generating...</span>
+                    <span style="font-weight: 800; color: #ea580c; font-size: 16px;">{{ sync_stats.processing|default:0 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f5f8ff; border-radius: 8px; border-left: 4px solid #6366f1;">
+                    <span style="font-size: 13px; font-weight: 600; color: #3730a3;">IMAGE_READY: Prepared</span>
+                    <span style="font-weight: 800; color: #4f46e5; font-size: 16px;">{{ sync_stats.ready|default:0 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <span style="font-size: 13px; font-weight: 600; color: #1e40af;">PUSHED: Sent to Gateway</span>
+                    <span style="font-weight: 800; color: #2563eb; font-size: 16px;">{{ sync_stats.pushed|default:0 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <span style="font-size: 13px; font-weight: 700; color: #065f46;">SUCCESS: Update Confirmed</span>
+                    <span style="font-weight: 800; color: #059669; font-size: 16px;">{{ sync_stats.success|default:0 }}</span>
+                </div>
+            </div>
+
+            <!-- Pipeline Failures Sub-card -->
+            <div style="background: #fff1f2; padding: 20px; border-radius: 12px; border: 1px solid #fee2e2;">
+                <h4 style="font-size: 16px; text-transform: uppercase; color: #be123c; margin-bottom: 16px; font-weight: 800; letter-spacing: 0.05em;">Pipeline Failures</h4>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239;">
+                        <span>Image Generation Failed</span>
+                        <strong style="font-weight: 800;">{{ sync_stats.gen_failed|default:0 }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239;">
+                        <span>Gateway Delivery Failed</span>
+                        <strong style="font-weight: 800;">{{ sync_stats.push_failed|default:0 }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239; ">
+                        <span style="font-weight: 700;">General Failure</span>
+                        <strong style="font-weight: 800;">{{ sync_stats.failed|default:0 }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 4: INFRASTRUCTURE -->
+        <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px;">Gateway Infrastructure</h3>
+            {% for gw in gateway_loads|slice:":2" %}
+            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 12px;">
+                <div style="display:flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 2px;">{{ gw.estation_id|default:"GW01" }}</div>
+                        <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">{{ gw.gateway_mac|default:"SM_Gateway_02" }}</div>
+                    </div>
+                    <span style="font-size: 10px; padding: 4px 10px; border-radius: 20px; background: #dcfce7; color: #15803d; font-weight: 800; text-transform: uppercase;">
+                        ONLINE
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #64748b; font-weight: 600;">
+                    <span>Load Capacity</span>
+                    <span>{{ gw.load_percent|default:0 }}%</span>
+                </div>
+                <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                    <div style="width: {{ gw.load_percent|default:5 }}%; background: #3b82f6; height: 100%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
