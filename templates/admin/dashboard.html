@@ -70,44 +70,41 @@
             <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;">
                 <!-- Pipeline Items -->
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #cbd5e1;">
-                    <span style="font-size: 13px; font-weight: 600; color: #334155;">IDLE: No Pending Tasks</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #334155;">Tags not paired</span>
                     <span style="font-weight: 800; color: #1e293b; font-size: 16px;">{{ sync_stats.idle|default:10 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fffaf5; border-radius: 8px; border-left: 4px solid #f97316;">
-                    <span style="font-size: 13px; font-weight: 600; color: #9a3412;">PROCESSING: Generating...</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #9a3412;">Generating tag image</span>
                     <span style="font-weight: 800; color: #ea580c; font-size: 16px;">{{ sync_stats.processing|default:0 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f5f8ff; border-radius: 8px; border-left: 4px solid #6366f1;">
-                    <span style="font-size: 13px; font-weight: 600; color: #3730a3;">IMAGE_READY: Prepared</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #3730a3;">Image Generated</span>
                     <span style="font-weight: 800; color: #4f46e5; font-size: 16px;">{{ sync_stats.ready|default:0 }}</span>
                 </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff1f2; border-radius: 8px; border-left: 4px solid #be123c;">
+                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">Image Generation Failed</span>
+                    <span style="font-weight: 800; color: #be123c; font-size: 16px;">{{ sync_stats.gen_failed|default:0 }}</span>
+                </div>
+                
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                    <span style="font-size: 13px; font-weight: 600; color: #1e40af;">PUSHED: Sent to Gateway</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #1e40af;">Image sent to Gateway</span>
                     <span style="font-weight: 800; color: #2563eb; font-size: 16px;">{{ sync_stats.pushed|default:0 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff1f2; border-radius: 8px; border-left: 4px solid #be123c;">
+                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">Gateway Push Failed</span>
+                    <span style="font-weight: 800; color: #be123c; font-size: 16px;">{{ sync_stats.push_failed|default:0 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
                     <span style="font-size: 13px; font-weight: 700; color: #065f46;">SUCCESS: Update Confirmed</span>
                     <span style="font-weight: 800; color: #059669; font-size: 16px;">{{ sync_stats.success|default:0 }}</span>
                 </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff1f2; border-radius: 8px; border-left: 4px solid #be123c;">
+                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">General Filure</span>
+                    <span style="font-weight: 800; color: #be123c; font-size: 16px;">{{ sync_stats.failed|default:0 }}</span>
+                </div>                
             </div>
 
-            <!-- Pipeline Failures Sub-card -->
-            <div style="background: #fff1f2; padding: 20px; border-radius: 12px; border: 1px solid #fee2e2;">
-                <h4 style="font-size: 16px; text-transform: uppercase; color: #be123c; margin-bottom: 16px; font-weight: 800; letter-spacing: 0.05em;">Pipeline Failures</h4>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239;">
-                        <span>Image Generation Failed</span>
-                        <strong style="font-weight: 800;">{{ sync_stats.gen_failed|default:0 }}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239;">
-                        <span>Gateway Delivery Failed</span>
-                        <strong style="font-weight: 800;">{{ sync_stats.push_failed|default:0 }}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #9f1239; ">
-                        <span style="font-weight: 700;">General Failure</span>
-                        <strong style="font-weight: 800;">{{ sync_stats.failed|default:0 }}</strong>
-                    </div>
-                </div>
             </div>
         </div>
 
