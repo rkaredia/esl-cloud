@@ -45,132 +45,130 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
 
 def template_v1(image, draw, product, width, height, color_scheme):
     """
-    ORIGINAL DESIGN (Template 1)
-    Handles its own background logic, split-screen, and promo coloring.
-    Features superscript cents and dynamic scaling.
+    REFINED DESIGN (Template 1)
+    - Product Name: Dynamic scaling, max 3 lines, respects split_x boundary.
+    - Price: Superscript cents, centered in price box.
+    - SKU: Integrated into barcode area.
     """
     is_promo = getattr(product, 'is_on_special', False)
     is_bw_only = 'R' not in color_scheme and 'Y' not in color_scheme
     
-    # 1. Background Logic
-    # Left side: Yellow for promo if available, else White
+    # 1. Colors & Background
     left_bg = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
-    
-    # Right side (Price Box): 
-    # Red for promo tags, Black for BW-only promo tags, else White
     if 'R' in color_scheme or 'Y' in color_scheme:
         price_bg = (255, 0, 0) 
         price_txt_col = (255, 255, 255)        
     else:
-        if is_promo and is_bw_only:
-            price_bg = (0, 0, 0) 
-            price_txt_col = (255, 255, 255)   
-        else:
-            price_bg = (255, 255, 255) 
-            price_txt_col = (0, 0, 0)                 
+        price_bg = (0, 0, 0) if (is_promo and is_bw_only) else (255, 255, 255)
+        price_txt_col = (255, 255, 255) if (is_promo and is_bw_only) else (0, 0, 0)                 
 
-    # if is_promo:
-    #     if 'R' in color_scheme or 'Y' in color_scheme:
-    #         price_bg = (255, 0, 0) 
-    #         price_txt_col = (255, 255, 255)
-    #     else:
-    #         # BW Tag Special handling
-    #         price_bg = (0, 0, 0)
-    #         price_txt_col = (255, 255, 255)
-    # else:
-    #     price_bg = (255, 255, 255)
-    #     price_txt_col = (0, 0, 0)
-
-    # Fill Background
     draw.rectangle([0, 0, width, height], fill=left_bg)
     
-    # 2. Split Logic
+    # 2. Dimensions
     split_x = int(width * 0.62)
-    safe_pad = 3
+    safe_pad = 4
+    left_zone_w = split_x - (safe_pad * 2)
     draw.rectangle([split_x, 0, width, height], fill=price_bg)
 
-    if product:
-        # 3. Price Calculation (Dollars and Cents)
-        try:
-            price_val = float(product.price)
-            p_parts = f"{price_val:.2f}".split('.')
-            dollars, cents = f"${p_parts[0]}", p_parts[1]
-        except (ValueError, TypeError):
-            dollars, cents = "$0", "00"
+    if not product:
+        return
 
-        # 4. Price Scaling Logic
-        max_p_w = (width - split_x) - (safe_pad * 2)
-        p_size = int(height * 0.50) if is_promo else int(height * 0.60)
+    # 3. PRODUCT NAME (Top 45% of left zone)
+    name_text = product.name.upper()
+    wrapper = textwrap.TextWrapper(width=16) # Character limit helps initial wrapping
+    lines = wrapper.wrap(text=name_text)[:3]
+    
+    if lines:
+        # We calculate the font for the longest line to ensure it fits the width
+        longest_line = max(lines, key=len)
+        max_h_per_line = (height * 0.45) / len(lines)
+        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 18, "condensed")
         
-        # Adjust size to fit box
-        while p_size > 12:
-            d_font = get_font_by_type(p_size, "bold")
-            c_font = get_font_by_type(int(p_size * 0.45), "bold")
-            d_bbox = draw.textbbox((0, 0), dollars, font=d_font)
-            c_bbox = draw.textbbox((0, 0), cents, font=c_font)
-            d_w = d_bbox[2] - d_bbox[0]
-            c_w = c_bbox[2] - c_bbox[0]
-            
-            if (d_w + c_w + 4) <= max_p_w:
-                break
-            p_size -= 2
-
-        # 5. Centering and Drawing Price
-        total_p_w = d_w + c_w + 4
-        p_x = split_x + ((width - split_x) - total_p_w) // 2
-        y_center = height // 2
-        y_offset = int(height * 0.12) if is_promo else 0 # Slightly lower to fit "SPECIAL" text
-
-        # Draw "SPECIAL" text for BW tags if on promo
-        if is_promo:
-            promo_font = get_font_by_type(20, "bold")
-            draw.text((split_x + (width - split_x)//2, 10), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
-
-        # Draw Dollars
-        draw.text((p_x, y_center + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
-
-        # Draw Cents (Superscripted)
-        cents_x = p_x + d_w + 2
-        cents_y = (y_center + y_offset) - int(p_size * 0.18) 
-        draw.text((cents_x, cents_y), cents, fill=price_txt_col, font=c_font, anchor="lm")
-
-        # 6. SKU
-        sku_font = get_font_by_type(10, "bold")
-        draw.text((safe_pad, safe_pad), f"SKU: {product.sku}", fill=(0,0,0), font=sku_font)
-
-        # 7. PRODUCT NAME (Multi-line Shrink)
-        name_zone_y1 = 20
-        name_zone_y2 = height - int(height * 0.30)
+        # Get actual height for spacing
+        bbox = draw.textbbox((0, 0), "Ay", font=n_font)
+        line_height = bbox[3] - bbox[1] + 2
         
-        wrapper = textwrap.TextWrapper(width=18)
-        lines = wrapper.wrap(text=product.name)[:3]
-        
-        if lines:
-            n_size = 14
-            while n_size > 7:
-                n_font = get_font_by_type(n_size, "condensed")
-                max_line_w = max([draw.textbbox((0, 0), line, font=n_font)[2] for line in lines])
-                total_n_h = len(lines) * (n_size + 2)
-                
-                if max_line_w <= (split_x - (safe_pad * 2)) and total_n_h <= (name_zone_y2 - name_zone_y1):
-                    break
-                n_size -= 1
-            
-            curr_y = name_zone_y1
-            for line in lines:
-                draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
-                curr_y += n_size + 2
+        curr_y = 4
+        for line in lines:
+            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
+            curr_y += line_height
 
-        # 8. Barcode
-        try:
-            code128 = barcode.get_barcode_class('code128')
-            ean = code128(str(product.sku), writer=ImageWriter())
-            b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
-            b_img = b_img.resize((split_x - 10, int(height * 0.25)), Image.NEAREST).convert("RGBA")
-            image.paste(b_img, (safe_pad, height - b_img.height - safe_pad), b_img)
-        except Exception as e:
-            logger.error(f"Barcode drawing error: {e}")
-            
+    # 4. PRICE (Right Box)
+    try:
+        # Convert product price to float to ensure numeric operations work
+        price_val = float(product.price)
+        # Format to 2 decimal places and split at the dot to separate dollars and cents
+        p_parts = f"{price_val:.2f}".split('.')
+        # Prepend dollar sign to the whole number part
+        dollars, cents = f"${p_parts[0]}", p_parts[1]
+    except:
+        # Fallback values if the price is missing or incorrectly formatted
+        dollars, cents = "$0", "00"
+
+    # Calculate the available width inside the right-hand price box
+    p_box_w = (width - split_x) - (safe_pad * 1)
+    
+    # Calculate a font size for the dollars that fits the box width and height.
+    # We include "00" in the measurement string to reserve space for the superscript cents.
+    d_font = get_dynamic_font_size(dollars + "0", p_box_w, height * 0.75, int(height * 0.70), "bold")
+    
+    # Calculate the exact pixel width of the dollar string at this font size
+    d_bbox = draw.textbbox((0,0), dollars, font=d_font)
+    d_w = d_bbox[2] - d_bbox[0]
+    
+    # Set the cents font to be roughly 45% the size of the dollar font for the superscript effect
+    c_size = int(d_font.size * 0.45)
+    c_font = get_font_by_type(c_size, "bold")
+    # Calculate the exact pixel width of the cents string
+    c_w = draw.textbbox((0,0), cents, font=c_font)[2]
+
+    # Total width of the combined dollar and cent string including a small gap
+    total_p_w = d_w + c_w + 2
+    
+    # Calculate the starting X coordinate so the entire price is centered in the price box
+    p_x = split_x + ((width - split_x) - total_p_w) // 2
+    
+    # Vertical alignment logic
+    y_center = height // 2
+    # If it's a promo, move the price down slightly to make room for the "SPECIAL" label at the top
+    y_offset = int(height * 0.1) if is_promo else 0
+
+    if is_promo:
+        # Generate and draw the "SPECIAL" banner text at the top of the price box
+        promo_font = get_dynamic_font_size("SPECIAL", p_box_w, 20, 20, "bold")
+        draw.text((split_x + (width - split_x)//2, 8), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
+
+    # Draw the dollar amount (anchored left-middle at the calculated center line)
+    draw.text((p_x, y_center + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
+    
+    # Draw the cents slightly higher than the center line (superscript) using the offset from the dollar font size
+    draw.text((p_x + d_w + 2, (y_center + y_offset) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
+
+    # 5. BARCODE & SKU (Bottom Left)
+    try:
+        # Define specific area for the barcode bars only
+        barcode_w = left_zone_w
+        barcode_h = int(height * 0.25)
+        
+        code128 = barcode.get_barcode_class('code128')
+        ean = code128(str(product.sku), writer=ImageWriter())
+        
+        # Render barcode bars without internal text to avoid resize distortion
+        b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
+        b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
+        
+        # Paste barcode bars
+        image.paste(b_img, (safe_pad, height - barcode_h - 15), b_img)
+        
+        # Manually draw the SKU text using our font system for crisp rendering
+        sku_str = str(product.sku)
+        s_font = get_dynamic_font_size(sku_str, barcode_w, 14, 16, "condensed")
+        draw.text((safe_pad + (barcode_w // 2), height - 2), sku_str, fill=(0,0,0), font=s_font, anchor="mb")
+
+    except Exception as e:
+        logger.error(f"Barcode error: {e}")
+
+
 def template_v2(image, draw, product, width, height, color_scheme):
     """
     NEW DESIGN (Template 2)
