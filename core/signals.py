@@ -32,7 +32,7 @@ def trigger_image_update_on_tag_save(sender, instance, **kwargs):
     # We ignore saves that are just updating the state/image to avoid loops
     update_fields = kwargs.get('update_fields')
     if update_fields is not None:
-        trigger_fields = {'paired_product', 'gateway', 'hardware_spec'}
+        trigger_fields = {'paired_product', 'gateway', 'hardware_spec','template_id'}
         if not any(field in update_fields for field in trigger_fields):
             return
 

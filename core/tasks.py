@@ -52,7 +52,7 @@ def update_tag_image_task(self, tag_id):
 
         # 3. Pixel Generation
         try:
-            log_info(f"[STAGE 1] Calling generate_esl_image for {tag.tag_mac}")
+            log_info(f"[STAGE 1] Calling generate_esl_image for {tag.tag_mac} using Template {tag.template_id}")
             pil_img = generate_esl_image(tag_id)
             if pil_img.mode != 'RGB':
                 pil_img = pil_img.convert('RGB')
@@ -80,7 +80,7 @@ def update_tag_image_task(self, tag_id):
         # We update specific fields to ensure the ESLTag post_save signal doesn't loop
         tag.save(update_fields=['tag_image', 'sync_state', 'last_image_gen_success', 'last_image_task_id'])
         
-        log_info(f"[STAGE 1 SUCCESS] Image stored for {tag.tag_mac}. Dispatching Stage 2...")
+        log_info(f"[STAGE 1 SUCCESS] Image stored for {tag.tag_mac} (Template {tag.template_id}). Dispatching Stage 2...")
 
         # 6. Dispatch to Stage 2 (MQTT Delivery)
         dispatch_tag_image_task.delay(tag_id)

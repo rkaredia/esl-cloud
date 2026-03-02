@@ -785,9 +785,40 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     image_status.admin_order_field = 'tag_image' # Sort by whether image exists
 
     def save_model(self, request, obj, form, change):
-        if not change:
+        """
+        Triggered when saving an individual Tag from the Detail view.
+        """
+        # 1. Capture the change state before saving
+        template_changed = False
+        if change:
+            old_obj = ESLTag.objects.filter(pk=obj.pk).first()
+            if old_obj and old_obj.template_id != obj.template_id:
+                template_changed = True
+        else:
+            # If it's a new object, set the creator
             obj.updated_by = request.user
+
+        # 2. Perform the actual save
         super().save_model(request, obj, form, change)
+        
+        # 3. Trigger Stage 1 if template changed or it's a new tag
+        if template_changed or not change:
+            logger.info(f"[ADMIN] Template changed for {obj.tag_mac}. Triggering Stage 1 Task.")
+            update_tag_image_task.delay(obj.id)
+
+    def save_related(self, request, form, formsets, change):
+        """
+        Triggered when using 'Save' in the List View (List Editable).
+        """
+        super().save_related(request, form, formsets, change)
+        
+        # In List View, form.instance is the object being saved
+        obj = form.instance
+        if obj and obj.id:
+            # We use apply_async with a 1-second delay to ensure 
+            # the database transaction is fully committed before the worker picks it up
+            logger.info(f"[ADMIN-LIST] Processing save for {obj.tag_mac}. Triggering Stage 1 Task.")
+            update_tag_image_task.apply_async(args=[obj.id], countdown=1)
 
     # 3. SORTABLE Paired Info
     def get_paired_info(self, obj):
@@ -889,13 +920,19 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Set template to Standard (V1)")
     def set_template_v1(self, request, queryset):
+        # We must iterate or use a post-save logic because .update() bypasses signals
         queryset.update(template_id=1)
-        self.message_user(request, "Updated selected tags to Template V1.")
+        for tag in queryset:
+            update_tag_image_task.delay(tag.id)
+        self.message_user(request, f"Updated {queryset.count()} tags to Template V1 and queued image generation.")
 
-    @admin.action(description="Set template to High-Vis (V2)")
+    @admin.action(description="Set template to High-Visibility (V2)")
     def set_template_v2(self, request, queryset):
         queryset.update(template_id=2)
-        self.message_user(request, "Updated selected tags to Template V2.")
+        for tag in queryset:
+            update_tag_image_task.delay(tag.id)
+        self.message_user(request, f"Updated {queryset.count()} tags to Template V2 and queued image generation.")
+
 
     def get_actions(self, request):
         actions = super().get_actions(request)
