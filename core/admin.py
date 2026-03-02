@@ -743,7 +743,8 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         'created_at', 
         'updated_by',
     )
-    
+    search_fields = ('tag_mac', 'paired_product__name', 'paired_product__sku')
+
     list_editable = ('template_id', 'aisle', 'section', 'shelf_row')
     list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
     autocomplete_fields = ['paired_product']
@@ -759,7 +760,7 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             'description': 'Search for a product by SKU or Name below.',
             'fields': ('paired_product',),
         }),
-        ('Visuals', {'fields': ('image_preview_large','last_image_gen_success', 'sync_state','last_image_task_id', 'audit_log_link')}),
+        ('Visuals', {'fields': ('template_id','image_preview_large','last_image_gen_success', 'sync_state','last_image_task_id', 'audit_log_link')}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
         ('Audit', {'fields': ('updated_by', 'updated_at')}),
     )
