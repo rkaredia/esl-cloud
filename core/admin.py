@@ -11,7 +11,7 @@ import time
 import json
 import logging
 import traceback
-from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware
+from .models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier
 from .views import download_tag_template, preview_tag_import, preview_product_import, bulk_map_tags_view
 from core.tasks import update_tag_image_task
 from django_celery_results.models import TaskResult, GroupResult
@@ -125,18 +125,29 @@ class SAISAdminSite(admin.AdminSite):
             
             logger.info(f"[LAB DEBUG] Starting render for Spec: {spec.model_number}, Template: {template_id}, Promo: {is_promo_active}")
             
-            # Simple mock product to match your single-price logic
+            class MockSupplier:
+                def __init__(self, abbreviation):
+                    self.abbreviation = abbreviation
+
             class MockProduct:
-                def __init__(self, name, price, sku, is_on_special):
+                def __init__(self, name, price, sku, supplier_abbr="GSC", is_on_special=False):
                     self.name = name
-                    self.price = price 
+                    self.price = price
                     self.sku = sku
                     self.is_on_special = is_on_special
+                    self.preferred_supplier = MockSupplier(supplier_abbr)
+            # Simple mock product to match your single-price logic
+            # class MockProduct:
+            #     def __init__(self, name, price, sku, is_on_special):
+            #         self.name = name
+            #         self.price = price 
+            #         self.sku = sku
+            #         self.is_on_special = is_on_special
 
             mock_product = MockProduct(
                 name="PREVIEW PRODUCT NAME LONG DESCRIPTION",
                 price="88.50" if is_promo_active else "124.50",
-                sku="SKU12345678",
+                sku="123456789000",
                 is_on_special=is_promo_active
             )
 
@@ -281,6 +292,7 @@ class SAISAdminSite(admin.AdminSite):
                 #nav-sidebar th a { color: var(--navy) !important; }
                 #nav-sidebar .model-esltag th a:before { content: "🏷️ "; }
                 #nav-sidebar .model-product th a:before { content: "🛒 "; }
+                #nav-sidebar .model-supplier th a:before { content: "🏭 "; }
                 #nav-sidebar .model-gateway th a:before { content: "📟 "; }
                 #nav-sidebar .model-taghardware th a:before { content: "🛠️ "; }
                 #nav-sidebar .model-company th a:before { content: "🏭 "; }
@@ -344,7 +356,7 @@ class SAISAdminSite(admin.AdminSite):
             
         def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
         
-        inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product')] if m]}
+        inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]}
         hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
         org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
         
@@ -559,6 +571,17 @@ class TagHardwareAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return request.user.is_superuser
 
+# =================================================================
+# SUPPLIER ADMIN
+# =================================================================
+@admin.register(Supplier, site=admin_site)
+class SupplierAdmin(admin.ModelAdmin):
+    """
+    New menu item to manage suppliers and their abbreviations.
+    """
+    list_display = ('name', 'abbreviation')
+    search_fields = ('name', 'abbreviation')
+    ordering = ('name',)
 
 # =================================================================
 # PRODUCT ADMIN
@@ -566,12 +589,20 @@ class TagHardwareAdmin(admin.ModelAdmin):
 
 @admin.register(Product, site=admin_site)
 class ProductAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
-    list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'created_at', 'updated_at', 'updated_by')
-    list_editable = ('name', 'price')
+    list_display = ('image_status', 'sku', 'name', 'price', 'store', 'sync_button', 'preferred_supplier','created_at', 'updated_at', 'updated_by')
+    list_editable = ('name', 'price', 'preferred_supplier')
     search_fields = ('sku', 'name')
-    readonly_fields = ('updated_at', 'updated_by', 'image_status')
+    readonly_fields = ('updated_at', 'updated_by', 'image_status','store','created_at')
     change_list_template = "admin/core/product/change_list.html"
-
+    fieldsets = (
+        ('General Info', {
+            'fields': ('sku', 'name', 'preferred_supplier','image_status','store')
+        }),
+        ('Pricing', {
+            'fields': ('price', 'is_on_special')
+        }),
+        ('Audit', {'fields': ('created_at', 'updated_at','updated_by')}),
+    )
 # This prevents the "Show All" link at the bottom from appearing for large sets
     list_max_show_all = 100
     show_full_result_count = False

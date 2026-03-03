@@ -147,18 +147,50 @@ class Gateway(AuditModel):
     def __str__(self):
         return f"{self.gateway_mac} ({self.store.name if self.store else 'No Store'})"
 
+class Supplier(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    abbreviation = models.CharField(max_length=3, unique=True, help_text="3 character code (e.g., GSC,STM,GHR,GAM)")
+    
+    def __str__(self):
+        return f"{self.name} ({self.abbreviation})"
+
 class Product(AuditModel):
     store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='products')
     sku = models.CharField(max_length=50)
     name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_on_special = models.BooleanField(default=False)
+    preferred_supplier = models.ForeignKey(
+        Supplier, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='products'
+    )
     
     class Meta:
         unique_together = ('sku', 'store')
     def __str__(self):
         # This will change "Product object (4)" to "SKU - Name"
         return f"{self.sku} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # Check if supplier changed to trigger refreshes
+        # 1. Capture the old supplier ID before saving
+        old_supplier = None
+        if self.pk:
+            old_supplier = Product.objects.filter(pk=self.pk).values_list('preferred_supplier', flat=True).first()
+        # 2. Perform the actual save
+        super().save(*args, **kwargs)
+        
+        # 3. Trigger refresh if supplier changed
+        # Note: self.preferred_supplier_id is the ID of the foreign key field
+        # Trigger refresh for all tags paired with this product
+        if old_supplier != self.preferred_supplier_id:
+            from .tasks import update_tag_image_task
+            tags = self.esl_tags.all() # Assuming related_name='esltags' on ESLTag model
+            for tag in tags:
+                update_tag_image_task.delay(tag.id)    
 
 
 class ESLTag(AuditModel):

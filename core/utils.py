@@ -39,7 +39,7 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if w <= max_w and h <= max_h:
             break
-        size -= 2
+        size -= 1 
         font = get_font_by_type(size, font_type)
     return font
 
@@ -81,7 +81,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
     if lines:
         # We calculate the font for the longest line to ensure it fits the width
         longest_line = max(lines, key=len)
-        max_h_per_line = (height * 0.45) / len(lines)
+        max_h_per_line = (height * 0.40) / len(lines)
         n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 18, "condensed")
         
         # Get actual height for spacing
@@ -147,86 +147,74 @@ def template_v1(image, draw, product, width, height, color_scheme):
     # 5. BARCODE & SKU (Bottom Left)
     try:
         # Define specific area for the barcode bars only
-        barcode_w = left_zone_w
+        barcode_w = int(left_zone_w * 0.95)
         barcode_h = int(height * 0.25)
-        
+        raw_sku_data = str(product.sku)
         code128 = barcode.get_barcode_class('code128')
-        ean = code128(str(product.sku), writer=ImageWriter())
+        ean = code128(str(raw_sku_data), writer=ImageWriter())
         
         # Render barcode bars without internal text to avoid resize distortion
         b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
         b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
         
-        # Paste barcode bars
-        image.paste(b_img, (safe_pad, height - barcode_h - 15), b_img)
+        # Calculate Y for barcode: leave room for text below
+        # We place the barcode slightly higher than the very bottom
+        barcode_y = height - barcode_h - 15
+        image.paste(b_img, (safe_pad, barcode_y), b_img)
+        # Construct the "Human Readable" string for the Store Manager
+        # Construct "Supplier:SKU" string
+        supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
+        display_text = f"{supp_abbr}:{product.sku}"
         
-        # Manually draw the SKU text using our font system for crisp rendering
-        sku_str = str(product.sku)
-        s_font = get_dynamic_font_size(sku_str, barcode_w, 14, 16, "condensed")
-        draw.text((safe_pad + (barcode_w // 2), height - 2), sku_str, fill=(0,0,0), font=s_font, anchor="mb")
+        s_font = get_dynamic_font_size(display_text, left_zone_w, 16, 14,  "condensed")
+        # Draw text centered under barcode
+        # anchor="mb" uses the middle of the text width and the bottom of the height
+        draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
 
     except Exception as e:
         logger.error(f"Barcode error: {e}")
 
 
 def template_v2(image, draw, product, width, height, color_scheme):
-    """
-    NEW DESIGN (Template 2)
-    High visibility centered layout with bottom-left 'SPECIAL' indicator.
-    """
+    # (Same background/header logic as before)
     is_promo = getattr(product, 'is_on_special', False)
     color_scheme = color_scheme.upper()
     bg_color = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     draw.rectangle([0, 0, width, height], fill=bg_color)
-
     if not product: return
-
-    # Header Bar
     draw.rectangle([0, 0, width, 25], fill=(0, 0, 0))
     name_font = get_font_by_type(14, "bold")
     draw.text((width//2, 12), product.name.upper()[:25], fill=(255,255,255), font=name_font, anchor="mm")
-
-    # Large Center Price
     price_str = f"${product.price}"
     price_font = get_dynamic_font_size(price_str, width - 20, height - 60, 55)
     p_color = (255, 0, 0) if ('R' in color_scheme) else (0,0,0)
     draw.text((width//2, height//2 + 5), price_str, fill=p_color, font=price_font, anchor="mm")
 
-    # Bottom Right SKU
-    sku_font = get_font_by_type(10, "condensed")
-    draw.text((width - 5, height - 5), f"SKU: {product.sku}", fill=(0,0,0), font=sku_font, anchor="rb")
-
-    # --- NEW: SPECIAL TAG FOR V2 ---
+    # Updated SKU footer for V2
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
+    sku_text = f"{supp_abbr}: {product.sku}"
+    sku_font = get_font_by_type(12, "condensed")
+    draw.text((width - 5, height - 5), sku_text, fill=(0,0,0), font=sku_font, anchor="rb")
     if is_promo:
         promo_tag_font = get_font_by_type(20, "bold")
         draw.text((5, height - 5), "SPECIAL", fill=(0,0,0), font=promo_tag_font, anchor="lb")
 
 def template_v3(image, draw, product, width, height, color_scheme):
-    """
-    SIDE-BY-SIDE PROMO (Template 3)
-    Inspired by 'Organic Blueberries' design.
-    Left: Product Info (White). Right: Special Offer (Yellow/Red).
-    """
+    # (Same side-by-side logic as before)
     is_promo = getattr(product, 'is_on_special', False)
     color_scheme = color_scheme.upper()
-    
-    # 1. Background Split
     split_x = int(width * 0.45)
-    draw.rectangle([0, 0, split_x, height], fill=(255, 255, 255)) # Left Info
-    
-    # Right side is Yellow if on promo, else White
+    draw.rectangle([0, 0, split_x, height], fill=(255, 255, 255))
     right_bg = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     draw.rectangle([split_x, 0, width, height], fill=right_bg)
-
     if not product: return
-
-    # 2. Left Side: Product Details
     safe_pad = 8
-    # SKU at top
-    sku_font = get_font_by_type(10, "bold")
-    draw.text((safe_pad, safe_pad), f"SKU: {product.sku}", fill=(0,0,0), font=sku_font)
 
-    # Product Name (Wrapped)
+    # Updated SKU display for V3
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
+    sku_font = get_font_by_type(10, "bold")
+    draw.text((safe_pad, safe_pad), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=sku_font)
+
     name_font = get_font_by_type(16, "bold")
     wrapper = textwrap.TextWrapper(width=12)
     lines = wrapper.wrap(text=product.name.upper())[:4]
@@ -234,28 +222,18 @@ def template_v3(image, draw, product, width, height, color_scheme):
     for line in lines:
         draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=name_font)
         curr_y += 18
-
-    # Bottom Border Line on Left
     draw.line([safe_pad, height - 35, split_x - safe_pad, height - 35], fill=(0,0,0), width=1)
-
-    # 3. Right Side: Pricing
     if is_promo:
-        # "SALE!" or "SPECIAL OFFER" Banner
         banner_font = get_font_by_type(18, "bold")
         banner_color = (255, 0, 0) if 'R' in color_scheme else (0,0,0)
         draw.text((split_x + (width - split_x)//2, 25), "SALE!", fill=banner_color, font=banner_font, anchor="mm")
-        
-        # Sub-header
         sub_font = get_font_by_type(10, "bold")
         draw.rectangle([split_x + 10, 40, width - 10, 55], fill=banner_color)
         draw.text((split_x + (width - split_x)//2, 47), "SPECIAL OFFER", fill=(255,255,255), font=sub_font, anchor="mm")
-    
-    # Main Price
     price_str = f"${product.price}"
     max_p_w = (width - split_x) - 10
     price_font = get_dynamic_font_size(price_str, max_p_w, height // 2, 45)
     draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
-
 
 def generate_esl_image(tag_id):
     """
