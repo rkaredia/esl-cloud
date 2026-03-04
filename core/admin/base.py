@@ -338,10 +338,22 @@ admin_site = SAISAdminSite(name='sais_admin')
 # --- MIXINS ---
 
 class AuditAdminMixin:
-    """Automatically stamps the user who last modified the record."""
+    """
+    Automatically stamps the user who last modified the record
+    and assigns the active store for new records if applicable.
+    """
     def save_model(self, request, obj, form, change):
-        if hasattr(obj, 'updated_by'):
+        # Update modified by user
+        if hasattr(obj, 'updated_by_id') or any(f.name == 'updated_by' for f in obj._meta.fields):
             obj.updated_by = request.user
+
+        # Automatically assign active store for new objects if the model has a store field
+        if not change and hasattr(request, 'active_store') and request.active_store:
+            # Check meta to safely detect 'store' field without triggering hasattr fetches
+            if any(f.name == 'store' for f in obj._meta.fields):
+                if not getattr(obj, 'store_id', None):
+                    obj.store = request.active_store
+
         super().save_model(request, obj, form, change)
 
 class CompanySecurityMixin(AuditAdminMixin):
