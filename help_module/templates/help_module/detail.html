@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main" style="display: flex; gap: 2rem; align-items: flex-start;">
+    <!-- Sidebar for Topics -->
+    <div class="help-sidebar" style="width: 250px; flex-shrink: 0; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin-top: 0; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">Topics</h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            {% for slug, topic in topics.items %}
+                <li style="margin-bottom: 0.5rem;">
+                    <a href="{% url 'help_module:detail' slug %}"
+                       style="text-decoration: none; color: {% if active_topic == slug %}#003459{% else %}#64748b{% endif %}; font-weight: {% if active_topic == slug %}bold{% else %}normal{% endif %}; display: block; padding: 0.5rem; border-radius: 4px; {% if active_topic == slug %}background: #f1f5f9;{% endif %}">
+                        {{ topic.title }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 1rem 0;">
+        <a href="{% url 'help_module:index' %}" style="text-decoration: none; color: #003459; font-size: 0.9rem;">&larr; Back to Help Home</a>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="help-content" style="flex-grow: 1; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); line-height: 1.6;">
+        <div class="markdown-body">
+            {{ content }}
+        </div>
+    </div>
+</div>
+
+<style>
+    .markdown-body h1 { margin-top: 0; color: #003459; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+    .markdown-body h2 { margin-top: 1.5rem; color: #1e293b; }
+    .markdown-body ul { padding-left: 1.5rem; }
+    .markdown-body code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
+</style>
+{% endblock %}

@@ -35,6 +35,7 @@ urlpatterns = [
     # TO THIS:
     path('admin/', admin_site.urls), # Use the instance that has the 'sais_admin' name
     path('set-store/<int:store_id>/', views.set_active_store, name='set_active_store'),
+    path('help/', include('help_module.urls')),
     path('', RedirectView.as_view(url='/admin/', permanent=True)),
 ]
 

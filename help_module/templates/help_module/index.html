@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main" style="max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <h1>{{ title }}</h1>
+    <p>Welcome to the SAIS Help Center. Select a topic below to learn more about using the platform.</p>
+
+    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 2rem;">
+        {% for slug, topic in topics.items %}
+            <a href="{% url 'help_module:detail' slug %}" class="help-card" style="text-decoration: none; color: inherit; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s;">
+                <h3 style="margin: 0; color: #003459;">{{ topic.title }}</h3>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .help-card:hover {
+        border-color: #003459 !important;
+        background: #f8fafc;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}
