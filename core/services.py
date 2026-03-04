@@ -1,6 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import openpyxl
 import logging
+from django.db import transaction
 from .models import Product, ESLTag
 
 logger = logging.getLogger(__name__)
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)
 class BulkMapProcessor:
     """
     Processes a list of scans (SKUs and Tag IDs) to propose pairings.
-    Expects a product scan followed by one or more tag scans.
+    Optimized with in-memory lookups to handle large batch scans.
     """
     def __init__(self, raw_text, store, user):
         self.lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
@@ -19,11 +20,16 @@ class BulkMapProcessor:
 
     def process(self):
         try:
+            # Prefetch all relevant products and tags for this store
+            unique_codes = set(self.lines)
+            products = {p.sku: p for p in Product.objects.filter(sku__in=unique_codes, store=self.store)}
+            tags = {t.tag_mac: t for t in ESLTag.objects.select_related('paired_product').filter(tag_mac__in=unique_codes, gateway__store=self.store)}
+
             pending_product = None
             for index, code in enumerate(self.lines):
                 line_num = index + 1
-                product = Product.objects.filter(sku=code, store=self.store).first()
-                tag = ESLTag.objects.filter(tag_mac=code, gateway__store=self.store).first()
+                product = products.get(code)
+                tag = tags.get(code)
 
                 if product:
                     pending_product = product
@@ -52,10 +58,13 @@ class BulkMapProcessor:
 def process_modisoft_file_logic(file_path, active_store, user, commit=False):
     """
     Core logic for parsing Modisoft Excel files and updating products.
-    Used for both preview and final commit.
+    Optimized for large files (25k+ rows) using in-memory lookups and transactions.
     """
     results = {'new': [], 'update': [], 'rejected': [], 'unchanged_count': 0}
     try:
+        # Load existing products into memory for O(1) lookup
+        existing_products = {p.sku: p for p in Product.objects.filter(store=active_store)}
+
         wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
         sheet = wb.active
         headers = {str(cell.value).strip().lower(): idx for idx, cell in enumerate(sheet[1]) if cell.value}
@@ -83,7 +92,7 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
                     results['rejected'].append({'sku': raw_sku, 'reason': f"Invalid price: {raw_price}"})
                     continue
 
-                product = Product.objects.filter(sku=raw_sku, store=active_store).first()
+                product = existing_products.get(raw_sku)
                 if product:
                     if product.price != price_decimal or product.name != raw_name:
                         results['update'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal, 'old_price': product.price})
@@ -99,6 +108,20 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
             except Exception as row_error:
                 logger.error(f"Error processing row in Modisoft import: {row_error}")
                 results['rejected'].append({'sku': "Unknown", 'reason': "System error processing row"})
+
+        if commit:
+            with transaction.atomic():
+                # Perform the actual DB operations in a single transaction
+                for item in results['update']:
+                    prod = existing_products[item['sku']]
+                    prod.name, prod.price, prod.updated_by = item['name'], item['new_price'], user
+                    prod.save() # Note: .save() triggers individual tag updates.
+
+                for item in results['new']:
+                    Product.objects.create(
+                        sku=item['sku'], name=item['name'], price=item['new_price'],
+                        store=active_store, updated_by=user
+                    )
 
         return results, None
     except Exception as e:

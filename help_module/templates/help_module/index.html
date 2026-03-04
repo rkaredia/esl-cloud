@@ -1,25 +1,63 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'help_module/css/help.css' %}">
+<style>
+    /* Force hide the admin sidebar on Help pages */
+    #nav-sidebar, .nav-sidebar, #nav-filter { display: none !important; }
+    .main { display: block !important; }
+    #content { margin-left: 0 !important; width: 100% !important; }
+    #content-start { margin-left: 0 !important; width: 100% !important; }
+    .main > .content { margin-left: 0 !important; }
+    #container { display: flex; flex-direction: column; }
+    #main { display: block !important; }
+</style>
+{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
 
 {% block content %}
-<div id="content-main" style="max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-    <h1>{{ title }}</h1>
-    <p>Welcome to the SAIS Help Center. Select a topic below to learn more about using the platform.</p>
+<div class="help-container">
+    <div style="text-align: center; margin-bottom: 4rem; padding-top: 2rem;">
+        <h1 style="font-size: 3.5rem; color: #003459; margin-bottom: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
+        <p style="font-size: 1.3rem; color: #64748b; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+            Master the SAIS ESL Management platform with our comprehensive guides.
+        </p>
+    </div>
 
-    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 2rem;">
+    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem;">
         {% for slug, topic in topics.items %}
-            <a href="{% url 'help_module:detail' slug %}" class="help-card" style="text-decoration: none; color: inherit; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s;">
-                <h3 style="margin: 0; color: #003459;">{{ topic.title }}</h3>
+            <a href="{% url 'help_module:detail' slug %}" class="help-card">
+                <div class="card-inner" style="background: white; padding: 3rem; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
+                    <div style="width: 72px; height: 72px; background: #f1f5f9; border-radius: 16px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem;">
+                        {% if slug == 'product-management' %}🛒
+                        {% elif slug == 'tag-manager' %}🏷️
+                        {% elif slug == 'linkage' %}🔗
+                        {% elif slug == 'access-management' %}👥
+                        {% elif slug == 'troubleshooting' %}🛠️
+                        {% elif slug == 'standard-errors' %}⚠️
+                        {% elif slug == 'dashboard' %}📊
+                        {% elif slug == 'store-context' %}🏪
+                        {% else %}📄{% endif %}
+                    </div>
+                    <h3 style="margin: 0 0 1.25rem 0; color: #003459; font-size: 1.5rem; font-weight: 700;">{{ topic.title }}</h3>
+                    <p style="margin: 0; color: #64748b; font-size: 1rem; line-height: 1.6;">Step-by-step instructions for {{ topic.title|lower }}.</p>
+                </div>
+                <div class="card-footer" style="padding: 1.25rem 2rem 0 0; text-align: right; color: #003459; font-weight: 700; font-size: 0.9rem; transition: all 0.2s;">
+                    View Guide →
+                </div>
             </a>
         {% endfor %}
     </div>
-</div>
 
-<style>
-    .help-card:hover {
-        border-color: #003459 !important;
-        background: #f8fafc;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-</style>
+    <div style="margin-top: 8rem; background: linear-gradient(135deg, #003459 0%, #00171f 100%); border-radius: 24px; padding: 4rem; color: white; display: flex; align-items: center; justify-content: space-between; overflow: hidden; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <div style="position: relative; z-index: 2; max-width: 600px;">
+            <h2 style="margin: 0 0 1.5rem 0; font-size: 2.25rem; color: white; font-weight: 800;">Need personalized help?</h2>
+            <p style="margin: 0; color: #bae6fd; font-size: 1.2rem; line-height: 1.6;">Our technical support team is available for on-site hardware assistance and advanced gateway configuration.</p>
+        </div>
+        <div style="font-size: 12rem; position: absolute; right: -2rem; opacity: 0.05; top: -2rem; transform: rotate(-15deg); z-index: 1;">❓</div>
+    </div>
+</div>
 {% endblock %}
