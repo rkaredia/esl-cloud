@@ -13,34 +13,26 @@ from .mqtt_client import mqtt_service
 
 logger = logging.getLogger(__name__)
 
-def log_info(message):
-    """Utility to log both to file and console."""
-    logger.info(message)
-    print(message, file=sys.stdout)
-
 @shared_task(bind=True, name="core.tasks.update_tag_image_task")
 def update_tag_image_task(self, tag_id):
     """
     STAGE 1: Generate and Store.
     Renders the ESL BMP image and saves it to the storage system.
-    Uses a Redis lock to prevent concurrent generation for the same tag.
     """
-    time.sleep(random.uniform(0, 0.1)) # Stagger concurrent starts
-
-    lock_id = f"lock-tag-gen-{tag_id}"
-    if not cache.add(lock_id, self.request.id, 30): 
-        log_info(f"[STAGE 1] Aborting duplicate task for Tag {tag_id}. Lock already held.")
-        return "Duplicate aborted"
-
-    log_info(f"[STAGE 1 START] Processing Tag ID: {tag_id} | Task: {self.request.id}")
-    
     try:
+        time.sleep(random.uniform(0, 0.1))
+        lock_id = f"lock-tag-gen-{tag_id}"
+        if not cache.add(lock_id, self.request.id, 30):
+            logger.info(f"Aborting duplicate task for Tag {tag_id}. Lock held.")
+            return "Duplicate aborted"
+
+        logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id}")
+
         tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
         tag.sync_state = 'PROCESSING'
         tag.save(update_fields=['sync_state'])
 
         if not tag.paired_product:
-            log_info(f"[STAGE 1] Tag {tag.tag_mac} has no paired product. Reverting to IDLE.")
             tag.sync_state = 'IDLE'
             tag.save(update_fields=['sync_state'])
             cache.delete(lock_id)
@@ -48,11 +40,10 @@ def update_tag_image_task(self, tag_id):
 
         # Image Generation
         try:
-            log_info(f"[STAGE 1] Rendering {tag.tag_mac} using Template {tag.template_id}")
             pil_img = generate_esl_image(tag_id)
             if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
         except Exception as e:
-            log_info(f"[STAGE 1 ERROR] Image gen failed for {tag.tag_mac}: {str(e)}")
+            logger.exception(f"Image gen failed for {tag.tag_mac}")
             tag.sync_state = 'GEN_FAILED'
             tag.save(update_fields=['sync_state'])
             cache.delete(lock_id)
@@ -66,14 +57,13 @@ def update_tag_image_task(self, tag_id):
         tag.sync_state, tag.last_image_gen_success, tag.last_image_task_id = 'IMAGE_READY', timezone.now(), self.request.id
         tag.save(update_fields=['tag_image', 'sync_state', 'last_image_gen_success', 'last_image_task_id'])
         
-        log_info(f"[STAGE 1 SUCCESS] Image stored for {tag.tag_mac}. Dispatching Stage 2...")
         dispatch_tag_image_task.delay(tag_id)
         return f"BMP Generated for {tag.tag_mac}"
 
     except Exception as e:
-        log_info(f"[STAGE 1 CRITICAL ERROR] {tag_id}: {str(e)}")
+        logger.exception(f"Critical error in update_tag_image_task for tag {tag_id}")
         ESLTag.objects.filter(pk=tag_id).update(sync_state='FAILED')
-        cache.delete(lock_id)
+        if 'lock_id' in locals(): cache.delete(lock_id)
         raise e
 
 @shared_task(name="core.tasks.dispatch_tag_image_task")
@@ -83,7 +73,6 @@ def dispatch_tag_image_task(tag_id):
     Publishes the generated image to the physical ESL gateway.
     """
     lock_id = f"lock-tag-gen-{tag_id}"
-    log_info(f"[STAGE 2 START] Dispatching Tag ID: {tag_id}")
     try:
         tag = ESLTag.objects.select_related('gateway').get(pk=tag_id)
         
@@ -108,7 +97,6 @@ def dispatch_tag_image_task(tag_id):
         if success:
             tag.sync_state, tag.last_image_task_token = 'PUSHED', token
             tag.save(update_fields=['sync_state', 'last_image_task_token'])
-            log_info(f"[STAGE 2 SUCCESS] {tag.tag_mac} sent to broker.")
             cache.delete(lock_id)
             return "MQTT Pushed"
         else:
@@ -118,7 +106,7 @@ def dispatch_tag_image_task(tag_id):
             return "MQTT Failed"
 
     except Exception as e:
-        log_info(f"[STAGE 2 CRITICAL ERROR] {tag_id}: {str(e)}")
+        logger.exception(f"Critical error in dispatch_tag_image_task for tag {tag_id}")
         ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
         cache.delete(lock_id)
         raise e
@@ -126,7 +114,11 @@ def dispatch_tag_image_task(tag_id):
 @shared_task(name="core.tasks.refresh_store_products_task")
 def refresh_store_products_task(store_id):
     """Refreshes all tags for a specific store."""
-    tags = ESLTag.objects.filter(gateway__store_id=store_id, paired_product__isnull=False)
-    for tag in tags:
-        update_tag_image_task.delay(tag.id)
-    return f"Queued {tags.count()} tags for store {store_id}"
+    try:
+        tags = ESLTag.objects.filter(gateway__store_id=store_id, paired_product__isnull=False)
+        for tag in tags:
+            update_tag_image_task.delay(tag.id)
+        return f"Queued {tags.count()} tags for store {store_id}"
+    except Exception as e:
+        logger.exception(f"Error in refresh_store_products_task for store {store_id}")
+        raise e

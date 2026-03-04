@@ -8,6 +8,9 @@ from ..models import Gateway, TagHardware, ESLTag
 from ..views import download_tag_template, preview_tag_import, bulk_map_tags_view
 from ..tasks import update_tag_image_task
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
@@ -45,44 +48,54 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
 
     def image_status(self, obj):
-        if not obj.paired_product: return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
-        color = "#059669" if obj.tag_image else "#ea580c"
-        return mark_safe(f'<span style="color:{color}; font-weight:bold;">● {"Generated" if obj.tag_image else "Pending"}</span>')
+        try:
+            if not obj.paired_product: return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
+            color = "#059669" if obj.tag_image else "#ea580c"
+            return mark_safe(f'<span style="color:{color}; font-weight:bold;">● {"Generated" if obj.tag_image else "Pending"}</span>')
+        except: return "Error"
     image_status.short_description = "Image"
     image_status.admin_order_field = 'tag_image'
 
     def get_paired_info(self, obj):
-        if obj.paired_product: return f"{obj.paired_product.sku} - {obj.paired_product.name}"
-        return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
+        try:
+            if obj.paired_product: return f"{obj.paired_product.sku} - {obj.paired_product.name}"
+            return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
+        except: return "Error"
     get_paired_info.short_description = "Paired Product"
     get_paired_info.admin_order_field = 'paired_product__name'
 
     def last_sync_status(self, obj):
-        color_map = {'SUCCESS': '#059669', 'PROCESSING': '#2563eb', 'PUSHED': '#7c3aed', 'IDLE': '#a2a2a3', 'GEN_FAILED': '#f50000', 'PUSH_FAILED': '#f50000', 'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000'}
-        color = color_map.get(obj.sync_state, '#ea580c')
-        status_text = obj.get_sync_state_display()
-        if obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
-            status_text = f"✔ {obj.last_image_gen_success.strftime('%H:%M')}"
-        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, status_text)
+        try:
+            color_map = {'SUCCESS': '#059669', 'PROCESSING': '#2563eb', 'PUSHED': '#7c3aed', 'IDLE': '#a2a2a3', 'GEN_FAILED': '#f50000', 'PUSH_FAILED': '#f50000', 'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000'}
+            color = color_map.get(obj.sync_state, '#ea580c')
+            status_text = obj.get_sync_state_display()
+            if obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
+                status_text = f"✔ {obj.last_image_gen_success.strftime('%H:%M')}"
+            return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, status_text)
+        except: return "Error"
     last_sync_status.short_description = "Sync Status"
     last_sync_status.admin_order_field = 'sync_state'
 
     def battery_level_display(self, obj):
-        val = obj.battery_level or 0
-        color = "#059669" if val > 20 else "#dc2626"
-        return format_html('<div style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;"><div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div></div><small>{}%</small>', val, color, val)
+        try:
+            val = obj.battery_level or 0
+            color = "#059669" if val > 20 else "#dc2626"
+            return format_html('<div style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;"><div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div></div><small>{}%</small>', val, color, val)
+        except: return "Error"
     battery_level_display.short_description = "Battery"
     battery_level_display.admin_order_field = 'battery_level'
 
     def image_preview_large(self, obj):
-        if not obj.paired_product: return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
-        if obj.tag_image: return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
-        return "Waiting for background generation..."
+        try:
+            if not obj.paired_product: return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
+            if obj.tag_image: return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
+            return "Waiting for background generation..."
+        except: return "Error loading image"
     image_preview_large.short_description = "Current Tag Image"
 
     def audit_log_link(self, obj):
-        if not obj.last_image_task_id: return "No task record"
         try:
+            if not obj.last_image_task_id: return "No task record"
             url = reverse('admin:django_celery_results_taskresult_changelist') + f"?task_id={obj.last_image_task_id}"
             return format_html('<a href="{}" target="_blank">View Task Results ↗</a>', url)
         except: return obj.last_image_task_id
@@ -90,44 +103,73 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Regenerate selected (Max 100)")
     def safe_regenerate_images(self, request, queryset):
-        if queryset.count() > 100:
-            self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
-            return
-        for tag in queryset: update_tag_image_task.delay(tag.id)
-        self.message_user(request, f"Queued {queryset.count()} tags for regeneration.")
+        try:
+            count = queryset.count()
+            if count > 100:
+                self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
+                return
+            for tag in queryset: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Queued {count} tags for regeneration.")
+        except Exception as e:
+            logger.exception("Error in safe_regenerate_images")
+            self.message_user(request, "Failed to queue regeneration.", messages.ERROR)
 
     @admin.action(description="Delete selected (Max 100)")
     def safe_delete(self, request, queryset):
-        if queryset.count() > 100:
-            self.message_user(request, "Error: Max 100 items allowed.", messages.ERROR)
-            return
-        queryset.delete()
+        try:
+            count = queryset.count()
+            if count > 100:
+                self.message_user(request, "Error: Max 100 items allowed.", messages.ERROR)
+                return
+            queryset.delete()
+            self.message_user(request, f"Deleted {count} tags.")
+        except Exception as e:
+            logger.exception("Error in safe_delete action")
+            self.message_user(request, "Technical error during deletion.", messages.ERROR)
 
     @admin.action(description="Refresh ALL tags in Store")
     def refresh_all_store_tags(self, request, queryset):
-        if not request.active_store:
-            self.message_user(request, "Please select a store first.", messages.WARNING)
-            return
-        tags = ESLTag.objects.for_store(request.active_store).filter(paired_product__isnull=False)
-        count = tags.count()
-        for tag in tags[:200]: update_tag_image_task.delay(tag.id)
-        self.message_user(request, f"Queued refresh for {min(count, 200)} tags.")
+        try:
+            if not request.active_store:
+                self.message_user(request, "Please select a store first.", messages.WARNING)
+                return
+            tags = ESLTag.objects.for_store(request.active_store).filter(paired_product__isnull=False)
+            count = tags.count()
+            for tag in tags[:200]: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Queued refresh for {min(count, 200)} tags.")
+        except Exception as e:
+            logger.exception("Error in refresh_all_store_tags")
+            self.message_user(request, "Failed to trigger store refresh.", messages.ERROR)
 
     @admin.action(description="Set template to Standard (V1)")
     def set_template_v1(self, request, queryset):
-        queryset.update(template_id=1)
-        for tag in queryset: update_tag_image_task.delay(tag.id)
-        self.message_user(request, f"Updated {queryset.count()} tags to V1 and queued sync.")
+        try:
+            count = queryset.count()
+            queryset.update(template_id=1)
+            for tag in queryset: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Updated {count} tags to V1 and queued sync.")
+        except Exception as e:
+            logger.exception("Error in set_template_v1")
+            self.message_user(request, "Error updating templates.", messages.ERROR)
 
     @admin.action(description="Set template to High-Visibility (V2)")
     def set_template_v2(self, request, queryset):
-        queryset.update(template_id=2)
-        for tag in queryset: update_tag_image_task.delay(tag.id)
-        self.message_user(request, f"Updated {queryset.count()} tags to V2 and queued sync.")
+        try:
+            count = queryset.count()
+            queryset.update(template_id=2)
+            for tag in queryset: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Updated {count} tags to V2 and queued sync.")
+        except Exception as e:
+            logger.exception("Error in set_template_v2")
+            self.message_user(request, "Error updating templates.", messages.ERROR)
 
     def manual_sync_view(self, request, object_id):
-        update_tag_image_task.delay(object_id)
-        messages.success(request, "Sync task queued.")
+        try:
+            update_tag_image_task.delay(object_id)
+            messages.success(request, "Sync task queued.")
+        except Exception as e:
+            logger.exception(f"Manual sync failed for {object_id}")
+            messages.error(request, "Failed to queue sync.")
         return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
 
     def get_urls(self):

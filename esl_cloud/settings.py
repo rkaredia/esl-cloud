@@ -204,7 +204,7 @@ LOGGING = {
     'formatters': {
         'sais_formatter': {
             '()': LocalTimeFormatter,
-            'format': '[{levelname}] {asctime} {module} {message}',
+            'format': '[{levelname}] {asctime} [{module}.{funcName}:{lineno}] - {process:d} {thread:d} - {message}',
             'style': '{',
         },
     },

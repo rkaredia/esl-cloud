@@ -6,6 +6,9 @@ from .base import admin_site, CompanySecurityMixin, UIHelperMixin
 from .mixins import StoreFilteredAdmin
 from ..models import Product, Supplier, ESLTag
 from ..views import preview_product_import
+import logging
+
+logger = logging.getLogger(__name__)
 
 @admin.register(Supplier, site=admin_site)
 class SupplierAdmin(admin.ModelAdmin):
@@ -36,39 +39,57 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Delete selected (Max 100)")
     def safe_delete(self, request, queryset):
-        if queryset.count() > 100:
-            self.message_user(request, "Error: Max 100 items allowed.", messages.ERROR)
-            return
-        queryset.delete()
+        try:
+            count = queryset.count()
+            if count > 100:
+                self.message_user(request, "Error: Max 100 items allowed for bulk deletion.", messages.ERROR)
+                return
+            queryset.delete()
+            self.message_user(request, f"Successfully deleted {count} items.")
+        except Exception as e:
+            logger.exception("Error in safe_delete action")
+            self.message_user(request, "A technical error occurred during deletion.", messages.ERROR)
 
     @admin.action(description="Regenerate Tag Images for selected products")
     def regenerate_product_images(self, request, queryset):
-        from ..utils import trigger_bulk_sync
-        if queryset.count() > 100:
-            self.message_user(request, "Error: Please select maximum 100 items.", messages.ERROR)
-            return
-        tag_ids = list(ESLTag.objects.filter(paired_product__in=queryset).values_list('id', flat=True))
-        if tag_ids:
-            trigger_bulk_sync(tag_ids)
-            self.message_user(request, f"Queued {len(tag_ids)} tag updates.")
-        else:
-            self.message_user(request, "No tags found for selected products.", messages.WARNING)
+        try:
+            from ..utils import trigger_bulk_sync
+            count = queryset.count()
+            if count > 100:
+                self.message_user(request, "Error: Please select maximum 100 items.", messages.ERROR)
+                return
+            tag_ids = list(ESLTag.objects.filter(paired_product__in=queryset).values_list('id', flat=True))
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
+                self.message_user(request, f"Queued {len(tag_ids)} tag updates across {count} products.")
+            else:
+                self.message_user(request, "No paired tags found for selected products.", messages.WARNING)
+        except Exception as e:
+            logger.exception("Error in regenerate_product_images action")
+            self.message_user(request, "Failed to queue image regeneration.", messages.ERROR)
 
     @admin.action(description="Refresh ALL images for this Store")
     def refresh_all_store_images(self, request, queryset):
-        if not request.active_store:
-            self.message_user(request, "Please select a store first.", messages.WARNING)
-            return
-        from ..tasks import refresh_store_products_task
-        refresh_store_products_task.delay(request.active_store.id)
-        self.message_user(request, f"Task started: Refreshing all products for {request.active_store.name}")
+        try:
+            if not request.active_store:
+                self.message_user(request, "Please select a store first.", messages.WARNING)
+                return
+            from ..tasks import refresh_store_products_task
+            refresh_store_products_task.delay(request.active_store.id)
+            self.message_user(request, f"Task started: Refreshing all products for {request.active_store.name}")
+        except Exception as e:
+            logger.exception("Error in refresh_all_store_images action")
+            self.message_user(request, "Could not start store-wide refresh.", messages.ERROR)
 
     def image_status(self, obj):
-        has_image = obj.esl_tags.filter(tag_image__gt='').exists()
-        has_tag = obj.esl_tags.exists()
-        if has_image: return mark_safe('<span style="color: #059669; font-weight: bold;">● Generated</span>')
-        if has_tag: return mark_safe('<span style="color: #ea580c; font-weight: bold;">● Pending</span>')
-        return mark_safe('<span style="color: #94a3b8;">○ No Tag</span>')
+        try:
+            has_image = obj.esl_tags.filter(tag_image__gt='').exists()
+            has_tag = obj.esl_tags.exists()
+            if has_image: return mark_safe('<span style="color: #059669; font-weight: bold;">● Generated</span>')
+            if has_tag: return mark_safe('<span style="color: #ea580c; font-weight: bold;">● Pending</span>')
+            return mark_safe('<span style="color: #94a3b8;">○ No Tag</span>')
+        except:
+            return "Error"
     image_status.short_description = "Status"
     image_status.admin_order_field = 'has_tag_image'
 

@@ -40,68 +40,77 @@ class SAISAdminSite(admin.AdminSite):
 
     def dashboard_view(self, request):
         """Renders the analytics dashboard for the active store."""
-        active_store = getattr(request, 'active_store', None)
-        if not active_store:
-            return redirect('admin:index')
+        try:
+            active_store = getattr(request, 'active_store', None)
+            if not active_store:
+                return redirect('admin:index')
 
-        tags_qs = ESLTag.objects.for_store(active_store)
-        gateways_qs = Gateway.objects.for_store(active_store)
-        products_qs = Product.objects.for_store(active_store)
+            tags_qs = ESLTag.objects.for_store(active_store)
+            gateways_qs = Gateway.objects.for_store(active_store)
+            products_qs = Product.objects.for_store(active_store)
 
-        tag_count = tags_qs.count()
-        low_battery_count = tags_qs.filter(battery_level__lte=20).count()
+            tag_count = tags_qs.count()
+            low_battery_count = tags_qs.filter(battery_level__lte=20).count()
 
-        tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
-            count=Count('id')
-        ).order_by('-count'))
+            tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
+                count=Count('id')
+            ).order_by('-count'))
 
-        for item in tag_types:
-            item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
+            for item in tag_types:
+                item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
 
-        gateway_loads = []
-        for gw in gateways_qs:
-            count = tags_qs.filter(gateway=gw).count()
-            gateway_loads.append({
-                'gateway_mac': gw.gateway_mac,
-                'estation_id': gw.estation_id,
-                'is_active': gw.is_active,
-                'tag_count': count,
-                'load_percent': min(int((count / 500) * 100), 100)
-            })
+            gateway_loads = []
+            for gw in gateways_qs:
+                count = tags_qs.filter(gateway=gw).count()
+                gateway_loads.append({
+                    'gateway_mac': gw.gateway_mac,
+                    'estation_id': gw.estation_id,
+                    'is_active': gw.is_active,
+                    'tag_count': count,
+                    'load_percent': min(int((count / 500) * 100), 100)
+                })
 
-        context = {
-            'active_store': active_store,
-            'gateway_count': gateways_qs.count(),
-            'active_gateways': gateways_qs.filter(is_active=True).count(),
-            'tag_count': tag_count,
-            'tags_with_products': tags_qs.exclude(paired_product__isnull=True).count(),
-            'low_battery_count': low_battery_count,
-            'product_count': products_qs.count(),
-            'tag_types': tag_types,
-            'gateway_loads': gateway_loads,
-            'sync_stats': {
-                'success': tags_qs.filter(sync_state='SUCCESS').count(),
-                'pushed': tags_qs.filter(sync_state='PUSHED').count(),
-                'ready': tags_qs.filter(sync_state='IMAGE_READY').count(),
-                'processing': tags_qs.filter(sync_state='PROCESSING').count(),
-                'idle': tags_qs.filter(sync_state='IDLE').count(),
-                'failed_total': tags_qs.filter(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED')).count(),
-                'gen_failed': tags_qs.filter(sync_state='GEN_FAILED').count(),
-                'push_failed': tags_qs.filter(sync_state='PUSH_FAILED').count(),
+            context = {
+                'active_store': active_store,
+                'gateway_count': gateways_qs.count(),
+                'active_gateways': gateways_qs.filter(is_active=True).count(),
+                'tag_count': tag_count,
+                'tags_with_products': tags_qs.exclude(paired_product__isnull=True).count(),
+                'low_battery_count': low_battery_count,
+                'product_count': products_qs.count(),
+                'tag_types': tag_types,
+                'gateway_loads': gateway_loads,
+                'sync_stats': {
+                    'success': tags_qs.filter(sync_state='SUCCESS').count(),
+                    'pushed': tags_qs.filter(sync_state='PUSHED').count(),
+                    'ready': tags_qs.filter(sync_state='IMAGE_READY').count(),
+                    'processing': tags_qs.filter(sync_state='PROCESSING').count(),
+                    'idle': tags_qs.filter(sync_state='IDLE').count(),
+                    'failed_total': tags_qs.filter(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED')).count(),
+                    'gen_failed': tags_qs.filter(sync_state='GEN_FAILED').count(),
+                    'push_failed': tags_qs.filter(sync_state='PUSH_FAILED').count(),
+                }
             }
-        }
 
-        context.update(self.each_context(request))
-        return render(request, "admin/dashboard.html", context)
+            context.update(self.each_context(request))
+            return render(request, "admin/dashboard.html", context)
+        except Exception as e:
+            logger.exception("Error in dashboard_view")
+            messages.error(request, "Could not load dashboard data.")
+            return redirect('admin:index')
 
     def template_gallery(self, request):
         """Renders the gallery of hardware specs for template testing."""
-        specs = TagHardware.objects.all()
-        return render(request, 'admin/core/template_gallery.html', {
-            'specs': specs,
-            'title': 'ESL Template Design Lab',
-            **self.each_context(request),
-        })
+        try:
+            specs = TagHardware.objects.all()
+            return render(request, 'admin/core/template_gallery.html', {
+                'specs': specs,
+                'title': 'ESL Template Design Lab',
+                **self.each_context(request),
+            })
+        except Exception:
+            logger.exception("Error in template_gallery")
+            return redirect('admin:index')
 
     def mock_render_view(self, request, spec_id):
         """Generates a mock preview image using the current template code."""
@@ -149,7 +158,7 @@ class SAISAdminSite(admin.AdminSite):
             return response
 
         except Exception as e:
-            logger.error(f"Design Lab Render Error: {traceback.format_exc()}")
+            logger.exception(f"Design Lab Render Error for spec {spec_id}")
             err_img = Image.new('RGB', (400, 150), color='#fee2e2')
             d = ImageDraw.Draw(err_img)
             d.text((10, 10), "PYTHON RENDER ERROR:", fill="black")
@@ -296,42 +305,46 @@ class SAISAdminSite(admin.AdminSite):
 
     def get_app_list(self, request, app_label=None):
         """Customizes the admin sidebar by grouping models into logical sections."""
-        app_dict = self._build_app_dict(request)
-        if not app_dict: return []
+        try:
+            app_dict = self._build_app_dict(request)
+            if not app_dict: return []
 
-        all_models = []
-        for app in app_dict.values():
-            all_models.extend(app['models'])
+            all_models = []
+            for app in app_dict.values():
+                all_models.extend(app['models'])
 
-        def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
+            def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
 
-        inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]}
-        hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
-        org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
+            inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]}
+            hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
+            org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
 
-        monitoring = {'name': 'System Monitoring', 'models': []}
-        monitoring['models'].append({
-            'name': '📊 Analytics Dashboard',
-            'object_name': 'dashboard',
-            'admin_url': reverse('sais_admin:dashboard'),
-            'view_only': True,
-        })
-
-        if request.user.is_superuser or request.user.role in ['owner', 'manager']:
+            monitoring = {'name': 'System Monitoring', 'models': []}
             monitoring['models'].append({
-                'name': 'Template Design Lab',
-                'object_name': 'design-lab',
-                'admin_url': reverse('sais_admin:template-gallery'),
+                'name': '📊 Analytics Dashboard',
+                'object_name': 'dashboard',
+                'admin_url': reverse('sais_admin:dashboard'),
                 'view_only': True,
             })
 
-            celery_res = find_model('TaskResult')
-            if celery_res: monitoring['models'].append(celery_res)
+            if request.user.is_superuser or request.user.role in ['owner', 'manager']:
+                monitoring['models'].append({
+                    'name': 'Template Design Lab',
+                    'object_name': 'design-lab',
+                    'admin_url': reverse('sais_admin:template-gallery'),
+                    'view_only': True,
+                })
 
-        groups = [inventory, hardware, org]
-        if monitoring['models']: groups.append(monitoring)
+                celery_res = find_model('TaskResult')
+                if celery_res: monitoring['models'].append(celery_res)
 
-        return groups
+            groups = [inventory, hardware, org]
+            if monitoring['models']: groups.append(monitoring)
+
+            return groups
+        except Exception:
+            logger.exception("Error in get_app_list")
+            return super().get_app_list(request, app_label)
 
 admin_site = SAISAdminSite(name='sais_admin')
 
@@ -343,46 +356,56 @@ class AuditAdminMixin:
     and assigns the active store for new records if applicable.
     """
     def save_model(self, request, obj, form, change):
-        # Update modified by user
-        if hasattr(obj, 'updated_by_id') or any(f.name == 'updated_by' for f in obj._meta.fields):
-            obj.updated_by = request.user
+        try:
+            # Update modified by user
+            if hasattr(obj, 'updated_by_id') or any(f.name == 'updated_by' for f in obj._meta.fields):
+                obj.updated_by = request.user
 
-        # Automatically assign active store for new objects if the model has a store field
-        if not change and hasattr(request, 'active_store') and request.active_store:
-            # Check meta to safely detect 'store' field without triggering hasattr fetches
-            if any(f.name == 'store' for f in obj._meta.fields):
-                if not getattr(obj, 'store_id', None):
-                    obj.store = request.active_store
+            # Automatically assign active store for new objects if the model has a store field
+            if not change and hasattr(request, 'active_store') and request.active_store:
+                if any(f.name == 'store' for f in obj._meta.fields):
+                    if not getattr(obj, 'store_id', None):
+                        obj.store = request.active_store
 
-        super().save_model(request, obj, form, change)
+            super().save_model(request, obj, form, change)
+        except Exception as e:
+            logger.exception("Error in AuditAdminMixin.save_model")
+            raise e
 
 class CompanySecurityMixin(AuditAdminMixin):
     """Restricts access to data based on the user's company and role."""
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
+        try:
+            qs = super().get_queryset(request)
+            if request.user.is_superuser:
+                return qs
 
-        if hasattr(self.model, 'company'):
-            qs = qs.filter(company=request.user.company)
-        elif hasattr(self.model, 'store'):
-            qs = qs.filter(store__company=request.user.company)
-        elif self.model == ESLTag:
-            qs = qs.filter(gateway__store__company=request.user.company)
-
-        if request.user.role == 'manager':
-            assigned_stores = request.user.managed_stores.all()
-            if hasattr(self.model, 'store'):
-                qs = qs.filter(store__in=assigned_stores)
-            elif self.model == Store:
-                qs = qs.filter(id__in=assigned_stores.values_list('id', flat=True))
+            if hasattr(self.model, 'company'):
+                qs = qs.filter(company=request.user.company)
+            elif hasattr(self.model, 'store'):
+                qs = qs.filter(store__company=request.user.company)
             elif self.model == ESLTag:
-                qs = qs.filter(gateway__store__in=assigned_stores)
-        return qs
+                qs = qs.filter(gateway__store__company=request.user.company)
+
+            if request.user.role == 'manager':
+                assigned_stores = request.user.managed_stores.all()
+                if hasattr(self.model, 'store'):
+                    qs = qs.filter(store__in=assigned_stores)
+                elif self.model == Store:
+                    qs = qs.filter(id__in=assigned_stores.values_list('id', flat=True))
+                elif self.model == ESLTag:
+                    qs = qs.filter(gateway__store__in=assigned_stores)
+            return qs
+        except Exception:
+            logger.exception("Error in CompanySecurityMixin.get_queryset")
+            return self.model.objects.none()
 
 class UIHelperMixin:
     """Utility methods for common UI components in the admin."""
     def sync_button(self, obj):
-        url = reverse('admin:sync-tag-manual', args=[obj.pk])
-        return format_html('<a class="button" href="{}" style="background:#2563eb; color:white;">Sync</a>', url)
+        try:
+            url = reverse('admin:sync-tag-manual', args=[obj.pk])
+            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white;">Sync</a>', url)
+        except:
+            return ""
     sync_button.short_description = "Action"

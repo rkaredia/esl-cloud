@@ -1,6 +1,9 @@
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import openpyxl
+import logging
 from .models import Product, ESLTag
+
+logger = logging.getLogger(__name__)
 
 class BulkMapProcessor:
     """
@@ -15,32 +18,36 @@ class BulkMapProcessor:
         self.rejections = []
 
     def process(self):
-        pending_product = None
-        for index, code in enumerate(self.lines):
-            line_num = index + 1
-            product = Product.objects.filter(sku=code, store=self.store).first()
-            tag = ESLTag.objects.filter(tag_mac=code, gateway__store=self.store).first()
+        try:
+            pending_product = None
+            for index, code in enumerate(self.lines):
+                line_num = index + 1
+                product = Product.objects.filter(sku=code, store=self.store).first()
+                tag = ESLTag.objects.filter(tag_mac=code, gateway__store=self.store).first()
 
-            if product:
-                pending_product = product
-                continue
+                if product:
+                    pending_product = product
+                    continue
 
-            if tag:
-                if pending_product:
-                    self.proposed.append({
-                        'product_id': pending_product.id,
-                        'product_name': pending_product.name,
-                        'product_sku': pending_product.sku,
-                        'tag_id': tag.id,
-                        'tag_mac': tag.tag_mac,
-                        'old_product': tag.paired_product.name if tag.paired_product else None
-                    })
-                else:
-                    self.rejections.append({'line': line_num, 'code': code, 'reason': 'Orphaned Tag', 'note': 'No product scanned before this tag'})
-                continue
+                if tag:
+                    if pending_product:
+                        self.proposed.append({
+                            'product_id': pending_product.id,
+                            'product_name': pending_product.name,
+                            'product_sku': pending_product.sku,
+                            'tag_id': tag.id,
+                            'tag_mac': tag.tag_mac,
+                            'old_product': tag.paired_product.name if tag.paired_product else None
+                        })
+                    else:
+                        self.rejections.append({'line': line_num, 'code': code, 'reason': 'Orphaned Tag', 'note': 'No product scanned before this tag'})
+                    continue
 
-            self.rejections.append({'line': line_num, 'code': code, 'reason': 'Unknown', 'note': 'Not a valid product or tag in this store'})
-        return self.proposed, self.rejections
+                self.rejections.append({'line': line_num, 'code': code, 'reason': 'Unknown', 'note': 'Not a valid product or tag in this store'})
+            return self.proposed, self.rejections
+        except Exception as e:
+            logger.exception("Error in BulkMapProcessor.process")
+            raise e
 
 def process_modisoft_file_logic(file_path, active_store, user, commit=False):
     """
@@ -58,36 +65,42 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
         price_idx = headers.get('unit price') or headers.get('unit retail')
 
         if None in [sku_idx, name_idx, price_idx]:
-            return None, "Missing required columns in Excel."
+            return None, "Missing required columns in Excel (Scan Code, Item Description, Price)."
 
         for row in sheet.iter_rows(min_row=2, values_only=True):
-            raw_sku = str(row[sku_idx]).strip() if row[sku_idx] else None
-            raw_name = str(row[name_idx]).strip() if row[name_idx] else None
-            raw_price = str(row[price_idx]).replace('$', '').replace(',', '').strip() if row[price_idx] else None
-
-            if not all([raw_sku, raw_name, raw_price]):
-                results['rejected'].append({'sku': raw_sku or "N/A", 'reason': "Incomplete data"})
-                continue
-
             try:
-                price_decimal = Decimal(raw_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            except InvalidOperation:
-                results['rejected'].append({'sku': raw_sku, 'reason': f"Invalid price: {raw_price}"})
-                continue
+                raw_sku = str(row[sku_idx]).strip() if row[sku_idx] else None
+                raw_name = str(row[name_idx]).strip() if row[name_idx] else None
+                raw_price = str(row[price_idx]).replace('$', '').replace(',', '').strip() if row[price_idx] else None
 
-            product = Product.objects.filter(sku=raw_sku, store=active_store).first()
-            if product:
-                if product.price != price_decimal or product.name != raw_name:
-                    results['update'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal, 'old_price': product.price})
-                    if commit:
-                        product.name, product.price, product.updated_by = raw_name, price_decimal, user
-                        product.save()
+                if not all([raw_sku, raw_name, raw_price]):
+                    results['rejected'].append({'sku': raw_sku or "N/A", 'reason': "Incomplete data"})
+                    continue
+
+                try:
+                    price_decimal = Decimal(raw_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                except InvalidOperation:
+                    results['rejected'].append({'sku': raw_sku, 'reason': f"Invalid price: {raw_price}"})
+                    continue
+
+                product = Product.objects.filter(sku=raw_sku, store=active_store).first()
+                if product:
+                    if product.price != price_decimal or product.name != raw_name:
+                        results['update'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal, 'old_price': product.price})
+                        if commit:
+                            product.name, product.price, product.updated_by = raw_name, price_decimal, user
+                            product.save()
+                    else:
+                        results['unchanged_count'] += 1
                 else:
-                    results['unchanged_count'] += 1
-            else:
-                results['new'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal})
-                if commit:
-                    Product.objects.create(sku=raw_sku, name=raw_name, price=price_decimal, store=active_store, updated_by=user)
+                    results['new'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal})
+                    if commit:
+                        Product.objects.create(sku=raw_sku, name=raw_name, price=price_decimal, store=active_store, updated_by=user)
+            except Exception as row_error:
+                logger.error(f"Error processing row in Modisoft import: {row_error}")
+                results['rejected'].append({'sku': "Unknown", 'reason': "System error processing row"})
+
         return results, None
     except Exception as e:
-        return None, f"Import error: {str(e)}"
+        logger.exception(f"Modisoft import failure for file {file_path}")
+        return None, f"Import error: A technical issue occurred while reading the file."
