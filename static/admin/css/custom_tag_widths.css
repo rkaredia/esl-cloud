@@ -1,0 +1,6 @@
+/* Expand the important columns */
+.column-display_paired_product { width: 300px !important; }
+.column-image_status { width: 150px !important; }
+
+/* Shrink the location columns */
+.column-aisle, .column-section, .column-shelf_row { width: 60px !important; text-align: center; }
