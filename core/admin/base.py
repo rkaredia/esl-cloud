@@ -403,9 +403,14 @@ class CompanySecurityMixin(AuditAdminMixin):
 class UIHelperMixin:
     """Utility methods for common UI components in the admin."""
     def sync_button(self, obj):
+        from django.urls import NoReverseMatch
         try:
-            url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white;">Sync</a>', url)
-        except:
+            # Try to reverse with sais_admin first, then fall back to admin
+            try:
+                url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
+            except NoReverseMatch:
+                url = reverse('admin:sync-tag-manual', args=[obj.pk])
+            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;">Sync</a>', url)
+        except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

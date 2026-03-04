@@ -61,6 +61,7 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
     Optimized for large files (25k+ rows) using in-memory lookups and transactions.
     """
     results = {'new': [], 'update': [], 'rejected': [], 'unchanged_count': 0}
+    seen_skus = set()
     try:
         # Load existing products into memory for O(1) lookup
         existing_products = {p.sku: p for p in Product.objects.filter(store=active_store)}
@@ -76,38 +77,63 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
         if None in [sku_idx, name_idx, price_idx]:
             return None, "Missing required columns in Excel (Scan Code, Item Description, Price)."
 
-        for row in sheet.iter_rows(min_row=2, values_only=True):
+        for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             try:
                 raw_sku = str(row[sku_idx]).strip() if row[sku_idx] else None
                 raw_name = str(row[name_idx]).strip() if row[name_idx] else None
                 raw_price = str(row[price_idx]).replace('$', '').replace(',', '').strip() if row[price_idx] else None
 
                 if not all([raw_sku, raw_name, raw_price]):
-                    results['rejected'].append({'sku': raw_sku or "N/A", 'reason': "Incomplete data"})
+                    results['rejected'].append({
+                        'row': idx,
+                        'sku': raw_sku or "N/A",
+                        'name': raw_name or "N/A",
+                        'price': raw_price or "N/A",
+                        'reason': "Incomplete data"
+                    })
                     continue
+
+                if raw_sku in seen_skus:
+                    results['rejected'].append({
+                        'row': idx,
+                        'sku': raw_sku,
+                        'name': raw_name,
+                        'price': raw_price,
+                        'reason': "Duplicate SKU in file"
+                    })
+                    continue
+
+                seen_skus.add(raw_sku)
 
                 try:
                     price_decimal = Decimal(raw_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 except InvalidOperation:
-                    results['rejected'].append({'sku': raw_sku, 'reason': f"Invalid price: {raw_price}"})
+                    results['rejected'].append({
+                        'row': idx,
+                        'sku': raw_sku,
+                        'name': raw_name,
+                        'price': raw_price,
+                        'reason': f"Invalid price format"
+                    })
                     continue
 
                 product = existing_products.get(raw_sku)
                 if product:
                     if product.price != price_decimal or product.name != raw_name:
                         results['update'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal, 'old_price': product.price})
-                        if commit:
-                            product.name, product.price, product.updated_by = raw_name, price_decimal, user
-                            product.save()
                     else:
                         results['unchanged_count'] += 1
                 else:
                     results['new'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal})
-                    if commit:
-                        Product.objects.create(sku=raw_sku, name=raw_name, price=price_decimal, store=active_store, updated_by=user)
             except Exception as row_error:
                 logger.error(f"Error processing row in Modisoft import: {row_error}")
-                results['rejected'].append({'sku': "Unknown", 'reason': "System error processing row"})
+                results['rejected'].append({
+                    'row': idx,
+                    'sku': "Unknown",
+                    'name': "Unknown",
+                    'price': "N/A",
+                    'reason': "System error processing row"
+                })
 
         if commit:
             with transaction.atomic():
