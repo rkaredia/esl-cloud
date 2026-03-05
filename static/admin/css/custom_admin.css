@@ -51,6 +51,7 @@
 #header .header-store-selector select {
     appearance: auto !important;
     -webkit-appearance: auto !important;
+<<<<<<< HEAD
 
     /* This forces the text you see BEFORE clicking to be white */
     color: #ffffff !important;
@@ -58,6 +59,15 @@
     /* Ensures the background of the collapsed box matches your theme */
     background-color: #1e293b !important;
 
+=======
+    
+    /* This forces the text you see BEFORE clicking to be white */
+    color: #ffffff !important; 
+    
+    /* Ensures the background of the collapsed box matches your theme */
+    background-color: #1e293b !important; 
+    
+>>>>>>> main
     border: none !important;
     font-weight: 700 !important;
     font-size: 13px !important;
@@ -101,7 +111,11 @@
    3. CHANGELIST & RESULTS AREA
    ========================================================================== */
 #changelist {
+<<<<<<< HEAD
     display: block !important;
+=======
+    display: block !important; 
+>>>>>>> main
     width: 100% !important;
     position: relative !important;
 }
@@ -112,14 +126,22 @@
 
 #changelist .results {
     width: 100% !important;
+<<<<<<< HEAD
     overflow-x: auto !important;
+=======
+    overflow-x: auto !important; 
+>>>>>>> main
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     background: white;
 }
 
 #result_list {
+<<<<<<< HEAD
     min-width: 1600px !important;
+=======
+    min-width: 1600px !important; 
+>>>>>>> main
 }
 
 /* ==========================================================================

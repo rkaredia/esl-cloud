@@ -5,6 +5,7 @@
             const filter = document.getElementById('changelist-filter');
             // Target the existing button row specifically
             const toolbar = document.querySelector('.object-tools');
+<<<<<<< HEAD
 
             if (filter && toolbar && !document.getElementById('toggle-filters-btn')) {
                 const li = document.createElement('li');
@@ -17,6 +18,20 @@
                 // Styling to match your existing "Add" buttons perfectly
                 btn.style.cssText = 'background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; margin-right: 10px;';
 
+=======
+            
+            if (filter && toolbar && !document.getElementById('toggle-filters-btn')) {
+                const li = document.createElement('li');
+                const btn = document.createElement('a'); // Changed to 'a' to match Django's style
+                
+                btn.id = 'toggle-filters-btn';
+                btn.href = 'javascript:void(0)';
+                btn.textContent = 'Show Filters';
+                
+                // Styling to match your existing "Add" buttons perfectly
+                btn.style.cssText = 'background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; text-decoration: none; display: inline-block; margin-right: 10px;';
+                
+>>>>>>> main
                 li.appendChild(btn);
                 toolbar.prepend(li); // Adds it to the start of the button list
                 filter.classList.add('filter-hidden');

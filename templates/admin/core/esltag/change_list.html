@@ -13,6 +13,7 @@
             <input type="file" name="file" id="tag_file_input" onchange="document.getElementById('tag-import-form').submit();">
         </form>
         <a href="#" class="addlink" onclick="document.getElementById('tag_file_input').click(); return false;">Import ESL Tags</a>
+        <a href="#" class="addlink" onclick="document.getElementById('tag_file_input').click(); return false;">Import ESL Tags</a>
     </li>
     {{ block.super }}
     <li><a href="{% url 'admin:bulk-map-tags' %}" class="addlink bulk-map-btn" title="Instructions: Scan a Product SKU followed by a Tag MAC.">{% trans "Bulk Map Tags" %}</a></li>
@@ -21,5 +22,8 @@
     <style>
         .bulk-map-btn { background-color: #417690 !important; position: relative; }
         .bulk-map-btn:hover::after { content: attr(title); position: absolute; top: 100%; right: 0; width: 250px; background: #333; color: #fff; padding: 8px; font-size: 11px; line-height: 1.4; border-radius: 4px; z-index: 999; white-space: normal; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .bulk-map-btn { background-color: #417690 !important; position: relative; }
+        .bulk-map-btn:hover::after { content: attr(title); position: absolute; top: 100%; right: 0; width: 250px; background: #333; color: #fff; padding: 8px; font-size: 11px; line-height: 1.4; border-radius: 4px; z-index: 999; white-space: normal; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     </style>
 {% endblock %}
+
