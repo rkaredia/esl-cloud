@@ -2,8 +2,9 @@
 *.pyc
 db.sqlite3
 media/
-static/
 __pycache__/
 .DS_Store
 .log
 logs/
+staticfiles/
+server.log

@@ -1,0 +1,158 @@
+/* static/admin/css/sais_admin.css */
+
+:root {
+    --bg-sidebar: #f1f5f9;
+    --navy: #003459;
+    --dark-navy: #00171F;
+    --azure: #C7EFFF;
+    --white: #ffffff;
+    --light-gray: #f1f5f9;
+    --primary-blue: #2563eb;
+    --primary-hover: #1d4ed8;
+}
+
+/* Base layout adjustments */
+#header {
+    background: var(--navy);
+    border-bottom: 3px solid var(--light-gray);
+}
+
+#branding h1 a {
+    color: var(--white) !important;
+}
+
+/* Table responsiveness and Horizontal Scrolling */
+.results {
+    overflow-x: auto !important;
+    width: 100% !important;
+    position: relative;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+#result_list {
+    width: auto !important;
+    min-width: 100%;
+    table-layout: fixed; /* Necessary for resizing */
+}
+
+#result_list th, #result_list td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Resize handles */
+#result_list th {
+    position: relative;
+}
+
+.resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 5px;
+    background: rgba(0,0,0,0.05);
+    cursor: col-resize;
+    user-select: none;
+}
+
+.resizer:hover {
+    background: var(--primary-blue);
+}
+
+/* Filter Toggling */
+#changelist-filter {
+    transition: width 0.3s ease;
+}
+
+.filter-hidden #changelist-filter {
+    display: none !important;
+}
+
+.filter-hidden #changelist {
+    display: block !important;
+}
+
+#changelist-wrapper {
+    width: 100%;
+}
+
+/* Dashboard & Cards (from core/admin.py) */
+.dashboard-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 1.5rem !important;
+    padding: 1.5rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.stat-card {
+    background: white !important;
+    padding: 1.5rem !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    border: 1px solid #e2e8f0 !important;
+    min-height: 120px !important;
+}
+
+.stat-card h3 {
+    margin: 0 0 0.5rem 0 !important;
+    font-size: 0.75rem !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.stat-card .value {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
+    line-height: 1 !important;
+}
+
+/* Navigation & Sidebar icons */
+#nav-sidebar .section {
+    color: var(--white) !important;
+    background: #417690 !important;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    border: none !important;
+}
+
+.app-inventory .section:before { content: "📦"; margin-right: 10px; }
+.app-hardware .section:before { content: "📡"; margin-right: 10px; }
+.app-organisation .section:before { content: "🏢"; margin-right: 10px; }
+.app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
+
+/* Action Buttons */
+.object-tools a, .addlink {
+    background-color: var(--navy) !important;
+    color: var(--white) !important;
+    border-radius: 50px !important;
+    padding: 6px 15px !important;
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.object-tools a:hover, .addlink:hover {
+    background-color: #00A8E8 !important;
+}
+
+/* Filter Toggle Button */
+#filter-toggle-btn {
+    margin-right: 10px;
+    cursor: pointer;
+    background: #64748b;
+}
+
+/* Custom Status Styles */
+.sync-success { color: #059669; font-weight: bold; }
+.sync-pending { color: #ea580c; font-style: italic; }

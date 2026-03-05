@@ -209,139 +209,7 @@ class SAISAdminSite(admin.AdminSite):
     def each_context(self, request):
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
-        context['custom_admin_css'] = mark_safe("""
-            <style>
-                :root {
-                    --bg-sidebar: #f1f5f9;
-                    --navy: #003459;
-                    --dark-navy: #00171F;
-                    --azure: #C7EFFF;
-                    --white: #ffffff;
-                    --light-gray: #f1f5f9;
-                }
-                #header { background: var(--navy); border-bottom: 3px solid var(--light-gray); }
-                #branding h1 a { color: var(--white) !important; }
-                /* Dashboard Layout Fixes */
-                .dashboard-grid { 
-                    display: grid !important; 
-                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important; 
-                    gap: 1.5rem !important; 
-                    padding: 1.5rem !important; 
-                    max-width: 100% !important;
-                    box-sizing: border-box !important;
-                }
-                .stat-card { 
-                    background: white !important; 
-                    padding: 1.5rem !important; 
-                    border-radius: 8px !important; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; 
-                    border: 1px solid #e2e8f0 !important;
-                    min-height: 120px !important;
-                }
-                .stat-card h3 { 
-                    margin: 0 0 0.5rem 0 !important; 
-                    font-size: 0.75rem !important; 
-                    color: #64748b !important; 
-                    text-transform: uppercase !important; 
-                    letter-spacing: 0.05em !important; 
-                }
-                .stat-card .value { 
-                    font-size: 2rem !important; 
-                    font-weight: 800 !important; 
-                    color: #1e293b !important; 
-                    line-height: 1 !important;
-                }
-                .load-bar-bg { background: #f1f5f9; height: 6px; border-radius: 3px; margin-top: 10px; }
-                .load-bar-fill { background: #3b82f6; height: 100%; border-radius: 3px; }
-                .tag-list { list-style: none; padding: 0; margin: 10px 0 0 0; font-size: 0.85rem; }
-                .tag-list li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
-
-
-                #nav-sidebar .section {
-                    color: var(--white) !important;
-                    background: #417690 !important;
-                    margin: 0 !important;
-                    display: flex;
-                    align-items: center;
-                    border: none !important;
-                }
-                .app-inventory .section:before { content: "📦"; margin-right: 10px; }
-                .app-hardware .section:before { content: "📡"; margin-right: 10px; }
-                .app-organisation .section:before { content: "🏢"; margin-right: 10px; }
-                .app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
-
-
-                .dashboard-link {
-                    background: #2563eb !important;
-                    margin: 10px !important;
-                    border-radius: 4px;
-                    padding: 8px !important;
-                    display: block;
-                    text-align: center;
-                    color: white !important;
-                    font-weight: bold;
-                    text-transform: uppercase;
-                    font-size: 11px;
-                    text-decoration: none;
-                }
-                .dashboard-link:hover { background: #1d4ed8 !important; }
-
-                /* Sidebar Icon for the Design Lab */
-                #nav-sidebar .model-design-lab th a:before { content: "🧪 "; }
-
-                #nav-sidebar th a { color: var(--navy) !important; }
-                #nav-sidebar .model-esltag th a:before { content: "🏷️ "; }
-                #nav-sidebar .model-product th a:before { content: "🛒 "; }
-                #nav-sidebar .model-supplier th a:before { content: "🏭 "; }
-                #nav-sidebar .model-gateway th a:before { content: "📟 "; }
-                #nav-sidebar .model-taghardware th a:before { content: "🛠️ "; }
-                #nav-sidebar .model-company th a:before { content: "🏭 "; }
-                #nav-sidebar .model-store th a:before { content: "🏪 "; }
-                #nav-sidebar .model-user th a:before { content: "👤 "; }
-                #nav-sidebar .model-group th a:before { content: "👥 "; }
-                #nav-sidebar .model-taskresult th a:before { content: "📊 "; }
-                #nav-sidebar .model-groupresult th a:before { content: "📁 "; }
-                
-                #nav-sidebar .addlink {
-                    background: var(--navy) !important;
-                    color: var(--white) !important;
-                    padding: 3px 8px !important;
-                    border-radius: 4px;
-                    text-transform: uppercase;
-                    font-size: 10px;
-                    background-image: none !important;
-                }
-                #nav-sidebar .addlink:after { content: "" !important; }
-                .object-tools a {
-                    background-color: #003459 !important;
-                    color: #ffffff !important;
-                    border-radius: 50px !important;
-                    padding: 6px 15px !important;
-                    text-transform: uppercase;
-                    font-size: 11px;
-                    font-weight: bold;
-                }
-                .object-tools a:hover { background-color: #00A8E8 !important; }
-                .field-sync_button a.button, a.button {
-                    background: var(--azure) !important;
-                    color: var(--dark-navy) !important;
-                    border-radius: 4px !important;
-                    padding: 4px 12px !important;
-                }
-                #nav-sidebar tr.current-model { background: var(--azure) !important; }
-                #nav-sidebar tr.current-model th a { color: var(--dark-navy) !important; }
-                
-                #nav-sidebar .model-design-lab .addlink,
-                #nav-sidebar .model-taskresult .addlink,
-                #nav-sidebar .model-groupresult .addlink { display: none !important; }
-                .app-django_celery_results .object-tools { display: none !important; }
-                .sync-success { color: #059669; font-weight: bold; }
-                .sync-pending { color: #ea580c; font-style: italic; }
-
-                
-
-            </style>
-        """)
+        context['custom_admin_css'] = mark_safe(f'<link rel="stylesheet" type="text/css" href="{settings.STATIC_URL}admin/css/sais_admin.css">')
         return context
 
     def get_app_list(self, request, app_label=None):
@@ -990,21 +858,21 @@ class ESLTagAdmin( CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         
     #----
 
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['custom_css'] = mark_safe("""
-            <style>
-                .column-image_status { width: 100px !important; min-width: 100px !important; }
-                .column-get_paired_info { width: 450px !important; min-width: 300px !important; }
-                .field-get_paired_info { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
-                .column-hardware_spec { width: 130px !important; min-width: 130px !important; }
-                .column-aisle { width: 20px !important; min-width: 20px !important; }
-                .column-section { width: 80px !important; min-width: 80px !important; }
-                .column-shelf_row { width: 80px !important; text-align: center !important; min-width: 80px !important; }
-                .column-image_status { width: 100px !important; text-align: center !important; }
-            </style>
-        """)
-        return super().changelist_view(request, extra_context=extra_context)
+    # def changelist_view(self, request, extra_context=None):
+    #     extra_context = extra_context or {}
+    #     extra_context['custom_css'] = mark_safe("""
+    #         <style>
+    #             .column-image_status { width: 100px !important; min-width: 100px !important; }
+    #             .column-get_paired_info { width: 450px !important; min-width: 300px !important; }
+    #             .field-get_paired_info { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+    #             .column-hardware_spec { width: 130px !important; min-width: 130px !important; }
+    #             .column-aisle { width: 20px !important; min-width: 20px !important; }
+    #             .column-section { width: 80px !important; min-width: 80px !important; }
+    #             .column-shelf_row { width: 80px !important; text-align: center !important; min-width: 80px !important; }
+    #             .column-image_status { width: 100px !important; text-align: center !important; }
+    #         </style>
+    #     """)
+    #     return super().changelist_view(request, extra_context=extra_context)
 
 
 
