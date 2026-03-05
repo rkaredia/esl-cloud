@@ -30,9 +30,9 @@ class TagHardwareAdmin(admin.ModelAdmin):
 class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for individual ESL Tags and their mapping to products."""
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'get_paired_info', 'last_sync_status', 'battery_level_display', 'hardware_spec', 'template_id', 'gateway', 'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
+    list_display = ('image_status', 'tag_mac', 'paired_product', 'last_sync_status', 'battery_level_display', 'hardware_spec', 'template_id', 'gateway', 'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
     search_fields = ('tag_mac', 'paired_product__name', 'paired_product__sku')
-    list_editable = ('template_id', 'aisle', 'section', 'shelf_row')
+    list_editable = ('paired_product', 'template_id', 'aisle', 'section', 'shelf_row')
     list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
     autocomplete_fields = ['paired_product']
     readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link', 'updated_at', 'updated_by', 'created_at')

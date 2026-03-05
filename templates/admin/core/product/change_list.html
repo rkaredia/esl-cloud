@@ -7,42 +7,13 @@
     </li>
     {{ block.super }}
     <li>
-        <a href="#" id="toggle-filters" class="addlink" style="background: #64748b !important;">Toggle Filters</a>
+        <a href="#" id="filter-toggle-btn" class="addlink" style="background: #64748b !important;">Toggle Filters</a>
     </li>
 {% endblock %}
 
 {% block extrahead %}
 {{ block.super }}
-{{ custom_css }}
 <style>
-    #changelist-filter {
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-    #changelist-filter.collapsed {
-        width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        min-width: 0 !important;
-    }
-    #changelist.filtered {
-        grid-template-columns: 1fr auto;
-    }
-    #changelist.filtered.collapsed-filters {
-        grid-template-columns: 1fr;
-    }
-
-    /* Responsive Table Widths */
-    .results { overflow-x: auto !important; }
-    #result_list { width: 100% !important; table-layout: fixed !important; }
-    #result_list th, #result_list td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        padding: 12px 8px !important;
-    }
-
     /* Column specific widths for Products */
     .column-image_status { width: 100px; }
     .column-sku { width: 140px; }
@@ -50,30 +21,4 @@
     .column-price { width: 100px; text-align: right !important; }
     .column-sync_button { width: 80px; text-align: center !important; }
 </style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.getElementById('toggle-filters');
-        const filterMenu = document.getElementById('changelist-filter');
-        const changelist = document.getElementById('changelist');
-
-        if (toggleBtn && filterMenu) {
-            toggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                filterMenu.classList.toggle('collapsed');
-                changelist.classList.toggle('collapsed-filters');
-
-                // Save state in session storage
-                const isCollapsed = filterMenu.classList.contains('collapsed');
-                sessionStorage.setItem('admin_filters_collapsed', isCollapsed);
-            });
-
-            // Restore state
-            if (sessionStorage.getItem('admin_filters_collapsed') === 'true') {
-                filterMenu.classList.add('collapsed');
-                changelist.classList.add('collapsed-filters');
-            }
-        }
-    });
-</script>
 {% endblock %}
