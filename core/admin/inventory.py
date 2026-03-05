@@ -106,15 +106,5 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         return actions
 
     def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['custom_css'] = mark_safe("""
-            <style>
-                .column-image_status { width: 110px !important; min-width: 110px !important; }
-                .column-sku { width: 140px !important; min-width: 140px !important; }
-                .column-name { width: auto !important; min-width: 250px !important; }
-                .column-price { width: 100px !important; text-align: right !important; }
-                .column-sync_button { width: 80px !important; text-align: center !important; }
-                .column-preferred_supplier { width: 120px !important; }
-            </style>
-        """)
+        """Overrides changelist view to inject custom CSS context."""
         return super().changelist_view(request, extra_context=extra_context)

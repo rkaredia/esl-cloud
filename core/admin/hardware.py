@@ -181,22 +181,6 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         ] + super().get_urls()
 
     def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['custom_css'] = mark_safe("""
-            <style>
-                .column-image_status { width: 110px !important; min-width: 110px !important; text-align: center !important; }
-                .column-tag_mac { width: 140px !important; min-width: 140px !important; }
-                .column-get_paired_info { width: auto !important; min-width: 300px !important; }
-                .field-get_paired_info { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
-                .column-last_sync_status { width: 120px !important; }
-                .column-battery_level_display { width: 120px !important; }
-                .column-hardware_spec { width: 130px !important; min-width: 130px !important; }
-                .column-aisle { width: 80px !important; min-width: 80px !important; }
-                .column-section { width: 80px !important; min-width: 80px !important; }
-                .column-shelf_row { width: 80px !important; text-align: center !important; min-width: 80px !important; }
-                .column-sync_button { width: 80px !important; text-align: center !important; }
-            </style>
-        """)
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_actions(self, request):
