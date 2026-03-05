@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_results',
     'core',
+    'help_module',
 ]
 
 MIDDLEWARE = [
@@ -204,7 +205,7 @@ LOGGING = {
     'formatters': {
         'sais_formatter': {
             '()': LocalTimeFormatter,
-            'format': '[{levelname}] {asctime} {module} {message}',
+            'format': '[{levelname}] {asctime} [{module}.{funcName}:{lineno}] - {process:d} {thread:d} - {message}',
             'style': '{',
         },
     },

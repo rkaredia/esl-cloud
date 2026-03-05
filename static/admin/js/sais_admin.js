@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const headerRow = table.querySelector('thead tr');
         if (headerRow) {
             const cols = headerRow.querySelectorAll('th');
-            const modelName = document.body.className.match(/model-(\w+)/)[1];
+            const modelMatch = document.body.className.match(/model-(\w+)/);
+            const modelName = modelMatch ? modelMatch[1] : 'unknown';
             const storedWidths = JSON.parse(localStorage.getItem(`sais-admin-cols-${modelName}`) || '{}');
 
             cols.forEach((col, index) => {
@@ -57,27 +58,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const changelistWrapper = document.getElementById('changelist-wrapper');
     const filter = document.getElementById('changelist-filter');
     if (changelistWrapper && filter) {
-        // Load initial state
+        // Load initial state - default to hidden if not explicitly set to 'true'
         const filterState = localStorage.getItem('sais-admin-filter-visible');
-        if (filterState === 'false') {
+        if (filterState !== 'true') {
             changelistWrapper.classList.add('filter-hidden');
         }
 
-        // Add toggle button to object tools
-        const objectTools = document.querySelector('.object-tools');
-        if (objectTools) {
-            const toggleItem = document.createElement('li');
-            const toggleBtn = document.createElement('a');
-            toggleBtn.id = 'filter-toggle-btn';
-            toggleBtn.innerHTML = 'Filters 👁';
-            toggleBtn.href = 'javascript:void(0);';
-            toggleBtn.addEventListener('click', function() {
+        // Add toggle logic to the button if it exists in the template
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 changelistWrapper.classList.toggle('filter-hidden');
                 const isVisible = !changelistWrapper.classList.contains('filter-hidden');
                 localStorage.setItem('sais-admin-filter-visible', isVisible);
             });
-            toggleItem.appendChild(toggleBtn);
-            objectTools.insertBefore(toggleItem, objectTools.firstChild);
+        } else {
+            // Add toggle button to object tools if not already present (for other models)
+            const objectTools = document.querySelector('.object-tools');
+            if (objectTools) {
+                const toggleItem = document.createElement('li');
+                const newToggleBtn = document.createElement('a');
+                newToggleBtn.id = 'filter-toggle-btn';
+                newToggleBtn.innerHTML = 'Filters 👁';
+                newToggleBtn.href = 'javascript:void(0);';
+                newToggleBtn.className = 'addlink';
+                newToggleBtn.style.background = '#64748b';
+                newToggleBtn.addEventListener('click', function() {
+                    changelistWrapper.classList.toggle('filter-hidden');
+                    const isVisible = !changelistWrapper.classList.contains('filter-hidden');
+                    localStorage.setItem('sais-admin-filter-visible', isVisible);
+                });
+                toggleItem.appendChild(newToggleBtn);
+                objectTools.insertBefore(toggleItem, objectTools.firstChild);
+            }
         }
     }
 });

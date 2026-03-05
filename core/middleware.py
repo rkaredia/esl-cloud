@@ -1,84 +1,12 @@
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.http import HttpResponse
 import re
 
-#class StoreContextMiddleware:
-#    def __init__(self, get_response):
-#        self.get_response = get_response
-#
-#    def __call__(self, request):
-#        # Initialize our "Global Variables" as None
-#        request.active_store = None
-#        request.active_company = None
-#
-#        # Bypass for static files, logout, and the setter view itself
-#        if any(request.path.startswith(p) for p in ['/admin/logout/', '/static/', '/set-store/']):
-#            return self.get_response(request)
-#
-#        if request.user.is_authenticated:
-#            active_store_id = request.session.get('active_store_id')
-#
-#            # --- 1. SUPERUSER LOGIC (The "God Mode" bypass) ---
-#            if request.user.is_superuser:
-#                if active_store_id:
-#                    from .models import Store
-#                    # Use select_related to get the company in one database query
-#                    store = Store.objects.select_related('company').filter(id=active_store_id).first()
-#                    if store:
-#                        request.active_store = store
-#                        request.active_company = store.company
-#                
-#                # If a superuser is in Admin but hasn't picked a store, send them to the list
-#                if not request.active_store and 'admin' in request.path and request.path != reverse('select_store'):
-#                    return redirect('select_store')
-#                
-#                return self.get_response(request)
-#
-#            # --- 2. REGULAR USER LOGIC (Owners & Managers) ---
-#                        
-#            user_company = getattr(request.user, 'company', None)
-#
-#            if user_company:
-#                # Get ONLY the stores explicitly assigned to this user in the Admin
-#                allowed_stores = request.user.managed_stores.all()
-#                store_count = allowed_stores.count()
-#
-#                # Case A: Only 1 assigned store -> Set it automatically
-#                if store_count == 1:
-#                    request.active_store = allowed_stores.first()
-#                    request.active_company = user_company
-#                    request.session['active_store_id'] = request.active_store.id
-#                
-#                # Case B: Multiple assigned stores, one is already in the session
-#                elif active_store_id:
-#                    # We check allowed_stores for BOTH owners and managers now.
-#                    # This respects the 'Managed Stores' selection you just fixed.
-#                    request.active_store = allowed_stores.filter(id=active_store_id).first()
-#
-#                    if request.active_store:
-#                        request.active_company = user_company
-#                    else:
-#                        # Security: If the session ID isn't in their managed list, kick them out
-#                        if 'active_store_id' in request.session:
-#                            del request.session['active_store_id']
-#                        return redirect('select_store')
-#                        
-#                # Case C: Multiple stores assigned, nothing selected yet
-#                elif store_count > 1:
-#                    if 'admin' in request.path and request.path != reverse('select_store'):
-#                        return redirect('select_store')
-#        return self.get_response(request)
-
-
-
-
 class StoreContextMiddleware:
-
-#    Middleware to manage store context for multi-tenant access control.
-#    Sets request.active_store and request.active_company based on user role.
-
-    
+    """
+    Middleware to manage store context for multi-tenant access control.
+    Sets request.active_store and request.active_company based on user role and session.
+    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -88,14 +16,14 @@ class StoreContextMiddleware:
         request.active_company = None
 
         # Bypass for static files, logout, and store setter
-        bypass_paths = ['/admin/logout/', '/static/', '/media/', '/set-store/']
+        bypass_paths = ['/admin/logout/', '/static/', '/media/', '/set-store/', '/help/']
         if any(request.path.startswith(p) for p in bypass_paths):
             return self.get_response(request)
 
         if request.user.is_authenticated:
             active_store_id = request.session.get('active_store_id')
 
-            # SUPERUSER LOGIC
+            # --- SUPERUSER LOGIC ---
             if request.user.is_superuser:
                 if active_store_id:
                     from .models import Store
@@ -104,13 +32,13 @@ class StoreContextMiddleware:
                         request.active_store = store
                         request.active_company = store.company
                 
-                # Redirect to store selection if in admin without store
+                # Redirect to store selection if in admin without an active store
                 if not request.active_store and 'admin' in request.path and request.path != reverse('select_store'):
                     return redirect('select_store')
                 
                 return self.get_response(request)
 
-            # REGULAR USER LOGIC
+            # --- REGULAR USER LOGIC (Owners, Managers, Staff) ---
             user_company = getattr(request.user, 'company', None)
 
             if user_company:
@@ -126,16 +54,15 @@ class StoreContextMiddleware:
                 # Multiple stores with session selection
                 elif active_store_id:
                     request.active_store = allowed_stores.filter(id=active_store_id).first()
-
                     if request.active_store:
                         request.active_company = user_company
                     else:
-                        # Security: Clear invalid session
+                        # Security: Clear invalid session ID if it doesn't belong to the user's allowed stores
                         if 'active_store_id' in request.session:
                             del request.session['active_store_id']
                         return redirect('select_store')
                         
-                # Multiple stores, nothing selected
+                # Multiple stores, nothing selected yet
                 elif store_count > 1:
                     if 'admin' in request.path and request.path != reverse('select_store'):
                         return redirect('select_store')
@@ -144,9 +71,10 @@ class StoreContextMiddleware:
 
 
 class SecurityHeadersMiddleware:
-#    Middleware to add security headers to all responses.
-#    Implements defense-in-depth security measures.
-    
+    """
+    Middleware to add security headers to all responses.
+    Implements defense-in-depth security measures.
+    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -156,8 +84,8 @@ class SecurityHeadersMiddleware:
         # Content Security Policy - restrictive but allows Django admin to work
         csp_directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",  # Django admin needs inline scripts
-            "style-src 'self' 'unsafe-inline'",   # Django admin needs inline styles
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self'",
             "connect-src 'self'",
@@ -178,25 +106,18 @@ class SecurityHeadersMiddleware:
 
 class InputSanitizationMiddleware:
     """
-    Flexible validator for ESL Tag IDs.
-    Accepts alphanumeric serials (0-9, A-Z) between 8 and 15 characters.
+    Validator and sanitizer for ESL Tag IDs.
+    Accepts alphanumeric serials between 8 and 15 characters.
     """
-
     @classmethod
     def sanitize_tag_id(cls, raw_id):
         """
-        Removes special characters and spaces.
-        Ensures length is within 8-15 characters.
+        Removes special characters and spaces, normalizing the ID to uppercase.
         """
         if not raw_id:
             return None
-        
-        # Strip spaces and remove anything not 0-9 or A-Z
         cleaned = re.sub(r'[^0-9A-Za-z]', '', str(raw_id).strip())
-        
-        # Flexible length check: allowing 8 to 15 chars
         if 8 <= len(cleaned) <= 15:
-            # We normalize to Upper for consistency in DB and MQTT topics
             return cleaned.upper()
         return None
 

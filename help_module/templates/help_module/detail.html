@@ -1,0 +1,84 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'help_module/css/help.css' %}">
+<style>
+    /* Force hide the admin sidebar on Help pages */
+    #nav-sidebar, .nav-sidebar, #nav-filter { display: none !important; }
+    .main { display: block !important; }
+    #content { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
+    #content-start { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
+    #container { display: flex; flex-direction: column; }
+    #main { display: block !important; }
+</style>
+{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content %}
+<div id="help-wrapper" style="display: flex; gap: 2.5rem; align-items: flex-start; position: relative; padding: 4rem; max-width: 1400px; margin: 0 auto; background: transparent;">
+    <button id="sidebar-toggle" style="position: fixed; left: 1.5rem; top: 12rem; z-index: 100; background: #003459; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; box-shadow: 0 8px 16px rgba(0,0,0,0.2); display: none; align-items: center; justify-content: center; font-size: 1.5rem; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        ☰
+    </button>
+
+    <div id="help-sidebar" class="help-sidebar" style="width: 320px; flex-shrink: 0; background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: sticky; top: 4rem; max-height: 85vh; overflow-y: auto; border: 1px solid #e2e8f0;">
+        <h3 style="margin-top: 0; padding-bottom: 1.25rem; border-bottom: 3px solid #f1f5f9; color: #003459; display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: 800;">
+            Guides
+            <small id="close-sidebar" style="cursor: pointer; font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">[Hide]</small>
+        </h3>
+        <ul style="list-style: none; padding: 0; margin: 1.5rem 0 0 0;">
+            {% for slug, topic in topics.items %}
+                <li style="margin-bottom: 0.5rem;">
+                    <a href="{% url 'help_module:detail' slug %}" class="sidebar-link {% if active_topic == slug %}active{% endif %}" style="font-size: 1.05rem;">
+                        {{ topic.title }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+        <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid #f1f5f9;">
+            <a href="{% url 'help_module:index' %}" style="text-decoration: none; color: #003459; font-size: 1rem; display: flex; align-items: center; gap: 0.75rem; font-weight: 800;">
+                🏠 Help Center Home
+            </a>
+        </div>
+    </div>
+
+    <div id="help-content-area" class="help-content" style="flex-grow: 1; background: white; padding: 5rem; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); line-height: 1.8; transition: all 0.4s ease; border: 1px solid #e2e8f0;">
+        <div class="markdown-body">
+            {{ content }}
+        </div>
+    </div>
+</div>
+
+<style>
+    .help-sidebar.collapsed { margin-left: -400px; opacity: 0; pointer-events: none; width: 0; padding: 0; overflow: hidden; border: none; }
+    #sidebar-toggle:hover { transform: scale(1.15) rotate(90deg); background: #007ea7; }
+
+    @media (max-width: 1024px) {
+        #help-wrapper { padding: 2rem; }
+        #help-sidebar { width: 280px; padding: 1.5rem; }
+        #help-content-area { padding: 3rem; }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('help-sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const closeBtn = document.getElementById('close-sidebar');
+
+        function hideSidebar() {
+            sidebar.classList.add('collapsed');
+            toggleBtn.style.display = 'flex';
+        }
+        function showSidebar() {
+            sidebar.classList.remove('collapsed');
+            toggleBtn.style.display = 'none';
+        }
+        closeBtn.addEventListener('click', hideSidebar);
+        toggleBtn.addEventListener('click', showSidebar);
+        if (window.innerWidth < 900) hideSidebar();
+    });
+</script>
+{% endblock %}

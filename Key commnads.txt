@@ -2,6 +2,10 @@ Key commnads
 #----------------
 # Docker
 #------------------
+#build docker container using requirements.txt
+docker-compose up --build
+
+
 docker exec -it sais_platform-web-1 python manage.py makemigrations
 
 

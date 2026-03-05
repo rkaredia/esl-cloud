@@ -1,25 +1,16 @@
 import logging
 import os
 import textwrap
-import sys
-import re
-#from io import BytesIO
-from django.core.files.base import ContentFile
-from django.utils import timezone
 from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 import barcode
 from barcode.writer import ImageWriter
 from celery import group
-from django.conf import settings
-import time
-
-
 
 logger = logging.getLogger('core')
 
 def get_font_by_type(size, font_type="bold"):
-    """Loads ArialBold or Roboto_Condensed-Bold dynamically."""
+    """Loads ArialBold or Roboto_Condensed-Bold dynamically based on the requested style."""
     fname = 'Roboto_Condensed-Bold.ttf' if font_type == "condensed" else 'ArialBold.ttf'
     font_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', fname)
     try:
@@ -30,7 +21,10 @@ def get_font_by_type(size, font_type="bold"):
         return ImageFont.load_default()
 
 def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
-    """Shrinks font until it fits the specified pixel box."""
+    """
+    Iteratively shrinks the font size until the provided text fits within the
+    specified maximum width and height.
+    """
     size = initial_size
     font = get_font_by_type(size, font_type)
     d = ImageDraw.Draw(Image.new('RGB', (1, 1)))
@@ -45,10 +39,9 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
 
 def template_v1(image, draw, product, width, height, color_scheme):
     """
-    REFINED DESIGN (Template 1)
-    - Product Name: Dynamic scaling, max 3 lines, respects split_x boundary.
-    - Price: Superscript cents, centered in price box.
-    - SKU: Integrated into barcode area.
+    Standard Split Design (Template 1)
+    - Left side: Product name and barcode.
+    - Right side: Large price display with superscript cents.
     """
     is_promo = getattr(product, 'is_on_special', False)
     is_bw_only = 'R' not in color_scheme and 'Y' not in color_scheme
@@ -70,16 +63,14 @@ def template_v1(image, draw, product, width, height, color_scheme):
     left_zone_w = split_x - (safe_pad * 2)
     draw.rectangle([split_x, 0, width, height], fill=price_bg)
 
-    if not product:
-        return
+    if not product: return
 
-    # 3. PRODUCT NAME (Top 45% of left zone)
+    # Product Name
     name_text = product.name.upper()
-    wrapper = textwrap.TextWrapper(width=16) # Character limit helps initial wrapping
+    wrapper = textwrap.TextWrapper(width=16)
     lines = wrapper.wrap(text=name_text)[:3]
 
     if lines:
-        # We calculate the font for the longest line to ensure it fits the width
         longest_line = max(lines, key=len)
         max_h_per_line = (height * 0.40) / len(lines)
         n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 18, "condensed")
@@ -93,16 +84,12 @@ def template_v1(image, draw, product, width, height, color_scheme):
             draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
             curr_y += line_height
 
-    # 4. PRICE (Right Box)
+    # Price rendering logic
     try:
-        # Convert product price to float to ensure numeric operations work
         price_val = float(product.price)
-        # Format to 2 decimal places and split at the dot to separate dollars and cents
         p_parts = f"{price_val:.2f}".split('.')
-        # Prepend dollar sign to the whole number part
         dollars, cents = f"${p_parts[0]}", p_parts[1]
     except:
-        # Fallback values if the price is missing or incorrectly formatted
         dollars, cents = "$0", "00"
 
     # Calculate the available width inside the right-hand price box
@@ -119,10 +106,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
     # Set the cents font to be roughly 45% the size of the dollar font for the superscript effect
     c_size = int(d_font.size * 0.45)
     c_font = get_font_by_type(c_size, "bold")
-    # Calculate the exact pixel width of the cents string
     c_w = draw.textbbox((0,0), cents, font=c_font)[2]
-
-    # Total width of the combined dollar and cent string including a small gap
     total_p_w = d_w + c_w + 2
 
     # Calculate the starting X coordinate so the entire price is centered in the price box
@@ -130,28 +114,23 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # Vertical alignment logic
     y_center = height // 2
-    # If it's a promo, move the price down slightly to make room for the "SPECIAL" label at the top
     y_offset = int(height * 0.1) if is_promo else 0
 
     if is_promo:
-        # Generate and draw the "SPECIAL" banner text at the top of the price box
         promo_font = get_dynamic_font_size("SPECIAL", p_box_w, 20, 20, "bold")
         draw.text((split_x + (width - split_x)//2, 8), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
 
-    # Draw the dollar amount (anchored left-middle at the calculated center line)
     draw.text((p_x, y_center + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
 
     # Draw the cents slightly higher than the center line (superscript) using the offset from the dollar font size
     draw.text((p_x + d_w + 2, (y_center + y_offset) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
 
-    # 5. BARCODE & SKU (Bottom Left)
+    # Barcode & SKU
     try:
-        # Define specific area for the barcode bars only
-        barcode_w = int(left_zone_w * 0.95)
-        barcode_h = int(height * 0.25)
+        barcode_w, barcode_h = int(left_zone_w * 0.95), int(height * 0.25)
         raw_sku_data = str(product.sku)
         code128 = barcode.get_barcode_class('code128')
-        ean = code128(str(raw_sku_data), writer=ImageWriter())
+        ean = code128(raw_sku_data, writer=ImageWriter())
 
         # Render barcode bars without internal text to avoid resize distortion
         b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
@@ -170,15 +149,12 @@ def template_v1(image, draw, product, width, height, color_scheme):
         # Draw text centered under barcode
         # anchor="mb" uses the middle of the text width and the bottom of the height
         draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
-
     except Exception as e:
         logger.error(f"Barcode error: {e}")
 
-
 def template_v2(image, draw, product, width, height, color_scheme):
-    # (Same background/header logic as before)
+    """Promo Design (Template 2) - Large centered price."""
     is_promo = getattr(product, 'is_on_special', False)
-    color_scheme = color_scheme.upper()
     bg_color = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     draw.rectangle([0, 0, width, height], fill=bg_color)
     if not product: return
@@ -189,98 +165,59 @@ def template_v2(image, draw, product, width, height, color_scheme):
     price_font = get_dynamic_font_size(price_str, width - 20, height - 60, 55)
     p_color = (255, 0, 0) if ('R' in color_scheme) else (0,0,0)
     draw.text((width//2, height//2 + 5), price_str, fill=p_color, font=price_font, anchor="mm")
-
-    # Updated SKU footer for V2
     supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
-    sku_text = f"{supp_abbr}: {product.sku}"
-    sku_font = get_font_by_type(12, "condensed")
-    draw.text((width - 5, height - 5), sku_text, fill=(0,0,0), font=sku_font, anchor="rb")
-    if is_promo:
-        promo_tag_font = get_font_by_type(20, "bold")
-        draw.text((5, height - 5), "SPECIAL", fill=(0,0,0), font=promo_tag_font, anchor="lb")
+    draw.text((width - 5, height - 5), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=get_font_by_type(12, "condensed"), anchor="rb")
+    if is_promo: draw.text((5, height - 5), "SPECIAL", fill=(0,0,0), font=get_font_by_type(20, "bold"), anchor="lb")
 
 def template_v3(image, draw, product, width, height, color_scheme):
-    # (Same side-by-side logic as before)
+    """Modern Design (Template 3)."""
     is_promo = getattr(product, 'is_on_special', False)
-    color_scheme = color_scheme.upper()
     split_x = int(width * 0.45)
     draw.rectangle([0, 0, split_x, height], fill=(255, 255, 255))
     right_bg = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     draw.rectangle([split_x, 0, width, height], fill=right_bg)
     if not product: return
     safe_pad = 8
-
-    # Updated SKU display for V3
     supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
-    sku_font = get_font_by_type(10, "bold")
-    draw.text((safe_pad, safe_pad), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=sku_font)
-
+    draw.text((safe_pad, safe_pad), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=get_font_by_type(10, "bold"))
     name_font = get_font_by_type(16, "bold")
-    wrapper = textwrap.TextWrapper(width=12)
-    lines = wrapper.wrap(text=product.name.upper())[:4]
+    lines = textwrap.wrap(text=product.name.upper(), width=12)[:4]
     curr_y = safe_pad + 18
     for line in lines:
         draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=name_font)
         curr_y += 18
-    draw.line([safe_pad, height - 35, split_x - safe_pad, height - 35], fill=(0,0,0), width=1)
     if is_promo:
-        banner_font = get_font_by_type(18, "bold")
         banner_color = (255, 0, 0) if 'R' in color_scheme else (0,0,0)
-        draw.text((split_x + (width - split_x)//2, 25), "SALE!", fill=banner_color, font=banner_font, anchor="mm")
-        sub_font = get_font_by_type(10, "bold")
-        draw.rectangle([split_x + 10, 40, width - 10, 55], fill=banner_color)
-        draw.text((split_x + (width - split_x)//2, 47), "SPECIAL OFFER", fill=(255,255,255), font=sub_font, anchor="mm")
+        draw.text((split_x + (width - split_x)//2, 25), "SALE!", fill=banner_color, font=get_font_by_type(18, "bold"), anchor="mm")
     price_str = f"${product.price}"
-    max_p_w = (width - split_x) - 10
-    price_font = get_dynamic_font_size(price_str, max_p_w, height // 2, 45)
+    price_font = get_dynamic_font_size(price_str, (width - split_x) - 10, height // 2, 45)
     draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
 
 def generate_esl_image(tag_id):
-    """
-    Main controller for image generation.
-    """
+    """Core logic to generate a BMP image for an ESL tag based on its template."""
     from .models import ESLTag
     try:
         tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
-        spec = tag.hardware_spec
-        product = tag.paired_product
-
-        width = int(spec.width_px or 296)
-        height = int(spec.height_px or 128)
+        spec, product = tag.hardware_spec, tag.paired_product
+        width, height = int(spec.width_px or 296), int(spec.height_px or 128)
         color_scheme = (spec.color_scheme or "BW").upper()
-
         image = Image.new('RGB', (width, height), color=(255, 255, 255))
         draw = ImageDraw.Draw(image)
-
         tid = getattr(tag, 'template_id', 1)
-        if tid == 3:
-            template_v3(image, draw, product, width, height, color_scheme)
-        elif tid == 2:
-            template_v2(image, draw, product, width, height, color_scheme)
-        else:
-            template_v1(image, draw, product, width, height, color_scheme)
-
+        if tid == 3: template_v3(image, draw, product, width, height, color_scheme)
+        elif tid == 2: template_v2(image, draw, product, width, height, color_scheme)
+        else: template_v1(image, draw, product, width, height, color_scheme)
         return image
     except Exception as e:
         logger.error(f"Critical error in generate_esl_image: {e}", exc_info=True)
         return Image.new('RGB', (296, 128), color=(255, 255, 255))
 
 def trigger_bulk_sync(tag_ids):
-    """
-    Uses Celery groups to process multiple tags efficiently.
-    """
+    """Triggers background updates for a list of tags using Celery groups."""
     from core.tasks import update_tag_image_task
     from .models import ESLTag
-
-    valid_tag_ids = list(ESLTag.objects.filter(
-        id__in=tag_ids,
-        paired_product__isnull=False,
-        hardware_spec__isnull=False
-    ).values_list('id', flat=True))
-
-    if not valid_tag_ids:
-        return None
-
+    valid_tag_ids = list(ESLTag.objects.filter(id__in=tag_ids, paired_product__isnull=False, hardware_spec__isnull=False).values_list('id', flat=True))
+    if not valid_tag_ids: return None
     job_group = group(update_tag_image_task.s(tid) for tid in valid_tag_ids)
     result = job_group.apply_async()
     result.save()

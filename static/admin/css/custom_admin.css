@@ -1,0 +1,153 @@
+/* ==========================================================================
+   1. BRANDING & HEADER (Enterprise Navy & White)
+   ========================================================================== */
+/* ==========================================================================
+   1. UNIVERSAL HEADER & STORE SELECTOR (Enterprise Navy)
+   ========================================================================== */
+
+/* This ensures the header layout is consistent across ALL admin pages */
+#branding {
+    display: flex !important;
+    align-items: center !important;
+    width: 100%;
+}
+
+#branding-container {
+    display: flex !important;
+    align-items: center !important;
+    gap: 20px; /* Adds consistent space between title and dropdown */
+}
+
+#header .header-store-selector {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+    padding: 0 12px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 240px !important;
+    margin-left: 20px !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 9999 !important; /* Stays above list-view headers */
+}
+
+#header .header-store-selector:hover {
+    background: #2563eb !important;
+}
+
+/* Label Styling */
+.selector-label {
+    color: #94a3b8 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    margin-right: 10px !important;
+    letter-spacing: 1px !important;
+    white-space: nowrap !important;
+}
+
+/* Selector Styling - Uses 'appearance: auto' for reliability across pages */
+#header .header-store-selector select {
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+
+    /* This forces the text you see BEFORE clicking to be white */
+    color: #ffffff !important;
+
+    /* Ensures the background of the collapsed box matches your theme */
+    background-color: #1e293b !important;
+
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    width: 100% !important;
+    cursor: pointer !important;
+    outline: none !important;
+}
+
+/* Specific fix for Chrome/Safari internal styling */
+#header .header-store-selector select:not(:focus) {
+    color: white !important;
+}
+
+/* Option styling for the dropdown menu */
+#header .header-store-selector select option {
+    background: #0f172a !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   2. BUTTONS (Centered White Text)
+   ========================================================================== */
+.button, input[type=submit], .sync-button {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    border: none !important;
+}
+
+.button:hover {
+    background: #1d4ed8 !important;
+}
+
+/* ==========================================================================
+   3. CHANGELIST & RESULTS AREA
+   ========================================================================== */
+#changelist {
+    display: block !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+#changelist-form {
+    width: 100% !important;
+}
+
+#changelist .results {
+    width: 100% !important;
+    overflow-x: auto !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+}
+
+#result_list {
+    min-width: 1600px !important;
+}
+
+/* ==========================================================================
+   4. SELECT2 SEARCH BOX (Autocomplete)
+   ========================================================================== */
+.select2-container--admin-autocomplete {
+    width: 100% !important;
+    min-width: 800px !important;
+}
+
+.select2-container--admin-autocomplete .select2-selection--single {
+    height: 45px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+
+
+
+
+
+
+/* Ensure the button list allows multiple items in a row */
+.object-tools {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    list-style: none !important;
+}
