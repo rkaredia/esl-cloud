@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Add toggle logic to the button if it exists in the template
-        const toggleBtn = document.getElementById('filter-toggle-btn');
+        const toggleBtn = document.getElementById('filter-toggle-btn') || document.getElementById('toggle-filters');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', function(e) {
                 e.preventDefault();
