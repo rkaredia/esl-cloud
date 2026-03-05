@@ -39,7 +39,7 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if w <= max_w and h <= max_h:
             break
-        size -= 1 
+        size -= 1
         font = get_font_by_type(size, font_type)
     return font
 
@@ -52,18 +52,18 @@ def template_v1(image, draw, product, width, height, color_scheme):
     """
     is_promo = getattr(product, 'is_on_special', False)
     is_bw_only = 'R' not in color_scheme and 'Y' not in color_scheme
-    
+
     # 1. Colors & Background
     left_bg = (255, 255, 0) if (is_promo and 'Y' in color_scheme) else (255, 255, 255)
     if 'R' in color_scheme or 'Y' in color_scheme:
-        price_bg = (255, 0, 0) 
-        price_txt_col = (255, 255, 255)        
+        price_bg = (255, 0, 0)
+        price_txt_col = (255, 255, 255)
     else:
         price_bg = (0, 0, 0) if (is_promo and is_bw_only) else (255, 255, 255)
-        price_txt_col = (255, 255, 255) if (is_promo and is_bw_only) else (0, 0, 0)                 
+        price_txt_col = (255, 255, 255) if (is_promo and is_bw_only) else (0, 0, 0)
 
     draw.rectangle([0, 0, width, height], fill=left_bg)
-    
+
     # 2. Dimensions
     split_x = int(width * 0.62)
     safe_pad = 4
@@ -77,17 +77,17 @@ def template_v1(image, draw, product, width, height, color_scheme):
     name_text = product.name.upper()
     wrapper = textwrap.TextWrapper(width=16) # Character limit helps initial wrapping
     lines = wrapper.wrap(text=name_text)[:3]
-    
+
     if lines:
         # We calculate the font for the longest line to ensure it fits the width
         longest_line = max(lines, key=len)
         max_h_per_line = (height * 0.40) / len(lines)
         n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 18, "condensed")
-        
+
         # Get actual height for spacing
         bbox = draw.textbbox((0, 0), "Ay", font=n_font)
         line_height = bbox[3] - bbox[1] + 2
-        
+
         curr_y = 4
         for line in lines:
             draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
@@ -107,15 +107,15 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # Calculate the available width inside the right-hand price box
     p_box_w = (width - split_x) - (safe_pad * 1)
-    
+
     # Calculate a font size for the dollars that fits the box width and height.
     # We include "00" in the measurement string to reserve space for the superscript cents.
     d_font = get_dynamic_font_size(dollars + "0", p_box_w, height * 0.75, int(height * 0.70), "bold")
-    
+
     # Calculate the exact pixel width of the dollar string at this font size
     d_bbox = draw.textbbox((0,0), dollars, font=d_font)
     d_w = d_bbox[2] - d_bbox[0]
-    
+
     # Set the cents font to be roughly 45% the size of the dollar font for the superscript effect
     c_size = int(d_font.size * 0.45)
     c_font = get_font_by_type(c_size, "bold")
@@ -124,10 +124,10 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # Total width of the combined dollar and cent string including a small gap
     total_p_w = d_w + c_w + 2
-    
+
     # Calculate the starting X coordinate so the entire price is centered in the price box
     p_x = split_x + ((width - split_x) - total_p_w) // 2
-    
+
     # Vertical alignment logic
     y_center = height // 2
     # If it's a promo, move the price down slightly to make room for the "SPECIAL" label at the top
@@ -140,7 +140,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # Draw the dollar amount (anchored left-middle at the calculated center line)
     draw.text((p_x, y_center + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
-    
+
     # Draw the cents slightly higher than the center line (superscript) using the offset from the dollar font size
     draw.text((p_x + d_w + 2, (y_center + y_offset) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
 
@@ -152,11 +152,11 @@ def template_v1(image, draw, product, width, height, color_scheme):
         raw_sku_data = str(product.sku)
         code128 = barcode.get_barcode_class('code128')
         ean = code128(str(raw_sku_data), writer=ImageWriter())
-        
+
         # Render barcode bars without internal text to avoid resize distortion
         b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
         b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
-        
+
         # Calculate Y for barcode: leave room for text below
         # We place the barcode slightly higher than the very bottom
         barcode_y = height - barcode_h - 15
@@ -165,7 +165,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
         # Construct "Supplier:SKU" string
         supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
         display_text = f"{supp_abbr}:{product.sku}"
-        
+
         s_font = get_dynamic_font_size(display_text, left_zone_w, 16, 14,  "condensed")
         # Draw text centered under barcode
         # anchor="mb" uses the middle of the text width and the bottom of the height
@@ -244,7 +244,7 @@ def generate_esl_image(tag_id):
         tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
         spec = tag.hardware_spec
         product = tag.paired_product
-        
+
         width = int(spec.width_px or 296)
         height = int(spec.height_px or 128)
         color_scheme = (spec.color_scheme or "BW").upper()
@@ -283,5 +283,5 @@ def trigger_bulk_sync(tag_ids):
 
     job_group = group(update_tag_image_task.s(tid) for tid in valid_tag_ids)
     result = job_group.apply_async()
-    result.save() 
+    result.save()
     return result

@@ -135,15 +135,34 @@
     background-color: var(--navy) !important;
     color: var(--white) !important;
     border-radius: 50px !important;
-    padding: 6px 15px !important;
+    padding: 8px 20px !important;
     text-transform: uppercase;
     font-size: 11px;
     font-weight: bold;
     text-decoration: none;
+    background-image: none !important; /* Remove the + icon */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 .object-tools a:hover, .addlink:hover {
     background-color: #00A8E8 !important;
+}
+
+/* Remove default Django icons */
+.addlink::before, .changelink::before, .deletelink::before, .viewlink::before {
+    display: none !important;
+}
+
+/* Remove related field controls (add, change, delete, view) in list views */
+#result_list .related-widget-wrapper-link {
+    display: none !important;
+}
+
+#result_list .related-lookup {
+    display: none !important;
 }
 
 /* Filter Toggle Button */
