@@ -1,0 +1,4 @@
+## 2025-05-15 - [Path Traversal in Product Import]
+**Vulnerability:** The product import preview view exposed full absolute filesystem paths to the client in a hidden form field and accepted them back for processing. An attacker could modify this field to perform path traversal (e.g., using `../../`) to read or delete arbitrary files on the server when the confirmation step was executed.
+**Learning:** Passing internal system details like absolute paths to the client creates a significant security risk and exposes the server's directory structure.
+**Prevention:** Always use relative filenames or indirect identifiers (like UUIDs) when communicating with the client about files. On the server, validate and normalize paths using `os.path.normpath` and ensure they remain within strictly defined subdirectories before joining them with the system's root media path.

@@ -117,7 +117,7 @@
     <div class="submit-row">
         <form action="." method="POST">
             {% csrf_token %}
-            <input type="hidden" name="temp_file_path" value="{{ temp_file_path }}">
+            <input type="hidden" name="temp_filename" value="{{ temp_filename }}">
             <p style="float: left; margin-top: 10px; color: #64748b;">
                 <strong>Note:</strong> Only "New" and "Update" records will be saved. Rejected records are ignored.
             </p>

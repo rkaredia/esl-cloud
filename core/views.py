@@ -163,9 +163,21 @@ def preview_product_import(request):
     try:
         if request.method == "POST":
             if "confirm_save" in request.POST:
-                temp_path = request.POST.get("temp_file_path")
-                if not temp_path or not temp_path.startswith(settings.MEDIA_ROOT):
+                rel_filename = request.POST.get("temp_filename")
+                if not rel_filename:
+                    messages.error(request, "No file provided.")
+                    return redirect('admin:core_product_changelist')
+
+                # Normalize path and verify it stays within the intended 'tmp/' directory
+                normalized_name = os.path.normpath(rel_filename)
+                if normalized_name.startswith('..') or not normalized_name.startswith('tmp' + os.sep):
+                    logger.warning(f"Security: Blocked suspicious import path: {rel_filename}")
                     messages.error(request, "Invalid file.")
+                    return redirect('admin:core_product_changelist')
+
+                temp_path = os.path.join(settings.MEDIA_ROOT, normalized_name)
+                if not os.path.exists(temp_path):
+                    messages.error(request, "Import file not found.")
                     return redirect('admin:core_product_changelist')
 
                 results, error = process_modisoft_file_logic(temp_path, active_store, request.user, commit=True)
@@ -176,13 +188,13 @@ def preview_product_import(request):
                 messages.error(request, error)
             elif request.FILES.get("import_file"):
                 myfile = request.FILES["import_file"]
-                filename = default_storage.save(f'tmp/{myfile.name}', myfile)
-                temp_path = os.path.join(settings.MEDIA_ROOT, filename)
+                temp_filename = default_storage.save(os.path.join('tmp', myfile.name), myfile)
+                temp_path = os.path.join(settings.MEDIA_ROOT, temp_filename)
                 results, error = process_modisoft_file_logic(temp_path, active_store, request.user, commit=False)
                 if error:
                     messages.error(request, error)
                     return redirect('admin:core_product_changelist')
-                return render(request, "admin/core/product/import_preview.html", {"results": results, "temp_file_path": temp_path, "store": active_store})
+                return render(request, "admin/core/product/import_preview.html", {"results": results, "temp_filename": temp_filename, "store": active_store})
     except Exception as e:
         logger.exception("Error in product import view")
         messages.error(request, "An unexpected error occurred during product import.")
