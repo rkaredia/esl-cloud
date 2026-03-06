@@ -19,14 +19,14 @@
 
 {% block content %}
 <div id="help-wrapper" style="display: flex; gap: 2.5rem; align-items: flex-start; position: relative; padding: 4rem; max-width: 1400px; margin: 0 auto; background: transparent;">
-    <button id="sidebar-toggle" style="position: fixed; left: 1.5rem; top: 12rem; z-index: 100; background: #003459; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; box-shadow: 0 8px 16px rgba(0,0,0,0.2); display: none; align-items: center; justify-content: center; font-size: 1.5rem; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <button id="sidebar-toggle" aria-label="Show sidebar" aria-expanded="false" style="position: fixed; left: 1.5rem; top: 12rem; z-index: 100; background: #003459; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; box-shadow: 0 8px 16px rgba(0,0,0,0.2); display: none; align-items: center; justify-content: center; font-size: 1.5rem; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
         ☰
     </button>
 
     <div id="help-sidebar" class="help-sidebar" style="width: 320px; flex-shrink: 0; background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: sticky; top: 4rem; max-height: 85vh; overflow-y: auto; border: 1px solid #e2e8f0;">
         <h3 style="margin-top: 0; padding-bottom: 1.25rem; border-bottom: 3px solid #f1f5f9; color: #003459; display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: 800;">
             Guides
-            <small id="close-sidebar" style="cursor: pointer; font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">[Hide]</small>
+            <button id="close-sidebar" aria-label="Hide sidebar" aria-expanded="true" style="all: unset; cursor: pointer; font-size: 0.85rem; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">[Hide]</button>
         </h3>
         <ul style="list-style: none; padding: 0; margin: 1.5rem 0 0 0;">
             {% for slug, topic in topics.items %}
@@ -71,10 +71,16 @@
         function hideSidebar() {
             sidebar.classList.add('collapsed');
             toggleBtn.style.display = 'flex';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            closeBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.focus();
         }
         function showSidebar() {
             sidebar.classList.remove('collapsed');
             toggleBtn.style.display = 'none';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            closeBtn.setAttribute('aria-expanded', 'true');
+            closeBtn.focus();
         }
         closeBtn.addEventListener('click', hideSidebar);
         toggleBtn.addEventListener('click', showSidebar);
