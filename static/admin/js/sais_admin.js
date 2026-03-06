@@ -103,4 +103,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+
+    // 3. Store Selection Logic (Security: avoid inline onchange for XSS prevention)
+    const storeSelect = document.getElementById('header-store-select');
+    if (storeSelect) {
+        storeSelect.addEventListener('change', function() {
+            if (this.value) {
+                window.location.href = '/set-store/' + encodeURIComponent(this.value) + '/';
+            }
+        });
+    }
 });
