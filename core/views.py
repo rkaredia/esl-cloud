@@ -133,6 +133,13 @@ def preview_tag_import(request):
                 continue
 
             tag, created = ESLTag.objects.get_or_create(tag_mac=sanitized_id, defaults={'gateway': gateway, 'hardware_spec': spec, 'updated_by': request.user})
+
+            # Security Check: Ensure tag ownership if it already exists
+            if not created and tag.gateway.store != active_store:
+                summary['rejected'] += 1
+                results.append({'mac': sanitized_id, 'status': 'rejected', 'message': f'This tag ID belongs to another store ({tag.gateway.store.name}).'})
+                continue
+
             if created:
                 summary['added'] += 1
                 status, msg = 'added', "New tag registered."
