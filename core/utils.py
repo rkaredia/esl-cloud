@@ -9,33 +9,51 @@ from celery import group
 
 logger = logging.getLogger('core')
 
+# Module-level cache to prevent redundant font loading from disk
+_FONT_CACHE = {}
+# Reusable Draw object for measurement to avoid creating new Image/Draw instances in loops
+_MEASURE_DRAW = ImageDraw.Draw(Image.new('RGB', (1, 1)))
+
 def get_font_by_type(size, font_type="bold"):
     """Loads ArialBold or Roboto_Condensed-Bold dynamically based on the requested style."""
     fname = 'Roboto_Condensed-Bold.ttf' if font_type == "condensed" else 'ArialBold.ttf'
     font_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', fname)
+
+    cache_key = (font_path, size)
+    if cache_key in _FONT_CACHE:
+        return _FONT_CACHE[cache_key]
+
     try:
         if os.path.exists(font_path):
-            return ImageFont.truetype(font_path, size)
+            font = ImageFont.truetype(font_path, size)
+            _FONT_CACHE[cache_key] = font
+            return font
         return ImageFont.load_default()
     except Exception:
         return ImageFont.load_default()
 
 def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
     """
-    Iteratively shrinks the font size until the provided text fits within the
+    Uses binary search to find the largest font size that fits within the
     specified maximum width and height.
     """
-    size = initial_size
-    font = get_font_by_type(size, font_type)
-    d = ImageDraw.Draw(Image.new('RGB', (1, 1)))
-    while size > 8:
-        bbox = d.textbbox((0, 0), text, font=font)
+    low = 8
+    high = initial_size
+    best_size = 8
+
+    while low <= high:
+        mid = (low + high) // 2
+        font = get_font_by_type(mid, font_type)
+        bbox = _MEASURE_DRAW.textbbox((0, 0), text, font=font)
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
         if w <= max_w and h <= max_h:
-            break
-        size -= 1
-        font = get_font_by_type(size, font_type)
-    return font
+            best_size = mid
+            low = mid + 1
+        else:
+            high = mid - 1
+
+    return get_font_by_type(best_size, font_type)
 
 def template_v1(image, draw, product, width, height, color_scheme):
     """
