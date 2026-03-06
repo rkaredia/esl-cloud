@@ -53,10 +53,10 @@
 
     {% if request.user.is_authenticated %}
         <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
-            <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;">Help</a>
+            <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation">Help</a>
             <div class="header-store-selector">
-            <span class="selector-label">ACTIVE STORE:</span>
-            <select onchange="window.location.href='/set-store/' + this.value + '/'">
+            <label for="header-store-select" class="selector-label">ACTIVE STORE:</label>
+            <select id="header-store-select" onchange="window.location.href='/set-store/' + this.value + '/'" aria-label="Select active store">
                 {% if not active_store %}
                     <option value="" selected disabled>Choose a Store...</option>
                 {% endif %}

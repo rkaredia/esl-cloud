@@ -283,7 +283,7 @@ class UIHelperMixin:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;">Sync</a>', url)
+            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;" title="Manually trigger tag update" aria-label="Sync tag">Sync</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

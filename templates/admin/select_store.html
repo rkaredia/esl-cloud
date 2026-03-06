@@ -18,7 +18,7 @@
         <div class="store-card">
             <div class="store-name">{{ store.name }}</div>
             <div class="store-meta">Location Code: {{ store.location_code|default:"N/A" }}</div>
-            <a href="{% url 'set_active_store' store.id %}" class="btn-select">Manage Store</a>
+            <a href="{% url 'set_active_store' store.id %}" class="btn-select" aria-label="Manage store {{ store.name }}">Manage Store</a>
             
         </div>
 
