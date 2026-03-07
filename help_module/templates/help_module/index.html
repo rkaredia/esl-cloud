@@ -13,6 +13,21 @@
     .main > .content { margin-left: 0 !important; }
     #container { display: flex; flex-direction: column; }
     #main { display: block !important; }
+
+    @media (max-width: 768px) {
+        .help-topics {
+            gap: 1rem !important;
+        }
+        .card-inner {
+            padding: 1rem !important;
+        }
+        .help-container {
+            padding: 1rem !important;
+        }
+        h1 {
+            font-size: 1.75rem !important;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -27,7 +42,7 @@
         </p>
     </div>
 
-    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem;">
+    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2rem;">
         {% for slug, topic in topics.items %}
             <a href="{% url 'help_module:detail' slug %}" class="help-card" style="text-decoration: none;">
                 <div class="card-inner" style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
