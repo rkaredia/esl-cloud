@@ -212,6 +212,7 @@ def template_v3(image, draw, product, width, height, color_scheme):
     draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
 
 def generate_esl_image(tag_id, tag_instance=None):
+        # Bolt: Support instance passing to avoid redundant SELECT query when called from a task.
     """Core logic to generate a BMP image for an ESL tag based on its template."""
     from .models import ESLTag
     try:
