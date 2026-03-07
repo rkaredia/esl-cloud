@@ -146,12 +146,11 @@
     display: flex;
     align-items: center;
     border: none !important;
+    padding: 10px 15px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
 }
-
-.app-inventory .section:before { content: "📦"; margin-right: 10px; }
-.app-hardware .section:before { content: "📡"; margin-right: 10px; }
-.app-organisation .section:before { content: "🏢"; margin-right: 10px; }
-.app-monitoring .section:before { content: "⚙️"; margin-right: 10px; }
 
 /* Action Buttons */
 .object-tools a, .addlink {
