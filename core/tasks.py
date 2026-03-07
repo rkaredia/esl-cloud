@@ -28,24 +28,28 @@ def update_tag_image_task(self, tag_id):
 
         logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id}")
 
-        tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
-        tag.sync_state = 'PROCESSING'
-        tag.save(update_fields=['sync_state'])
+        # Prefetch everything needed for image generation AND storage path calculation
+        tag = ESLTag.objects.select_related(
+            'hardware_spec',
+            'paired_product__preferred_supplier',
+            'gateway__store__company'
+        ).get(pk=tag_id)
+
+        # Use .update() for state changes to bypass full_clean() and redundant queries
+        ESLTag.objects.filter(pk=tag_id).update(sync_state='PROCESSING')
 
         if not tag.paired_product:
-            tag.sync_state = 'IDLE'
-            tag.save(update_fields=['sync_state'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='IDLE')
             cache.delete(lock_id)
             return "Skipped: No product"
 
         # Image Generation
         try:
-            pil_img = generate_esl_image(tag_id)
+            pil_img = generate_esl_image(tag_id, tag_instance=tag)
             if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
         except Exception as e:
             logger.exception(f"Image gen failed for {tag.tag_mac}")
-            tag.sync_state = 'GEN_FAILED'
-            tag.save(update_fields=['sync_state'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
             cache.delete(lock_id)
             return f"Generation Failed: {str(e)}"
 
@@ -54,8 +58,14 @@ def update_tag_image_task(self, tag_id):
         pil_img.save(buf, format='BMP')
         filename = f"{tag.tag_mac.replace(':', '')}_{int(time.time())}.bmp"
         tag.tag_image.save(filename, ContentFile(buf.getvalue()), save=False)
-        tag.sync_state, tag.last_image_gen_success, tag.last_image_task_id = 'IMAGE_READY', timezone.now(), self.request.id
-        tag.save(update_fields=['tag_image', 'sync_state', 'last_image_gen_success', 'last_image_task_id'])
+
+        now = timezone.now()
+        ESLTag.objects.filter(pk=tag_id).update(
+            tag_image=tag.tag_image.name,
+            sync_state='IMAGE_READY',
+            last_image_gen_success=now,
+            last_image_task_id=self.request.id
+        )
         
         dispatch_tag_image_task.delay(tag_id)
         return f"BMP Generated for {tag.tag_mac}"
@@ -77,14 +87,12 @@ def dispatch_tag_image_task(tag_id):
         tag = ESLTag.objects.select_related('gateway').get(pk=tag_id)
         
         if not tag.gateway or not tag.gateway.estation_id:
-            tag.sync_state = 'PUSH_FAILED'
-            tag.save(update_fields=['sync_state'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
             cache.delete(lock_id)
             return "Gateway ID missing"
 
         if not tag.tag_image:
-            tag.sync_state = 'GEN_FAILED'
-            tag.save(update_fields=['sync_state'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
             cache.delete(lock_id)
             return "No image to push"
 
@@ -95,13 +103,11 @@ def dispatch_tag_image_task(tag_id):
         success = mqtt_service.publish_tag_update(tag.gateway.estation_id, tag.tag_mac, image_bytes, token)
 
         if success:
-            tag.sync_state, tag.last_image_task_token = 'PUSHED', token
-            tag.save(update_fields=['sync_state', 'last_image_task_token'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
             cache.delete(lock_id)
             return "MQTT Pushed"
         else:
-            tag.sync_state = 'PUSH_FAILED'
-            tag.save(update_fields=['sync_state'])
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
             cache.delete(lock_id)
             return "MQTT Failed"
 

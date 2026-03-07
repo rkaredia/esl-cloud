@@ -211,11 +211,15 @@ def template_v3(image, draw, product, width, height, color_scheme):
     price_font = get_dynamic_font_size(price_str, (width - split_x) - 10, height // 2, 45)
     draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
 
-def generate_esl_image(tag_id):
+def generate_esl_image(tag_id, tag_instance=None):
     """Core logic to generate a BMP image for an ESL tag based on its template."""
     from .models import ESLTag
     try:
-        tag = ESLTag.objects.select_related('hardware_spec', 'paired_product').get(pk=tag_id)
+        if tag_instance:
+            tag = tag_instance
+        else:
+            tag = ESLTag.objects.select_related('hardware_spec', 'paired_product__preferred_supplier').get(pk=tag_id)
+
         spec, product = tag.hardware_spec, tag.paired_product
         width, height = int(spec.width_px or 296), int(spec.height_px or 128)
         color_scheme = (spec.color_scheme or "BW").upper()
