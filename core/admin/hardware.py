@@ -16,9 +16,59 @@ logger = logging.getLogger(__name__)
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for Managing ESL Gateways."""
-    list_display = ('estation_id', 'gateway_mac', 'store', 'is_active', 'created_at', 'updated_at', 'updated_by')
-    list_editable = ('store', 'is_active')
-    readonly_fields = ('created_at', 'updated_at', 'updated_by')
+    list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'is_active', 'last_heartbeat')
+    list_editable = ('name', 'alias', 'is_active')
+    readonly_fields = ('last_heartbeat', 'last_successful_heartbeat', 'last_seen', 'created_at', 'updated_at', 'updated_by')
+
+    fieldsets = (
+        ('General', {'fields': ('estation_id', 'name', 'alias', 'store', 'is_active')}),
+        ('Technical', {'fields': ('gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port')}),
+        ('Credentials', {'fields': ('username', 'password')}),
+        ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
+        ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
+    )
+
+    def status_indicator(self, obj):
+        color = "#059669" if obj.is_online else "#dc2626"
+        text = "Online" if obj.is_online else "Offline"
+        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
+    status_indicator.short_description = "Status"
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        if not request.user.is_superuser:
+            if 'password' in fields:
+                fields.remove('password')
+        return fields
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not request.user.is_superuser:
+            # Filter out the Credentials section or just password
+            new_fieldsets = []
+            for name, options in fieldsets:
+                if name == 'Credentials':
+                    # If not superuser, we might want to hide it entirely or just the password field
+                    # For now, let's hide the whole section if it contains sensitive info
+                    continue
+                new_fieldsets.append((name, options))
+            return new_fieldsets
+        return fieldsets
+
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_superuser:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_add_permission(self, request):
+        if not request.user.is_superuser:
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_superuser:
+            return False
+        return super().has_delete_permission(request, obj)
 
 @admin.register(TagHardware, site=admin_site)
 class TagHardwareAdmin(admin.ModelAdmin):
@@ -31,15 +81,15 @@ class TagHardwareAdmin(admin.ModelAdmin):
 class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for individual ESL Tags and their mapping to products."""
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'paired_product', 'last_sync_status', 'battery_level_display', 'hardware_spec', 'template_id', 'gateway', 'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
+    list_display = ('image_status', 'tag_mac', 'paired_product', 'last_sync_status', 'battery_level_display', 'hardware_spec', 'template_id', 'gateway', 'last_successful_gateway_id', 'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
     search_fields = ('tag_mac', 'paired_product__name', 'paired_product__sku')
     list_editable = ('paired_product', 'template_id', 'aisle', 'section', 'shelf_row')
     list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
     autocomplete_fields = ['paired_product']
-    readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link', 'updated_at', 'updated_by', 'created_at')
+    readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link', 'updated_at', 'updated_by', 'created_at', 'last_successful_gateway_id')
 
     fieldsets = (
-        ('Hardware', {'fields': ('tag_mac', 'gateway', 'hardware_spec', 'battery_level')}),
+        ('Hardware', {'fields': ('tag_mac', 'gateway', 'last_successful_gateway_id', 'hardware_spec', 'battery_level')}),
         ('Pairing', {'description': 'Search for a product by SKU or Name below.', 'fields': ('paired_product',)}),
         ('Visuals', {'fields': ('template_id', 'image_preview_large', 'last_image_gen_success', 'sync_state', 'last_image_task_id', 'audit_log_link')}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),

@@ -90,10 +90,19 @@ def dispatch_tag_image_task(tag_id):
     try:
         tag = ESLTag.objects.select_related('gateway').get(pk=tag_id)
         
-        if not tag.gateway or not tag.gateway.estation_id:
+        # Determine which gateway ID to use:
+        # 1. Hard-linked gateway's estation_id
+        # 2. last_successful_gateway_id
+        target_gateway_id = None
+        if tag.gateway and tag.gateway.estation_id:
+            target_gateway_id = tag.gateway.estation_id
+        elif tag.last_successful_gateway_id:
+            target_gateway_id = tag.last_successful_gateway_id
+
+        if not target_gateway_id:
             ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
             cache.delete(lock_id)
-            return "Gateway ID missing"
+            return "No target gateway identified"
 
         if not tag.tag_image:
             ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
@@ -104,7 +113,7 @@ def dispatch_tag_image_task(tag_id):
             image_bytes = f.read()
 
         token = random.randint(1, 255)
-        success = mqtt_service.publish_tag_update(tag.gateway.estation_id, tag.tag_mac, image_bytes, token)
+        success = mqtt_service.publish_tag_update(target_gateway_id, tag.tag_mac, image_bytes, token)
 
         if success:
             ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)

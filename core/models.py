@@ -32,8 +32,13 @@ class AuditModel(models.Model):
 def get_tag_path(instance, filename):
     """Generates the storage path for ESL tag images based on company and store."""
     try:
-        company_name = slugify(instance.gateway.store.company.name)
-        store_name = slugify(instance.gateway.store.name)
+        # Prioritize instance.store, fallback to gateway.store
+        store = instance.store
+        if not store and instance.gateway:
+            store = instance.gateway.store
+
+        company_name = slugify(store.company.name)
+        store_name = slugify(store.name)
         ext = os.path.splitext(filename)[1]
         new_filename = f"{instance.tag_mac.replace(':', '')}{ext}"
         return os.path.join(company_name, store_name, 'tag_images', new_filename)
@@ -133,15 +138,30 @@ class TagHardware(AuditModel):
 class Gateway(AuditModel):
     """Communication hub that manages a set of ESL tags in a store."""
     objects = StoreManager()
-    estation_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    estation_id = models.CharField(max_length=4, unique=True, null=True, blank=True, verbose_name="Gateway ID")
+    name = models.CharField(max_length=255, blank=True, null=True, help_text="Logical name for the gateway")
+    alias = models.CharField(max_length=2, blank=True, null=True)
     is_online = models.BooleanField(default=False)
-    gateway_mac = models.CharField(max_length=100, unique=True)
+    gateway_mac = models.CharField(max_length=100, unique=True, verbose_name="MAC Address")
+
+    # Connection details
+    gateway_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Gateway IP")
+    app_server_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Application Server IP")
+    app_server_port = models.IntegerField(null=True, blank=True, verbose_name="Application Server Port")
+
+    username = models.CharField(max_length=100, blank=True, null=True)
+    password = models.CharField(max_length=100, blank=True, null=True)
+
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
     is_active = models.BooleanField(default=True)
+
+    last_heartbeat = models.DateTimeField(null=True, blank=True)
+    last_successful_heartbeat = models.DateTimeField(null=True, blank=True)
     last_seen = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.gateway_mac} ({self.store.name if self.store else 'No Store'})"
+        name_str = f" - {self.name}" if self.name else ""
+        return f"{self.estation_id or 'No ID'}{name_str} ({self.store.name if self.store else 'No Store'})"
 
 class Supplier(models.Model):
     """Supplier info for products, used on ESL tag display."""
@@ -216,7 +236,8 @@ class ESLTag(AuditModel):
         ('FAILED', 'General Failure'),
     ]
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='esl_tags', null=True)
-    gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE, related_name='tags')
+    gateway = models.ForeignKey(Gateway, on_delete=models.SET_NULL, related_name='tags', null=True, blank=True)
+    last_successful_gateway_id = models.CharField(max_length=4, blank=True, null=True, verbose_name="Last Successful Gateway ID")
     tag_mac = models.CharField(max_length=50, verbose_name="Tag ID/MAC")
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
     paired_product = models.ForeignKey(
