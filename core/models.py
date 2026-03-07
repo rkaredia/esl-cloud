@@ -215,8 +215,9 @@ class ESLTag(AuditModel):
         ('PUSH_FAILED', 'Gateway Delivery Failed'),
         ('FAILED', 'General Failure'),
     ]
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='esl_tags', null=True)
     gateway = models.ForeignKey(Gateway, on_delete=models.CASCADE, related_name='tags')
-    tag_mac = models.CharField(max_length=50, unique=True, verbose_name="Tag ID/MAC")
+    tag_mac = models.CharField(max_length=50, verbose_name="Tag ID/MAC")
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
     paired_product = models.ForeignKey(
         Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='esl_tags'
@@ -249,11 +250,16 @@ class ESLTag(AuditModel):
         }
 
     def clean(self):
-        if self.paired_product and self.gateway.store != self.paired_product.store:
+        if self.gateway and self.store and self.gateway.store != self.store:
+            raise ValidationError("Gateway Mismatch: Gateway must belong to the same store as the Tag.")
+        if self.paired_product and self.store and self.store != self.paired_product.store:
             raise ValidationError("Store Mismatch: Product and Tag must be in the same store.")
 
     def save(self, *args, **kwargs):
         """Triggers image generation on pairing or template changes."""
+        if self.gateway and not self.store:
+            self.store = self.gateway.store
+
         trigger_refresh = False
         if self.pk:
             if (self._original_data['paired_product_id'] != self.paired_product_id or
@@ -272,8 +278,9 @@ class ESLTag(AuditModel):
             update_tag_image_task.delay(self.id)
 
     def __str__(self):
-        return f"{self.tag_mac} -> {self.paired_product.name if self.paired_product else 'Unpaired'}"
+        return f"{self.tag_mac} ({self.store.name if self.store else 'No Store'}) -> {self.paired_product.name if self.paired_product else 'Unpaired'}"
 
     class Meta:
+        unique_together = ('tag_mac', 'store')
         verbose_name = "ESL Tag"
         verbose_name_plural = "ESL Tags"
