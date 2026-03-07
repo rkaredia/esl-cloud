@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -164,7 +165,16 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             self.message_user(request, "Error updating templates.", messages.ERROR)
 
     def manual_sync_view(self, request, object_id):
+        """
+        Triggers a manual sync for a specific tag.
+        Security: Verifies that the tag belongs to the user's authorized queryset to prevent IDOR.
+        """
         try:
+            # Security: Ensure the user has permission to sync THIS specific tag
+            if not self.get_queryset(request).filter(pk=object_id).exists():
+                messages.error(request, "Permission denied or tag not found.")
+                return redirect('admin:index')
+
             update_tag_image_task.delay(object_id)
             messages.success(request, "Sync task queued.")
         except Exception as e:

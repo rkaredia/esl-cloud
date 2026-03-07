@@ -3,6 +3,7 @@ from openpyxl import Workbook
 from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Company, Store, Gateway, TagHardware, ESLTag, User
+from unittest.mock import patch
 
 class SecurityTest(TestCase):
     def setUp(self):
