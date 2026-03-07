@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Add resizer handle
                 const resizer = document.createElement('div');
                 resizer.classList.add('resizer');
+                resizer.title = 'Drag to resize column';
                 col.appendChild(resizer);
 
                 let x = 0;
@@ -58,40 +59,58 @@ document.addEventListener('DOMContentLoaded', function() {
     const changelistWrapper = document.getElementById('changelist-wrapper');
     const filter = document.getElementById('changelist-filter');
     if (changelistWrapper && filter) {
+        const updateToggleButton = (btn, isVisible) => {
+            if (!btn) return;
+            btn.innerHTML = isVisible ? 'Hide Filters 👁' : 'Show Filters 👁';
+            btn.setAttribute('aria-expanded', isVisible);
+        };
+
         // Load initial state - default to hidden if not explicitly set to 'true'
         const filterState = localStorage.getItem('sais-admin-filter-visible');
-        if (filterState !== 'true') {
+        const isInitiallyVisible = filterState === 'true';
+
+        if (!isInitiallyVisible) {
             changelistWrapper.classList.add('filter-hidden');
         }
 
         // Add toggle logic to the button if it exists in the template
-        const toggleBtn = document.getElementById('filter-toggle-btn') || document.getElementById('toggle-filters');
+        let toggleBtn = document.getElementById('filter-toggle-btn') || document.getElementById('toggle-filters');
+
+        if (!toggleBtn) {
+            // Add toggle button to object tools if not already present (for other models)
+            const objectTools = document.querySelector('.object-tools');
+            if (objectTools) {
+                const toggleItem = document.createElement('li');
+                toggleBtn = document.createElement('a');
+                toggleBtn.id = 'filter-toggle-btn';
+                toggleBtn.href = 'javascript:void(0);';
+                toggleBtn.className = 'addlink';
+                toggleBtn.style.background = '#64748b';
+                toggleBtn.setAttribute('aria-controls', 'changelist-filter');
+                toggleItem.appendChild(toggleBtn);
+                objectTools.insertBefore(toggleItem, objectTools.firstChild);
+            }
+        }
+
         if (toggleBtn) {
+            updateToggleButton(toggleBtn, isInitiallyVisible);
             toggleBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 changelistWrapper.classList.toggle('filter-hidden');
                 const isVisible = !changelistWrapper.classList.contains('filter-hidden');
                 localStorage.setItem('sais-admin-filter-visible', isVisible);
+                updateToggleButton(toggleBtn, isVisible);
             });
-        } else {
-            // Add toggle button to object tools if not already present (for other models)
-            const objectTools = document.querySelector('.object-tools');
-            if (objectTools) {
-                const toggleItem = document.createElement('li');
-                const newToggleBtn = document.createElement('a');
-                newToggleBtn.id = 'filter-toggle-btn';
-                newToggleBtn.innerHTML = 'Filters 👁';
-                newToggleBtn.href = 'javascript:void(0);';
-                newToggleBtn.className = 'addlink';
-                newToggleBtn.style.background = '#64748b';
-                newToggleBtn.addEventListener('click', function() {
-                    changelistWrapper.classList.toggle('filter-hidden');
-                    const isVisible = !changelistWrapper.classList.contains('filter-hidden');
-                    localStorage.setItem('sais-admin-filter-visible', isVisible);
-                });
-                toggleItem.appendChild(newToggleBtn);
-                objectTools.insertBefore(toggleItem, objectTools.firstChild);
-            }
         }
+    }
+
+    // 3. Store Selection Logic (Security: avoid inline onchange for XSS prevention)
+    const storeSelect = document.getElementById('header-store-select');
+    if (storeSelect) {
+        storeSelect.addEventListener('change', function() {
+            if (this.value) {
+                window.location.href = '/set-store/' + encodeURIComponent(this.value) + '/';
+            }
+        });
     }
 });
