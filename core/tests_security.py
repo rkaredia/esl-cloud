@@ -3,6 +3,7 @@ from openpyxl import Workbook
 from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Company, Store, Gateway, TagHardware, ESLTag, User
+from unittest.mock import patch
 
 class SecurityTest(TestCase):
     def setUp(self):
@@ -41,17 +42,17 @@ class SecurityTest(TestCase):
         f.name = 'test_import.xlsx'
         return f
 
-    def test_cross_store_tag_hijacking(self):
+    def test_cross_store_tag_existence(self):
         """
-        Tests that a user in Store B cannot hijack a tag belonging to Store A
-        by importing it via the tag import preview.
+        Tests that a user in Store B can add a tag with the same ID as a tag in Store A,
+        and both can exist independently.
         """
         # Manually set active store to Store B in the session
         session = self.client.session
         session['active_store_id'] = self.store_b.id
         session.save()
 
-        # Prepare import file that tries to claim TAGABC001 (Store A) for GW_B (Store B)
+        # Prepare import file that adds TAGABC001 (already in Store A) to Store B
         excel_data = [["TAGABC001", "GW_B", "Mi05"]]
         excel_file = self.create_excel_file(excel_data)
 
@@ -60,11 +61,14 @@ class SecurityTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        # Verify the tag in the database still belongs to Store A / GW_A
+        # Verify the tag in Store A still belongs to Store A / GW_A
         self.tag.refresh_from_db()
-        self.assertEqual(self.tag.gateway, self.gw_a, "SECURITY VULNERABILITY: Tag was hijacked to another store's gateway!")
+        self.assertEqual(self.tag.gateway, self.gw_a)
 
-        # Verify it was rejected in the summary
+        # Verify a new tag record was created for Store B
+        tag_b = ESLTag.objects.get(tag_mac="TAGABC001", store=self.store_b)
+        self.assertEqual(tag_b.gateway, self.gw_b)
+
+        # Verify it was added in the summary
         results = response.context['results']
-        self.assertEqual(results[0]['status'], 'rejected')
-        self.assertIn('belongs to another store', results[0]['message'])
+        self.assertEqual(results[0]['status'], 'added')

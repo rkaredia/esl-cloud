@@ -125,10 +125,18 @@ def dispatch_tag_image_task(tag_id):
 def refresh_store_products_task(store_id):
     """Refreshes all tags for a specific store."""
     try:
-        tags = ESLTag.objects.filter(gateway__store_id=store_id, paired_product__isnull=False)
-        for tag in tags:
-            update_tag_image_task.delay(tag.id)
-        return f"Queued {tags.count()} tags for store {store_id}"
+        # Bolt: Optimization - Use .values_list('id', flat=True) to avoid instantiating full model objects.
+        # This significantly reduces memory usage and DB payload for stores with thousands of tags.
+        # We use list() to evaluate the queryset once and then use len() to avoid a redundant COUNT query.
+        tag_ids = list(ESLTag.objects.filter(
+            gateway__store_id=store_id,
+            paired_product__isnull=False
+        ).values_list('id', flat=True))
+
+        for tid in tag_ids:
+            update_tag_image_task.delay(tid)
+
+        return f"Queued {len(tag_ids)} tags for store {store_id}"
     except Exception as e:
         logger.exception(f"Error in refresh_store_products_task for store {store_id}")
         raise e
