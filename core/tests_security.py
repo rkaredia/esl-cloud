@@ -3,6 +3,7 @@ from openpyxl import Workbook
 from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Company, Store, Gateway, TagHardware, ESLTag, User
+from unittest.mock import patch
 
 class SecurityTest(TestCase):
     def setUp(self):
@@ -68,3 +69,30 @@ class SecurityTest(TestCase):
         results = response.context['results']
         self.assertEqual(results[0]['status'], 'rejected')
         self.assertIn('belongs to another store', results[0]['message'])
+
+    @patch('core.admin.hardware.update_tag_image_task.delay')
+    def test_manual_sync_idor_blocked(self, mock_delay):
+        """
+        Tests that a manager in Store B cannot trigger a manual sync for a tag in Store A.
+        """
+        # Setup Manager B
+        user_b = User.objects.create_user(
+            username='manager_b', password='password123', email='manager_b@example.com',
+            role='manager', company=self.company_b, is_staff=True
+        )
+        user_b.managed_stores.add(self.store_b)
+
+        client_b = Client()
+        client_b.login(username='manager_b', password='password123')
+
+        # Set active store to Store B
+        session = client_b.session
+        session['active_store_id'] = self.store_b.id
+        session.save()
+
+        # Try to sync tag belonging to Store A
+        sync_url = reverse('sais_admin:sync-tag-manual', args=[self.tag.id])
+        response = client_b.get(sync_url)
+
+        # Verify the task was NOT queued
+        self.assertFalse(mock_delay.called, "SECURITY VULNERABILITY: Manager B triggered sync for Tag A!")
