@@ -188,11 +188,27 @@ class SAISAdminSite(admin.AdminSite):
 
             def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
 
-            inventory = {'name': 'Inventory', 'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]}
-            hardware = {'name': 'Hardware', 'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]}
-            org = {'name': 'Organisation', 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]}
+            inventory = {
+                'name': '📦 Inventory',
+                'app_label': 'inventory',
+                'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]
+            }
+            hardware = {
+                'name': '📡 Hardware',
+                'app_label': 'hardware',
+                'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]
+            }
+            org = {
+                'name': '🏢 Organisation',
+                'app_label': 'organisation',
+                'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]
+            }
 
-            monitoring = {'name': 'System Monitoring', 'models': []}
+            monitoring = {
+                'name': '⚙️ System Monitoring',
+                'app_label': 'monitoring',
+                'models': []
+            }
             monitoring['models'].append({
                 'name': '📊 Analytics Dashboard',
                 'object_name': 'dashboard',

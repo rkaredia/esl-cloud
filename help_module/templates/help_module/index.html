@@ -20,18 +20,18 @@
 
 {% block content %}
 <div class="help-container">
-    <div style="text-align: center; margin-bottom: 4rem; padding-top: 2rem;">
-        <h1 style="font-size: 3.5rem; color: #003459; margin-bottom: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
-        <p style="font-size: 1.3rem; color: #64748b; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+    <div style="text-align: center; margin-bottom: 3rem; padding-top: 2rem;">
+        <h1 style="font-size: 2.5rem; color: #003459; margin-bottom: 1rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
+        <p style="font-size: 1.1rem; color: #64748b; max-width: 600px; margin: 0 auto; line-height: 1.6;">
             Master the SAIS ESL Management platform with our comprehensive guides.
         </p>
     </div>
 
-    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem;">
+    <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem;">
         {% for slug, topic in topics.items %}
-            <a href="{% url 'help_module:detail' slug %}" class="help-card">
-                <div class="card-inner" style="background: white; padding: 3rem; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
-                    <div style="width: 72px; height: 72px; background: #f1f5f9; border-radius: 16px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem;">
+            <a href="{% url 'help_module:detail' slug %}" class="help-card" style="text-decoration: none;">
+                <div class="card-inner" style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
+                    <div style="width: 64px; height: 64px; background: #f1f5f9; border-radius: 14px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
                         {% if slug == 'product-management' %}🛒
                         {% elif slug == 'tag-manager' %}🏷️
                         {% elif slug == 'linkage' %}🔗
