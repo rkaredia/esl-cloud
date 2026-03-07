@@ -28,12 +28,16 @@ def update_tag_image_task(self, tag_id):
 
         logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id}")
 
+        # Bolt: Prefetch nested relationships to avoid N+1 queries during image storage path
+        # calculation (upload_to) and model validation.
         # Prefetch everything needed for image generation AND storage path calculation
         tag = ESLTag.objects.select_related(
             'hardware_spec',
             'paired_product__preferred_supplier',
             'gateway__store__company'
         ).get(pk=tag_id)
+        # Bolt: Use direct .update() to bypass heavy model validation (full_clean)
+        # and redundant queries triggered by instance.save().
 
         # Use .update() for state changes to bypass full_clean() and redundant queries
         ESLTag.objects.filter(pk=tag_id).update(sync_state='PROCESSING')
