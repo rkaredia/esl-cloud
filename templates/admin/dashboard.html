@@ -2,6 +2,19 @@
 {% block extrastyle %}{{ block.super }}{{ custom_admin_css }}{% endblock %}
 
 {% block content %}
+<style>
+    .stat-card {
+        transition: all 0.3s ease-in-out !important;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    }
+    .manage-tags-btn:hover {
+        background: var(--primary-hover, #1d4ed8) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    }
+</style>
 <div class="dashboard-container" style="padding: 24px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
     <h1 style="font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 24px; letter-spacing: -0.025em; display: flex; align-items: center; gap: 12px;">
         📊 Analytics Dashboard <span style="font-weight: 400; color: #94a3b8;">/</span> <span style="color: #64748b;">{{ request.active_store.name|default:"All Stores" }}</span>
@@ -12,7 +25,7 @@
         
         <!-- CARD 1: INVENTORY -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">📦</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">📦</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
                 <span>📦</span> Inventory
             </h3>
@@ -34,7 +47,7 @@
             </div>
             
             <div style="margin-top: 32px;">
-                <a href="/admin/core/esltag/" style="font-weight: 700; font-size: 13px; color: white; text-decoration: none; display: inline-flex; align-items: center; background: #003459; padding: 10px 20px; border-radius: 8px;">
+                <a href="/admin/core/esltag/" class="manage-tags-btn" style="font-weight: 700; font-size: 13px; color: white; text-decoration: none; display: inline-flex; align-items: center; background: var(--primary-blue, #2563eb); padding: 10px 20px; border-radius: 8px; transition: all 0.2s ease;">
                     Manage Tags <span style="margin-left: 8px;">→</span>
                 </a>
             </div>
@@ -42,7 +55,7 @@
 
         <!-- CARD 2: BATTERY MONITORING -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">🔋</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">🔋</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <span>🔋</span> Battery Monitoring
             </h3>
@@ -60,7 +73,7 @@
             
             <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
-                <span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);">
                     {{ active_gateways|default:2 }} / {{ gateway_count|default:2 }}
                 </span>
             </div>
@@ -68,7 +81,7 @@
 
         <!-- CARD 3: GATEWAY INFRASTRUCTURE -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">📡</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">📡</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                 <span>📡</span> Gateway Infrastructure
             </h3>
@@ -91,7 +104,7 @@
 
     <!-- BOTTOM ROW: SYNC PIPELINE -->
     <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-        <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.05; pointer-events: none;">🔄</div>
+        <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">🔄</div>
         <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
             <span>🔄</span> Sync Pipeline Status
         </h3>
