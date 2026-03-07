@@ -26,6 +26,8 @@
         border-radius: 4px;
         display: flex;
         align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     .selector-label {
         font-weight: bold;
@@ -53,9 +55,10 @@
 
     {% if request.user.is_authenticated %}
         <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
+            <a href="{{ dashboard_url }}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Analytics Dashboard">Dashboard</a>
             <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation">Help</a>
             <div class="header-store-selector">
-            <label for="header-store-select" class="selector-label">ACTIVE STORE:</label>
+            <label for="header-store-select" class="selector-label">🏪 ACTIVE STORE:</label>
             <select id="header-store-select" aria-label="Select active store">
                 {% if not active_store %}
                     <option value="" selected disabled>Choose a Store...</option>
