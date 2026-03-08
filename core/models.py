@@ -158,6 +158,11 @@ class Gateway(AuditModel):
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
 
+    is_auto_ip = models.BooleanField(default=True, verbose_name="Auto IP (DHCP)")
+    local_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Static Local IP")
+    netmask = models.GenericIPAddressField(null=True, blank=True, verbose_name="Subnet Mask")
+    network_gateway = models.GenericIPAddressField(null=True, blank=True, verbose_name="Network Gateway")
+
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
 
     last_heartbeat = models.DateTimeField(null=True, blank=True)

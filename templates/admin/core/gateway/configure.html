@@ -35,8 +35,29 @@
                 <div class="form-row">
                     <div>
                         <label for="id_encrypt">Enable TLS (Encrypt):</label>
-                        <input type="checkbox" name="encrypt" id="id_encrypt" {% if gateway.encrypt %}checked{% endif %}>
+                        <input type="checkbox" name="encrypt" id="id_encrypt" {% if gateway.is_encrypt_enabled %}checked{% endif %}>
                         <div class="help">Enable TLS 1.2 communication.</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label for="id_auto_ip">Auto IP (DHCP):</label>
+                        <input type="checkbox" name="auto_ip" id="id_auto_ip" {% if gateway.is_auto_ip %}checked{% endif %}>
+                        <div class="help">Enable DHCP to obtain IP automatically.</div>
+                    </div>
+                </div>
+                <div class="form-row" id="static_ip_fields">
+                    <div>
+                        <label for="id_local_ip">Static Local IP:</label>
+                        <input type="text" name="local_ip" value="{{ gateway.local_ip|default:'' }}" class="vTextField" id="id_local_ip">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label for="id_netmask">Subnet Mask:</label>
+                        <input type="text" name="netmask" value="{{ gateway.netmask|default:'' }}" class="vTextField" id="id_netmask">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label for="id_network_gateway">Network Gateway:</label>
+                        <input type="text" name="network_gateway" value="{{ gateway.network_gateway|default:'' }}" class="vTextField" id="id_network_gateway">
                     </div>
                 </div>
                 <div class="form-row">
@@ -53,4 +74,17 @@
         </div>
     </form>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const autoIpCheckbox = document.getElementById('id_auto_ip');
+        const staticIpFields = document.getElementById('static_ip_fields');
+
+        function toggleStaticFields() {
+            staticIpFields.style.display = autoIpCheckbox.checked ? 'none' : 'block';
+        }
+
+        autoIpCheckbox.addEventListener('change', toggleStaticFields);
+        toggleStaticFields();
+    });
+</script>
 {% endblock %}

@@ -257,6 +257,11 @@ def configure_gateway_view(request, gateway_id):
         alias = request.POST.get('alias')
         server = request.POST.get('server')
         encrypt = request.POST.get('encrypt') == 'on'
+        auto_ip = request.POST.get('auto_ip') == 'on'
+        local_ip = request.POST.get('local_ip', '')
+        netmask = request.POST.get('netmask', '')
+        network_gateway = request.POST.get('network_gateway', '')
+
         try:
             heartbeat = int(request.POST.get('heartbeat', 300))
         except ValueError:
@@ -267,15 +272,23 @@ def configure_gateway_view(request, gateway_id):
             alias,
             server,
             encrypt,
-            heartbeat
+            heartbeat,
+            auto_ip=auto_ip,
+            local_ip=local_ip,
+            subnet=netmask,
+            gateway=network_gateway
         )
 
         if success:
             messages.success(request, f"Configuration push for {gateway} initiated.")
-            # Optionally update local record if we trust it was sent
+            # Update local record
             gateway.alias = alias
             gateway.heartbeat_interval = heartbeat
             gateway.is_encrypt_enabled = encrypt
+            gateway.is_auto_ip = auto_ip
+            gateway.local_ip = local_ip
+            gateway.netmask = netmask
+            gateway.network_gateway = network_gateway
             gateway.save()
         else:
             messages.error(request, f"Failed to send configuration to {gateway}. Check MQTT connection.")

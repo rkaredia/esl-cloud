@@ -230,27 +230,43 @@ class ESLMqttClient:
             logger.exception(f"Exception during MQTT publish for tag {tag_mac}")
             return False
 
-    def publish_config(self, gateway_id, alias, server, encrypt, heartbeat):
+    def publish_config(self, gateway_id, alias, server, encrypt, heartbeat, auto_ip=True, local_ip="", subnet="", gateway=""):
         """Publishes configuration to a specific gateway."""
         try:
             config_data = {
                 'Alias': alias,
                 'Server': server,
+                'ConnParam': ["admin", "admin123"], # Defaults
                 'Encrypt': encrypt,
+                'AutoIP': auto_ip,
+                'LocalIP': local_ip,
+                'Subnet': subnet,
+                'Gateway': gateway,
                 'Heartbeat': heartbeat
             }
+
+            # Fetch credentials from DB if possible
+            gw_obj = Gateway.objects.filter(estation_id=gateway_id).first()
+            if gw_obj and gw_obj.username and gw_obj.password:
+                config_data['ConnParam'] = [gw_obj.username, gw_obj.password]
+
             payload = msgpack.packb(config_data)
             topic = f"/estation/{gateway_id}/configure"
 
             result = self.client.publish(topic, payload, qos=2)
-            self._log_mqtt_message("sent", gateway_id, topic, config_data)
 
-            return result.rc == mqtt.MQTT_ERR_SUCCESS
+            # Success is based on result.rc
+            is_success = (result.rc == mqtt.MQTT_ERR_SUCCESS)
+
+            # Log to DB and file
+            self._log_mqtt_message("sent", gateway_id, topic, config_data, force_success=is_success)
+
+            return is_success
         except Exception:
             logger.exception(f"Exception during MQTT publish config for gateway {gateway_id}")
             return False
 
-    def _log_mqtt_message(self, direction, estation_id, topic, data):
+    def _log_mqtt_message(self, direction, estation_id, topic, data, force_success=None):
         """Logs MQTT messages to daily files and Database."""
         try:
             # Use a custom JSON encoder to handle bytes
@@ -263,13 +279,16 @@ class ESLMqttClient:
             json_data = json.dumps(data, cls=BytesEncoder)
 
             # 1. Log to Database
-            is_success = True
-            if direction == "received" and topic.endswith("/result"):
-                # Simple success detection for results
-                if isinstance(data, list) and len(data) >= 5:
-                    is_success = (data[4] == 0)
-                elif isinstance(data, dict):
-                    is_success = (data.get('Status') == 0)
+            if force_success is not None:
+                is_success = force_success
+            else:
+                is_success = True
+                if direction == "received" and topic.endswith("/result"):
+                    # Simple success detection for results
+                    if isinstance(data, list) and len(data) >= 5:
+                        is_success = (data[4] == 0)
+                    elif isinstance(data, dict):
+                        is_success = (data.get('Status') == 0)
 
             MQTTMessage.objects.create(
                 direction=direction,

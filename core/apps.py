@@ -7,3 +7,5 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import core.signals  # This activates the trigger
+        from .mqtt_client import mqtt_service
+        mqtt_service.connect()
