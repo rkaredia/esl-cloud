@@ -60,3 +60,40 @@
     background: transparent;
     padding: 0;
 }
+
+/* 🎨 Palette Enhancements */
+
+.help-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.help-card:hover {
+    transform: translateY(-8px);
+    border-color: var(--primary-blue, #2563eb) !important;
+}
+
+.help-card:hover .card-inner {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.help-card:hover .help-card-icon {
+    background: var(--azure, #C7EFFF) !important;
+}
+
+.help-card:hover .card-footer {
+    color: var(--primary-blue, #2563eb) !important;
+    padding-right: 1.5rem !important;
+}
+
+.help-card:focus-visible .card-inner {
+    outline: 3px solid var(--primary-blue, #2563eb);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px var(--primary-blue, #2563eb) !important;
+}
+
+.home-link:hover {
+    background: #f1f5f9;
+    color: var(--primary-blue, #2563eb) !important;
+    padding-left: 1rem !important;
+}
