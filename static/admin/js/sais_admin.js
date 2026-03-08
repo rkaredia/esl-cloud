@@ -113,4 +113,67 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // 4. MQTT Live Refresh Logic
+    // Using a more robust check for the model name
+    const isMQTTLogPage = document.body.classList.contains('model-mqttmessage') ||
+                          window.location.pathname.includes('/core/mqttmessage/');
+
+    if (isMQTTLogPage && document.body.classList.contains('change-list')) {
+        let objectTools = document.querySelector('.object-tools');
+        if (!objectTools) objectTools = document.querySelector('#content-main ul.object-tools');
+
+        if (objectTools) {
+            const refreshItem = document.createElement('li');
+            const refreshBtn = document.createElement('a');
+            refreshBtn.id = 'mqtt-live-toggle';
+            refreshBtn.href = 'javascript:void(0);';
+            refreshBtn.className = 'addlink';
+            refreshBtn.style.background = '#059669';
+
+            let isLive = localStorage.getItem('mqtt-live-refresh') === 'true';
+            let refreshInterval = null;
+
+            const updateBtn = () => {
+                refreshBtn.innerHTML = isLive ? 'Live: ON 🟢' : 'Live: OFF ⚪';
+                refreshBtn.style.background = isLive ? '#059669' : '#64748b';
+            };
+
+            const startRefresh = () => {
+                refreshInterval = setInterval(() => {
+                    // Use AJAX/fetch to check for new messages or just reload
+                    // For simplicity, we reload the page, but preserving filters
+                    window.location.reload();
+                }, 5000);
+            };
+
+            refreshBtn.addEventListener('click', () => {
+                isLive = !isLive;
+                localStorage.setItem('mqtt-live-refresh', isLive);
+                updateBtn();
+                if (isLive) startRefresh();
+                else if (refreshInterval) clearInterval(refreshInterval);
+            });
+
+            updateBtn();
+            if (isLive) startRefresh();
+
+            refreshItem.appendChild(refreshBtn);
+            objectTools.appendChild(refreshItem);
+        }
+
+        // Add copy buttons to payloads
+        document.querySelectorAll('.field-data_preview code').forEach(code => {
+            code.style.cursor = 'pointer';
+            code.title = 'Click to copy full payload';
+            code.addEventListener('click', function() {
+                const fullData = this.innerText;
+                navigator.clipboard.writeText(fullData).then(() => {
+                    const originalText = this.innerText;
+                    this.innerText = 'Copied! ✅';
+                    setTimeout(() => { this.innerText = originalText; }, 1000);
+                });
+            });
+        });
+    }
 });
