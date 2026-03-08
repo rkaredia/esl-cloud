@@ -9,3 +9,7 @@
 ## 2026-03-07 - [Redundant Query and Object Instantiation in Bulk Tasks]
 **Learning:** Iterating over a large QuerySet to queue tasks (e.g., `.delay()`) triggers full model instantiation and a massive database payload. Additionally, calling `.count()` on the same QuerySet later results in a redundant `SELECT COUNT(*)` query.
 **Action:** Use `.values_list('id', flat=True)` for task queueing loops to minimize memory and DB overhead. Wrap the QuerySet in `list()` to evaluate once, allowing the use of `len()` for logging/counting without a second DB trip.
+
+## 2026-03-08 - [Redundant Task Triggering and Initialization Recursion]
+**Learning:** Having task triggering logic in both model `.save()` and `post_save` signals causes $2N$ tasks to be queued for every save. Additionally, accessing fields in `__init__` snapshots can trigger lazy-loading recursion if not careful.
+**Action:** Centralize background task triggering in Django signals to ensure a single source of truth and prevent redundant processing. Use `self.__dict__.get('field')` in `__init__` to safely snapshot original data without triggering unintended database queries or recursion.

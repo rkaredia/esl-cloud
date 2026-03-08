@@ -13,14 +13,17 @@ def update_tags_on_product_change(sender, instance, **kwargs):
     """
     from core.tasks import update_tag_image_task
     
-    related_tags = instance.esl_tags.all()
-    for tag in related_tags:
+    # Bolt: Optimization - Use .values_list('id', flat=True) to avoid instantiating
+    # full model objects for every related tag.
+    # We use list() to evaluate the queryset once.
+    tag_ids = list(instance.esl_tags.values_list('id', flat=True))
+    for t_id in tag_ids:
         # Atomic debounce for the specific tag
-        debounce_key = f"signal_debounce_{tag.id}"
+        debounce_key = f"signal_debounce_{t_id}"
         # We only queue the task if the key doesn't exist (expires in 5s)
         if cache.add(debounce_key, "locked", timeout=5):
             transaction.on_commit(
-                lambda t_id=tag.id: update_tag_image_task.delay(t_id)
+                lambda current_tid=t_id: update_tag_image_task.delay(current_tid)
             )
 
 @receiver(post_save, sender=ESLTag)
