@@ -153,6 +153,7 @@ class Command(BaseCommand):
             {'key': 'ESL_ENCRYPTION_KEY', 'value': 'FFFFFFFFFFFFFFFF', 'description': '8-byte encryption key (16-digit hex)'},
             {'key': 'DEFAULT_HEARTBEAT_INTERVAL', 'value': '300', 'description': 'Default heartbeat interval in seconds if not provided by gateway'},
             {'key': 'OFFLINE_TIMEOUT_MULTIPLIER', 'value': '4', 'description': 'Multiply heartbeat interval by this to determine offline status'},
+            {'key': 'LOG_RETENTION_DAYS', 'value': '15', 'description': 'Number of days to keep MQTT communication logs'},
         ]
         for s in settings_to_seed:
             GlobalSetting.objects.get_or_create(key=s['key'], defaults={'value': s['value'], 'description': s['description']})

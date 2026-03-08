@@ -1,5 +1,5 @@
 from django.contrib import admin, messages
-from django.urls import path, reverse
+from django.urls import path, reverse, NoReverseMatch
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q
@@ -7,6 +7,8 @@ from django.shortcuts import redirect, render
 from django.conf import settings
 from django.utils import timezone
 from django.http import HttpResponse
+from django import forms
+from django.db import models
 import time
 import json
 import logging
@@ -14,7 +16,7 @@ import traceback
 import os
 from PIL import Image, ImageDraw
 
-from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting
+from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting, MQTTMessage
 from ..utils import template_v1, template_v2, template_v3
 
 logger = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ class SAISAdminSite(admin.AdminSite):
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
-                    'is_active': gw.is_active,
+                    'is_active': gw.is_online,
                     'tag_count': count,
                     'load_percent': min(int((count / 500) * 100), 100)
                 })
@@ -73,7 +75,7 @@ class SAISAdminSite(admin.AdminSite):
             context = {
                 'active_store': active_store,
                 'gateway_count': gateways_qs.count(),
-                'active_gateways': gateways_qs.filter(is_active=True).count(),
+                'active_gateways': gateways_qs.filter(is_online=True).count(),
                 'tag_count': tag_count,
                 'tags_with_products': tags_qs.exclude(paired_product__isnull=True).count(),
                 'low_battery_count': low_battery_count,
@@ -227,6 +229,11 @@ class SAISAdminSite(admin.AdminSite):
                 celery_res = find_model('TaskResult')
                 if celery_res: monitoring['models'].append(celery_res)
 
+                mqtt_logs = find_model('MQTTMessage')
+                if mqtt_logs:
+                    mqtt_logs['name'] = '📡 eStation Communication'
+                    monitoring['models'].append(mqtt_logs)
+
             groups = [inventory, hardware, org]
             if monitoring['models']: groups.append(monitoring)
 
@@ -241,8 +248,35 @@ admin_site = SAISAdminSite(name='sais_admin')
 
 @admin.register(GlobalSetting, site=admin_site)
 class GlobalSettingAdmin(admin.ModelAdmin):
-    list_display = ('key', 'value', 'description')
-    list_editable = ('value',)
+    """Admin for system-wide configuration parameters."""
+    list_display = ('key', 'value_display', 'description')
+    search_fields = ('key', 'description')
+
+    def value_display(self, obj):
+        val = obj.value
+        if len(val) > 100:
+            val = val[:97] + "..."
+        return mark_safe(f'<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{val}</code>')
+    value_display.short_description = "Value"
+
+    formfield_overrides = {
+        models.TextField: {'widget': forms.Textarea(attrs={'rows': 2, 'cols': 40, 'style': 'font-family: monospace; width: 100%; max-width: 600px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;'})},
+    }
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 class AuditAdminMixin:
     """
@@ -297,7 +331,6 @@ class CompanySecurityMixin(AuditAdminMixin):
 class UIHelperMixin:
     """Utility methods for common UI components in the admin."""
     def sync_button(self, obj):
-        from django.urls import NoReverseMatch
         try:
             # Try to reverse with sais_admin first, then fall back to admin
             try:

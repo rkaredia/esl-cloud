@@ -156,6 +156,7 @@ class Gateway(AuditModel):
     ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
     free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
+    is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
 
@@ -309,3 +310,23 @@ class ESLTag(AuditModel):
         unique_together = ('tag_mac', 'store')
         verbose_name = "ESL Tag"
         verbose_name_plural = "ESL Tags"
+
+
+class MQTTMessage(models.Model):
+    """Logs communication between the system and ESL gateways."""
+    DIRECTION_CHOICES = [('sent', 'Sent'), ('received', 'Received')]
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
+    estation_id = models.CharField(max_length=50, verbose_name="Gateway ID")
+    topic = models.CharField(max_length=255)
+    data = models.TextField(help_text="JSON payload")
+    is_success = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "MQTT Message"
+        verbose_name_plural = "MQTT Messages"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.direction.upper()} | {self.estation_id} | {self.topic} | {self.timestamp}"

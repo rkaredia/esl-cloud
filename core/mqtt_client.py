@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
-from .models import ESLTag, Gateway, Store, GlobalSetting
+from .models import ESLTag, Gateway, Store, GlobalSetting, MQTTMessage
 
 logger = logging.getLogger(__name__)
 
@@ -251,8 +251,35 @@ class ESLMqttClient:
             return False
 
     def _log_mqtt_message(self, direction, estation_id, topic, data):
-        """Logs MQTT messages to daily files with 15-day retention intent."""
+        """Logs MQTT messages to daily files and Database."""
         try:
+            # Use a custom JSON encoder to handle bytes
+            class BytesEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, bytes):
+                        return f"<binary:{len(obj)} bytes>"
+                    return super().default(obj)
+
+            json_data = json.dumps(data, cls=BytesEncoder)
+
+            # 1. Log to Database
+            is_success = True
+            if direction == "received" and topic.endswith("/result"):
+                # Simple success detection for results
+                if isinstance(data, list) and len(data) >= 5:
+                    is_success = (data[4] == 0)
+                elif isinstance(data, dict):
+                    is_success = (data.get('Status') == 0)
+
+            MQTTMessage.objects.create(
+                direction=direction,
+                estation_id=estation_id,
+                topic=topic,
+                data=json_data,
+                is_success=is_success
+            )
+
+            # 2. Log to File
             log_dir = os.path.join(settings.BASE_DIR, 'logs', 'mqtt', direction)
             os.makedirs(log_dir, exist_ok=True)
 
@@ -261,9 +288,9 @@ class ESLMqttClient:
 
             with open(filepath, 'a') as f:
                 timestamp = datetime.now().isoformat()
-                log_entry = f"[{timestamp}] ID:{estation_id} TOPIC:{topic} DATA:{json.dumps(data)}\n"
-                f.write(log_entry)
+                f.write(f"[{timestamp}] ID:{estation_id} TOPIC:{topic} DATA:{json_data}\n")
+
         except Exception:
-            logger.exception("Failed to log MQTT message to file")
+            logger.exception("Failed to log MQTT message")
 
 mqtt_service = ESLMqttClient()

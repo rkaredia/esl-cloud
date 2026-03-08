@@ -78,6 +78,14 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             return False
         return super().has_delete_permission(request, obj)
 
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        # Check superuser for delete action
+        if not request.user.is_superuser:
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        return actions
+
 @admin.register(TagHardware, site=admin_site)
 class TagHardwareAdmin(admin.ModelAdmin):
     """Admin for Hardware specifications (Screen size, color, etc)."""

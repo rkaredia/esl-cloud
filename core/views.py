@@ -275,6 +275,7 @@ def configure_gateway_view(request, gateway_id):
             # Optionally update local record if we trust it was sent
             gateway.alias = alias
             gateway.heartbeat_interval = heartbeat
+            gateway.is_encrypt_enabled = encrypt
             gateway.save()
         else:
             messages.error(request, f"Failed to send configuration to {gateway}. Check MQTT connection.")

@@ -1,8 +1,9 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
 from django_celery_results.models import TaskResult, GroupResult
 from django_celery_results.admin import GroupResultAdmin, TaskResultAdmin
 from .base import admin_site
+from ..models import MQTTMessage
 import json
 
 try:
@@ -28,3 +29,41 @@ class CustomGroupResultAdmin(GroupResultAdmin):
         except: return "Pending"
 
 admin_site.register(TaskResult, TaskResultAdmin)
+
+@admin.register(MQTTMessage, site=admin_site)
+class MQTTMessageAdmin(admin.ModelAdmin):
+    """Admin for viewing MQTT communication logs."""
+    list_display = ('timestamp', 'direction_indicator', 'estation_id', 'topic', 'data_preview', 'status_indicator')
+    list_filter = ('direction', 'is_success', 'estation_id')
+    search_fields = ('estation_id', 'topic', 'data')
+    readonly_fields = ('timestamp', 'direction', 'estation_id', 'topic', 'data', 'is_success')
+
+    def direction_indicator(self, obj):
+        color = "#2563eb" if obj.direction == "sent" else "#7c3aed"
+        return format_html('<span style="background: {}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em;">{}</span>', color, obj.direction.upper())
+    direction_indicator.short_description = "Dir"
+
+    def status_indicator(self, obj):
+        color = "#059669" if obj.is_success else "#dc2626"
+        text = "SUCCESS" if obj.is_success else "FAILURE"
+        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
+    status_indicator.short_description = "Status"
+
+    def data_preview(self, obj):
+        try:
+            val = obj.data
+            if len(val) > 80: val = val[:77] + "..."
+            return format_html('<code style="font-family: monospace; font-size: 0.9em; background: #f1f5f9; padding: 2px 4px; border-radius: 3px;">{}</code>', val)
+        except: return "-"
+    data_preview.short_description = "Payload Preview"
+
+    actions = ['clear_all_messages']
+
+    @admin.action(description="Clear all communication logs")
+    def clear_all_messages(self, request, queryset):
+        count = MQTTMessage.objects.all().count()
+        MQTTMessage.objects.all().delete()
+        self.message_user(request, f"Cleared {count} messages.", messages.SUCCESS)
+
+    def has_add_permission(self, request): return False
+    def has_change_permission(self, request, obj=None): return False

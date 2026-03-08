@@ -8,7 +8,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.core.cache import cache
-from .models import ESLTag, Store, Gateway, GlobalSetting
+from .models import ESLTag, Store, Gateway, GlobalSetting, MQTTMessage
 from .utils import generate_esl_image
 from .mqtt_client import mqtt_service
 
@@ -185,13 +185,18 @@ def check_gateways_status_task():
 @shared_task(name="core.tasks.cleanup_old_logs_task")
 def cleanup_old_logs_task():
     """
-    Deletes MQTT and system logs older than 15 days.
+    Deletes MQTT logs (files and DB) and system logs older than retention period.
     """
     try:
-        import os
         from django.conf import settings
         import time
 
+        # 1. Database Cleanup
+        retention_days = int(GlobalSetting.objects.filter(key='LOG_RETENTION_DAYS').values_list('value', flat=True).first() or 15)
+        cutoff = timezone.now() - timezone.timedelta(days=retention_days)
+        db_count, _ = MQTTMessage.objects.filter(timestamp__lt=cutoff).delete()
+
+        # 2. File Cleanup
         log_dirs = [
             os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'received'),
             os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'sent'),
@@ -200,7 +205,6 @@ def cleanup_old_logs_task():
         ]
 
         now = time.time()
-        retention_days = 15
         count_deleted = 0
 
         for directory in log_dirs:
@@ -215,7 +219,7 @@ def cleanup_old_logs_task():
                     os.remove(filepath)
                     count_deleted += 1
 
-        return f"Cleaned up {count_deleted} old log files."
+        return f"Cleaned up {db_count} DB records and {count_deleted} log files."
     except Exception:
         logger.exception("Error in cleanup_old_logs_task")
         return "Cleanup failed"
