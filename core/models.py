@@ -203,10 +203,10 @@ class Product(AuditModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._original_data = {
-            'price': self.price,
-            'name': self.name,
-            'is_on_special': self.is_on_special,
-            'preferred_supplier_id': self.preferred_supplier_id,
+            'price': self.__dict__.get('price'),
+            'name': self.__dict__.get('name'),
+            'is_on_special': self.__dict__.get('is_on_special'),
+            'preferred_supplier_id': self.__dict__.get('preferred_supplier_id'),
         }
 
     def __str__(self):
@@ -226,10 +226,12 @@ class Product(AuditModel):
 
         super().save(*args, **kwargs)
         
-        if trigger_refresh:
-            from .tasks import update_tag_image_task
-            for tag in self.esl_tags.all():
-                update_tag_image_task.delay(tag.id)
+        # Refactored: Task triggering is now handled exclusively by signals
+        # to prevent redundant task queuing.
+        # if trigger_refresh:
+        #     from .tasks import update_tag_image_task
+        #     for tag in self.esl_tags.all():
+        #         update_tag_image_task.delay(tag.id)
 
 
 class ESLTag(AuditModel):
@@ -275,9 +277,9 @@ class ESLTag(AuditModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._original_data = {
-            'paired_product_id': self.paired_product_id,
-            'template_id': self.template_id,
-            'hardware_spec_id': self.hardware_spec_id,
+            'paired_product_id': self.__dict__.get('paired_product_id'),
+            'template_id': self.__dict__.get('template_id'),
+            'hardware_spec_id': self.__dict__.get('hardware_spec_id'),
         }
 
     def clean(self):
@@ -304,9 +306,11 @@ class ESLTag(AuditModel):
         self.full_clean()
         super().save(*args, **kwargs)
 
-        if trigger_refresh:
-            from .tasks import update_tag_image_task
-            update_tag_image_task.delay(self.id)
+        # Refactored: Task triggering is now handled exclusively by signals
+        # to prevent redundant task queuing.
+        # if trigger_refresh:
+        #     from .tasks import update_tag_image_task
+        #     update_tag_image_task.delay(self.id)
 
     def __str__(self):
         return f"{self.tag_mac} ({self.store.name if self.store else 'No Store'}) -> {self.paired_product.name if self.paired_product else 'Unpaired'}"

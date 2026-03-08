@@ -138,16 +138,38 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
         if commit:
             with transaction.atomic():
                 # Perform the actual DB operations in a single transaction
+                # Bolt: Optimization - Use bulk_update and bulk_create to minimize DB round-trips.
+                products_to_update = []
                 for item in results['update']:
                     prod = existing_products[item['sku']]
                     prod.name, prod.price, prod.updated_by = item['name'], item['new_price'], user
-                    prod.save() # Note: .save() triggers individual tag updates.
+                    products_to_update.append(prod)
 
+                if products_to_update:
+                    Product.objects.bulk_update(products_to_update, ['name', 'price', 'updated_by'])
+
+                products_to_create = []
                 for item in results['new']:
-                    Product.objects.create(
+                    products_to_create.append(Product(
                         sku=item['sku'], name=item['name'], price=item['new_price'],
                         store=active_store, updated_by=user
-                    )
+                    ))
+
+                if products_to_create:
+                    Product.objects.bulk_create(products_to_create)
+
+                # Bolt: Optimization - Efficiently queue tag updates after bulk product operations.
+                # bulk_update/bulk_create do NOT trigger post_save signals.
+                updated_skus = [item['sku'] for item in results['update']]
+                if updated_skus:
+                    from core.tasks import update_tag_image_task
+                    tag_ids = ESLTag.objects.filter(
+                        paired_product__sku__in=updated_skus,
+                        store=active_store
+                    ).values_list('id', flat=True)
+
+                    for tid in tag_ids:
+                        transaction.on_commit(lambda current_tid=tid: update_tag_image_task.delay(current_tid))
 
         return results, None
     except Exception as e:
