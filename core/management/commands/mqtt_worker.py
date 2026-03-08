@@ -1,32 +1,25 @@
 from django.core.management.base import BaseCommand
-import paho.mqtt.client as mqtt
+from core.mqtt_client import mqtt_service
+import time
+import logging
 from django.conf import settings
-from core.models import ESLTag
-from django.utils import timezone
-import json
+
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Runs the MQTT listener for Minew Gateways'
+    help = 'Runs the MQTT listener for D21 eStation Gateways'
 
     def handle(self, *args, **options):
-        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        self.stdout.write(self.style.SUCCESS(f"Starting eStation MQTT Worker on {settings.MQTT_SERVER}:{settings.MQTT_PORT}..."))
         
-        def on_message(client, userdata, msg):
-            try:
-                payload = json.loads(msg.payload.decode())
-                # Typical Minew Gateway battery status payload logic
-                for device in payload.get('devices', []):
-                    mac = device.get('mac')
-                    battery = device.get('battery')
-                    ESLTag.objects.filter(tag_mac=mac).update(
-                        battery_level=battery,
-                        last_seen=timezone.now()
-                    )
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error: {e}"))
+        try:
+            mqtt_service.connect()
 
-        client.on_message = on_message
-        client.connect(settings.MQTT_SERVER, settings.MQTT_PORT, 60)
-        client.subscribe(settings.MQTT_TOPIC)
-        self.stdout.write(self.style.SUCCESS('Starting MQTT Worker...'))
-        client.loop_forever()
+            # Keep the main thread alive while the MQTT loop runs in the background
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.stdout.write(self.style.WARNING("Stopping MQTT Worker..."))
+        except Exception as e:
+            logger.exception("MQTT Worker encountered a fatal error")
+            self.stdout.write(self.style.ERROR(f"Fatal error: {e}"))

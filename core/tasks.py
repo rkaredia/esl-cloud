@@ -86,44 +86,64 @@ def dispatch_tag_image_task(tag_id):
     """
     STAGE 2: MQTT Communication.
     Publishes the generated image to the physical ESL gateway.
+    Implements a failover rotation strategy.
     """
     lock_id = f"lock-tag-gen-{tag_id}"
     try:
-        tag = ESLTag.objects.select_related('gateway').get(pk=tag_id)
+        tag = ESLTag.objects.select_related('gateway', 'store').get(pk=tag_id)
         
-        # Determine which gateway ID to use:
-        # 1. Hard-linked gateway's estation_id
-        # 2. last_successful_gateway_id
-        target_gateway_id = None
-        if tag.gateway and tag.gateway.estation_id:
-            target_gateway_id = tag.gateway.estation_id
-        elif tag.last_successful_gateway_id:
-            target_gateway_id = tag.last_successful_gateway_id
-
-        if not target_gateway_id:
-            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
-            cache.delete(lock_id)
-            return "No target gateway identified"
-
         if not tag.tag_image:
             ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
             cache.delete(lock_id)
             return "No image to push"
 
+        # 1. Build list of potential gateways to try (Rotation Strategy)
+        gateways_to_try = []
+
+        # Primary: Last successful gateway
+        if tag.last_successful_gateway_id:
+            gateways_to_try.append(tag.last_successful_gateway_id)
+
+        # Secondary: Currently assigned/preferred gateway
+        if tag.gateway and tag.gateway.estation_id and tag.gateway.estation_id not in gateways_to_try:
+            gateways_to_try.append(tag.gateway.estation_id)
+
+        # Fallback: Any other online gateway in the same store
+        online_gateways = list(Gateway.objects.filter(
+            store=tag.store,
+            is_online=True
+        ).exclude(
+            estation_id__in=gateways_to_try
+        ).values_list('estation_id', flat=True))
+
+        gateways_to_try.extend(online_gateways)
+
+        if not gateways_to_try:
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
+            cache.delete(lock_id)
+            return "No online gateways found for store"
+
         with tag.tag_image.open('rb') as f:
             image_bytes = f.read()
 
         token = random.randint(1, 255)
-        success = mqtt_service.publish_tag_update(target_gateway_id, tag.tag_mac, image_bytes, token)
 
-        if success:
-            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
-            cache.delete(lock_id)
-            return "MQTT Pushed"
-        else:
-            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
-            cache.delete(lock_id)
-            return "MQTT Failed"
+        # 2. Iterate through gateways until one succeeds
+        for gateway_id in gateways_to_try:
+            logger.info(f"Attempting update for {tag.tag_mac} via gateway {gateway_id}")
+            success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
+
+            if success:
+                ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
+                cache.delete(lock_id)
+                return f"MQTT Pushed via {gateway_id}"
+            else:
+                logger.warning(f"Failed to push to gateway {gateway_id} for tag {tag.tag_mac}")
+
+        # All attempts failed
+        ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
+        cache.delete(lock_id)
+        return "MQTT Failed on all available gateways"
 
     except Exception as e:
         logger.exception(f"Critical error in dispatch_tag_image_task for tag {tag_id}")

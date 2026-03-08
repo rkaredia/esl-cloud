@@ -23,9 +23,11 @@ services:
   mqtt_broker:
     image: eclipse-mosquitto:latest
     ports:
-      - "1883:1883"
+      - "9081:9081"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/certs:/mosquitto/config/certs
+      - ./mosquitto/passwd:/mosquitto/config/passwd
 
   redis:
     image: "redis:alpine"

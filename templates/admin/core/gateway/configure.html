@@ -12,62 +12,101 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    .module h2 { background: var(--navy, #003459) !important; color: white !important; }
+    .form-row { padding: 12px 15px !important; border-bottom: 1px solid #eee !important; display: flex; align-items: center; }
+    .form-row label { width: 160px !important; font-weight: 600; color: #475569; padding-right: 20px; }
+    .vTextField, .vIntegerField { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; width: 300px; }
+    .help { margin-left: 180px; font-size: 11px; color: #94a3b8; margin-top: 4px; }
+</style>
+
 <div id="content-main">
+    <h1 style="margin-bottom: 20px;">Configure eStation Gateway: {{ gateway.estation_id }}</h1>
+
     <form method="post">
         {% csrf_token %}
         <div>
             <fieldset class="module aligned">
-                <h2>Configure eStation Hardware</h2>
+                <h2>General Info</h2>
                 <div class="form-row">
-                    <div>
-                        <label class="required" for="id_alias">Alias:</label>
-                        <input type="text" name="alias" value="{{ gateway.alias|default:'' }}" class="vTextField" maxlength="2" id="id_alias" required>
-                        <div class="help">2-character gateway alias.</div>
-                    </div>
+                    <label class="required" for="id_alias">Alias:</label>
+                    <input type="text" name="alias" value="{{ gateway.alias|default:'01' }}" class="vTextField" maxlength="2" id="id_alias" required>
+                    <div class="help">2-character gateway alias.</div>
                 </div>
                 <div class="form-row">
-                    <div>
-                        <label class="required" for="id_server">Server:</label>
-                        <input type="text" name="server" value="{{ gateway.app_server_ip }}{% if gateway.app_server_port %}:{{ gateway.app_server_port }}{% endif %}" class="vTextField" id="id_server" required>
-                        <div class="help">Target application server address (IP:Port).</div>
-                    </div>
+                    <label>MAC Address:</label>
+                    <div style="font-family: monospace; color: #64748b;">{{ gateway.gateway_mac }}</div>
                 </div>
                 <div class="form-row">
-                    <div>
-                        <label for="id_encrypt">Enable TLS (Encrypt):</label>
-                        <input type="checkbox" name="encrypt" id="id_encrypt" {% if gateway.is_encrypt_enabled %}checked{% endif %}>
-                        <div class="help">Enable TLS 1.2 communication.</div>
-                    </div>
+                    <label>Store:</label>
+                    <div style="color: #64748b;">{{ gateway.store }}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="module aligned">
+                <h2>Connection Parameters</h2>
+                <div class="form-row">
+                    <label class="required" for="id_server">Server:</label>
+                    <input type="text" name="server" value="{{ server_display }}" class="vTextField" id="id_server" required>
+                    <div class="help">Target application server address (IP:Port). Default: 192.168.1.92:9081</div>
                 </div>
                 <div class="form-row">
-                    <div>
-                        <label for="id_auto_ip">Auto IP (DHCP):</label>
-                        <input type="checkbox" name="auto_ip" id="id_auto_ip" {% if gateway.is_auto_ip %}checked{% endif %}>
-                        <div class="help">Enable DHCP to obtain IP automatically.</div>
-                    </div>
+                    <label for="id_username">Username:</label>
+                    <input type="text" name="username" value="{{ gateway.username|default:'test' }}" class="vTextField" id="id_username">
+                    <div class="help">Gateway admin username. Default: test</div>
                 </div>
-                <div class="form-row" id="static_ip_fields">
-                    <div>
+                <div class="form-row">
+                    <label for="id_password">Password:</label>
+                    <input type="password" name="password" value="{{ gateway.password|default:'123456' }}" class="vTextField" id="id_password">
+                    <div class="help">Gateway admin password. Default: 123456</div>
+                </div>
+                <div class="form-row">
+                    <label for="id_encrypt">Enable Encryption:</label>
+                    <input type="checkbox" name="encrypt" id="id_encrypt" {% if gateway.is_encrypt_enabled %}checked{% endif %}>
+                    <div class="help">Enable TLS 1.2 communication.</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="module aligned">
+                <h2>Network Settings</h2>
+                <div class="form-row">
+                    <label for="id_auto_ip">Auto IP (DHCP):</label>
+                    <input type="checkbox" name="auto_ip" id="id_auto_ip" {% if gateway.is_auto_ip %}checked{% endif %}>
+                    <div class="help">Enable DHCP to obtain IP automatically.</div>
+                </div>
+                <div id="static_ip_fields">
+                    <div class="form-row">
                         <label for="id_local_ip">Static Local IP:</label>
                         <input type="text" name="local_ip" value="{{ gateway.local_ip|default:'' }}" class="vTextField" id="id_local_ip">
                     </div>
-                    <div style="margin-top: 10px;">
+                    <div class="form-row">
                         <label for="id_netmask">Subnet Mask:</label>
                         <input type="text" name="netmask" value="{{ gateway.netmask|default:'' }}" class="vTextField" id="id_netmask">
                     </div>
-                    <div style="margin-top: 10px;">
+                    <div class="form-row">
                         <label for="id_network_gateway">Network Gateway:</label>
                         <input type="text" name="network_gateway" value="{{ gateway.network_gateway|default:'' }}" class="vTextField" id="id_network_gateway">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div>
-                        <label class="required" for="id_heartbeat">Heartbeat Interval (sec):</label>
-                        <input type="number" name="heartbeat" value="{{ gateway.heartbeat_interval|default:300 }}" class="vIntegerField" id="id_heartbeat" min="15" required>
-                        <div class="help">Frequency of heartbeat signals (minimum 15s).</div>
-                    </div>
+                    <label class="required" for="id_heartbeat">Heartbeat Interval:</label>
+                    <input type="number" name="heartbeat" value="{{ gateway.heartbeat_interval|default:15 }}" class="vIntegerField" id="id_heartbeat" min="15" required>
+                    <div class="help">Frequency of heartbeat signals in seconds (minimum 15s).</div>
                 </div>
             </fieldset>
+
+            <fieldset class="module aligned">
+                <h2>Audit</h2>
+                <div class="form-row">
+                    <label>Created at:</label>
+                    <div style="color: #64748b;">{{ gateway.created_at }}</div>
+                </div>
+                <div class="form-row">
+                    <label>Updated at:</label>
+                    <div style="color: #64748b;">{{ gateway.updated_at }}</div>
+                </div>
+            </fieldset>
+
             <div class="submit-row">
                 <input type="submit" value="Push Configuration" class="default" name="_save">
             </div>

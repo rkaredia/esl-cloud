@@ -34,9 +34,19 @@ admin_site.register(TaskResult, TaskResultAdmin)
 class MQTTMessageAdmin(admin.ModelAdmin):
     """Admin for viewing MQTT communication logs."""
     list_display = ('timestamp', 'direction_indicator', 'estation_id', 'topic', 'data_preview', 'status_indicator')
-    list_filter = ('direction', 'is_success', 'estation_id')
+    list_filter = ('direction', 'is_success', 'estation_id', 'topic')
     search_fields = ('estation_id', 'topic', 'data')
-    readonly_fields = ('timestamp', 'direction', 'estation_id', 'topic', 'data', 'is_success')
+    readonly_fields = ('timestamp', 'direction', 'estation_id', 'topic', 'data_json', 'is_success')
+    ordering = ('-timestamp',)
+
+    def data_json(self, obj):
+        try:
+            parsed = json.loads(obj.data)
+            formatted = json.dumps(parsed, indent=2)
+            return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 400px; overflow: auto;">{}</pre>', formatted)
+        except:
+            return obj.data
+    data_json.short_description = "Formatted Payload"
 
     def direction_indicator(self, obj):
         color = "#2563eb" if obj.direction == "sent" else "#7c3aed"

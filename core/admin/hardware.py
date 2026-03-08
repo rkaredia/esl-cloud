@@ -17,13 +17,24 @@ logger = logging.getLogger(__name__)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for Managing ESL Gateways."""
     list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat', 'configure_link')
-    list_editable = ('name', 'alias')
-    readonly_fields = ('is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen', 'created_at', 'updated_at', 'updated_by', 'ap_version', 'free_space', 'heartbeat_interval')
+    list_editable = ('name',)
+    readonly_fields = (
+        'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat',
+        'last_seen', 'created_at', 'updated_at', 'updated_by', 'ap_type', 'ap_version',
+        'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
+    )
 
     fieldsets = (
         ('General', {'fields': ('estation_id', 'name', 'alias', 'store')}),
-        ('Technical', {'fields': ('gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port', 'ap_version', 'free_space', 'heartbeat_interval')}),
+        ('Technical', {'fields': (
+            'gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port',
+            'ap_type', 'ap_version', 'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
+        )}),
         ('Credentials', {'fields': ('username', 'password')}),
+        ('Network Settings', {
+            'classes': ('collapse',),
+            'fields': ('is_auto_ip', 'local_ip', 'netmask', 'network_gateway', 'is_encrypt_enabled')
+        }),
         ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
         ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
     )

@@ -139,6 +139,7 @@ class TagHardware(AuditModel):
 class Gateway(AuditModel):
     """Communication hub that manages a set of ESL tags in a store."""
     objects = StoreManager()
+    is_active = models.BooleanField(default=True)
     estation_id = models.CharField(max_length=4, unique=True, null=True, blank=True, verbose_name="Gateway ID")
     name = models.CharField(max_length=255, blank=True, null=True, help_text="Logical name for the gateway")
     alias = models.CharField(max_length=2, blank=True, null=True)
@@ -153,7 +154,10 @@ class Gateway(AuditModel):
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
 
+    ap_type = models.IntegerField(null=True, blank=True, verbose_name="AP Type")
     ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
+    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Module Version")
+    disk_size = models.IntegerField(null=True, blank=True, verbose_name="Disk Size (MB)")
     free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
