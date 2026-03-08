@@ -153,7 +153,10 @@ class Gateway(AuditModel):
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
 
+    ap_type = models.IntegerField(null=True, blank=True, verbose_name="AP Type")
     ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
+    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Module Version")
+    disk_size = models.IntegerField(null=True, blank=True, verbose_name="Disk Size (MB)")
     free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")

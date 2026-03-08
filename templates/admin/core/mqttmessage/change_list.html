@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="." class="addlink" style="background-color: var(--primary-blue, #2563eb); border-color: var(--primary-blue, #2563eb);">
+      <span class="icon">🔄</span> {% translate "Refresh Messages" %}
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

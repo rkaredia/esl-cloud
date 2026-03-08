@@ -116,7 +116,10 @@ class ESLMqttClient:
                 'alias': data.get('Alias'),
                 'gateway_ip': data.get('IP'),
                 'gateway_mac': mac,
+                'ap_type': data.get('ApType'),
                 'ap_version': data.get('ApVersion'),
+                'module_version': data.get('ModVersion'),
+                'disk_size': data.get('DiskSize'),
                 'free_space': data.get('FreeSpace'),
                 'heartbeat_interval': data.get('Heartbeat'),
                 'last_heartbeat': timezone.now(),
@@ -141,6 +144,13 @@ class ESLMqttClient:
                 update_data['username'] = conn_param[0]
                 update_data['password'] = conn_param[1]
 
+            # Additional network settings from heartbeat
+            if 'Encrypt' in data: update_data['is_encrypt_enabled'] = data['Encrypt']
+            if 'AutoIP' in data: update_data['is_auto_ip'] = data['AutoIP']
+            if 'LocalIP' in data: update_data['local_ip'] = data['LocalIP']
+            if 'Subnet' in data: update_data['netmask'] = data['Subnet']
+            if 'Gateway' in data: update_data['network_gateway'] = data['Gateway']
+
             Gateway.objects.filter(estation_id=gateway_id).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
@@ -152,39 +162,42 @@ class ESLMqttClient:
             mac = data.get('MAC')
             if not mac: return
 
-            admin_store = Store.objects.filter(name='Admin Store').first()
-            if not admin_store:
-                logger.error("Admin Store not found for auto-discovery")
+            # Use "Admin Store" or the first available store for auto-discovery
+            store = Store.objects.filter(name='Admin Store').first() or Store.objects.first()
+            if not store:
+                logger.error("No store found for auto-discovery")
                 return
+
+            update_data = {
+                'estation_id': data.get('ID', estation_id),
+                'alias': data.get('Alias'),
+                'gateway_ip': data.get('IP'),
+                'ap_type': data.get('ApType'),
+                'ap_version': data.get('ApVersion'),
+                'module_version': data.get('ModVersion'),
+                'disk_size': data.get('DiskSize'),
+                'free_space': data.get('FreeSpace'),
+                'heartbeat_interval': data.get('Heartbeat'),
+                'is_online': True,
+                'last_heartbeat': timezone.now(),
+                'last_seen': timezone.now()
+            }
+
+            # Additional network settings from info
+            if 'Encrypt' in data: update_data['is_encrypt_enabled'] = data['Encrypt']
+            if 'AutoIP' in data: update_data['is_auto_ip'] = data['AutoIP']
+            if 'LocalIP' in data: update_data['local_ip'] = data['LocalIP']
+            if 'Subnet' in data: update_data['netmask'] = data['Subnet']
+            if 'Gateway' in data: update_data['network_gateway'] = data['Gateway']
 
             gateway, created = Gateway.objects.get_or_create(
                 gateway_mac=mac,
-                defaults={
-                    'estation_id': data.get('ID', estation_id),
-                    'alias': data.get('Alias'),
-                    'gateway_ip': data.get('IP'),
-                    'ap_version': data.get('ApVersion'),
-                    'free_space': data.get('FreeSpace'),
-                    'heartbeat_interval': data.get('Heartbeat'),
-                    'store': admin_store,
-                    'is_online': True,
-                    'last_heartbeat': timezone.now(),
-                    'last_seen': timezone.now()
-                }
+                defaults={**update_data, 'store': store}
             )
 
             if not created:
                 # Update existing record
-                gateway.estation_id = data.get('ID', gateway.estation_id)
-                gateway.alias = data.get('Alias', gateway.alias)
-                gateway.gateway_ip = data.get('IP', gateway.gateway_ip)
-                gateway.ap_version = data.get('ApVersion', gateway.ap_version)
-                gateway.free_space = data.get('FreeSpace', gateway.free_space)
-                gateway.heartbeat_interval = data.get('Heartbeat', gateway.heartbeat_interval)
-                gateway.is_online = True
-                gateway.last_heartbeat = timezone.now()
-                gateway.last_seen = timezone.now()
-                gateway.save()
+                Gateway.objects.filter(gateway_mac=mac).update(**update_data)
 
             logger.info(f"Gateway {mac} (ID:{estation_id}) {'registered' if created else 'updated'} via /infor")
         except Exception:
