@@ -28,9 +28,24 @@ class ESLMqttClient:
         try:
             host = getattr(settings, 'MQTT_SERVER', 'localhost')
             port = getattr(settings, 'MQTT_PORT', 1883)
+            user = getattr(settings, 'MQTT_USER', 'test')
+            pw = getattr(settings, 'MQTT_PASS', '123456')
+
+            # Global Authentication for eStation
+            self.client.username_pw_set(user, pw)
+
+            # TLS Configuration for D21 eStation (TLS 1.2)
+            # CA certificate must match the one used by the broker
+            ca_path = os.path.join(settings.BASE_DIR, 'mosquitto', 'certs', 'ca.crt')
+            if os.path.exists(ca_path):
+                import ssl
+                self.client.tls_set(ca_certs=ca_path, tls_version=ssl.PROTOCOL_TLSv1_2)
+                # For local/self-signed certs with internal DNS/docker, we might need to disable hostname verification
+                self.client.tls_insecure_set(True)
+
             self.client.connect(host, port, 60)
             self.client.loop_start()
-            logger.info(f"MQTT Client loop started for {host}:{port}")
+            logger.info(f"MQTT Client loop started for {host}:{port} (TLS Enabled)")
         except Exception:
             logger.exception("MQTT Connection Failed")
 
@@ -93,7 +108,13 @@ class ESLMqttClient:
                 status_code = data.get('Status')
                 token = data.get('Token')
 
-            tag = ESLTag.objects.filter(tag_mac=tag_mac).first()
+            # Find tag in the store associated with the reporting gateway
+            gateway = Gateway.objects.filter(estation_id=estation_id).first()
+            if not gateway:
+                logger.error(f"Received result from unknown gateway {estation_id}")
+                return
+
+            tag = ESLTag.objects.filter(tag_mac=tag_mac, store=gateway.store).first()
             if tag and tag.last_image_task_token == token:
                 is_success = (status_code == 0)
                 tag.sync_state = 'SUCCESS' if is_success else 'FAILED'
@@ -204,20 +225,43 @@ class ESLMqttClient:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
     def handle_tag_heartbeat(self, estation_id, data):
-        """Updates tag mapping and battery based on tag heartbeat messages."""
+        """Updates tag mapping and battery based on tag heartbeat messages. Supports Auto-Discovery."""
         try:
             # Expected JSON: {"Tags":[{"TagId":"...","Battery":30,...}],...}
             tags_list = data.get('Tags', [])
+            gateway = Gateway.objects.filter(estation_id=estation_id).first()
+
             for tag_data in tags_list:
                 tag_mac = tag_data.get('TagId')
                 battery = tag_data.get('Battery')
 
-                if tag_mac:
-                    ESLTag.objects.filter(tag_mac=tag_mac).update(
-                        last_successful_gateway_id=estation_id,
+                if not tag_mac: continue
+
+                # Update existing or create new tag (Auto-discovery)
+                tag = ESLTag.objects.filter(tag_mac=tag_mac).first()
+                if tag:
+                    tag.last_successful_gateway_id = estation_id
+                    tag.battery_level = battery
+                    # Do not overwrite gateway/store if already set and valid
+                    if not tag.store and gateway:
+                        tag.store = gateway.store
+                    tag.save(update_fields=['last_successful_gateway_id', 'battery_level', 'store', 'updated_at'])
+                elif gateway:
+                    # Discover new tag
+                    # Use a default hardware spec for auto-discovered tags if none exists
+                    from .models import TagHardware
+                    default_hw = TagHardware.objects.first()
+
+                    ESLTag.objects.create(
+                        tag_mac=tag_mac,
                         battery_level=battery,
-                        updated_at=timezone.now()
+                        last_successful_gateway_id=estation_id,
+                        store=gateway.store,
+                        sync_state='IDLE',
+                        hardware_spec=default_hw
                     )
+                    logger.info(f"Auto-discovered new tag {tag_mac} via gateway {estation_id}")
+
         except Exception:
             logger.exception(f"Error handling tag heartbeat for gateway {estation_id}")
 

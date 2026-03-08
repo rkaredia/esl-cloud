@@ -61,6 +61,23 @@ class LogicalBindingTest(TestCase):
         self.assertEqual(tag.last_successful_gateway_id, "0CGV")
         self.assertEqual(tag.battery_level, 85)
 
+    def test_tag_auto_discovery(self):
+        # Create a gateway but no tag
+        from core.models import TagHardware
+        TagHardware.objects.create(model_number="V2", width_px=200, height_px=100, display_size_inch=2.1)
+        gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
+
+        # Simulate heartbeat for unknown tag
+        heartbeat_data = {"Tags": [{"TagId": "NEWTAG999", "Battery": 90}]}
+        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
+
+        # Verify tag was created
+        new_tag = ESLTag.objects.filter(tag_mac="NEWTAG999").first()
+        self.assertIsNotNone(new_tag)
+        self.assertEqual(new_tag.store, self.store)
+        self.assertEqual(new_tag.last_successful_gateway_id, "0CGV")
+        self.assertEqual(new_tag.battery_level, 90)
+
     def test_gateway_admin_permissions(self):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV", username="admin", password="secret_password")
         model_admin = GatewayAdmin(Gateway, AdminSite())

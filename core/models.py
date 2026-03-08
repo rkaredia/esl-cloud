@@ -139,6 +139,7 @@ class TagHardware(AuditModel):
 class Gateway(AuditModel):
     """Communication hub that manages a set of ESL tags in a store."""
     objects = StoreManager()
+    is_active = models.BooleanField(default=True)
     estation_id = models.CharField(max_length=4, unique=True, null=True, blank=True, verbose_name="Gateway ID")
     name = models.CharField(max_length=255, blank=True, null=True, help_text="Logical name for the gateway")
     alias = models.CharField(max_length=2, blank=True, null=True)

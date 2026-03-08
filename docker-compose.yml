@@ -26,6 +26,8 @@ services:
       - "9081:9081"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/certs:/mosquitto/config/certs
+      - ./mosquitto/passwd:/mosquitto/config/passwd
 
   redis:
     image: "redis:alpine"

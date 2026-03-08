@@ -205,7 +205,9 @@ CELERY_BEAT_SCHEDULE = {
 # =================================================================
 
 MQTT_SERVER = env('MQTT_SERVER', default='mqtt_broker')
-MQTT_PORT = 9081
+MQTT_PORT = env.int('MQTT_PORT', default=9081)
+MQTT_USER = env('MQTT_USER', default='test')
+MQTT_PASS = env('MQTT_PASS', default='123456')
 MQTT_TOPIC = "gw/+/status"
 
 # =================================================================

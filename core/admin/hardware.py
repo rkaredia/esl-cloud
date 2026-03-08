@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for Managing ESL Gateways."""
     list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat', 'configure_link')
-    list_editable = ('name', 'alias')
+    list_editable = ('name',)
     readonly_fields = (
         'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat',
         'last_seen', 'created_at', 'updated_at', 'updated_by', 'ap_type', 'ap_version',
