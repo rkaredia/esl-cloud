@@ -66,12 +66,11 @@ class Company(AuditModel):
         verbose_name_plural = "Companies"
 
     def save(self, *args, **kwargs):
-        """Cascade deactivation to stores and gateways if company is deactivated."""
+        """Cascade deactivation to stores if company is deactivated."""
         if self.pk:
             old_instance = Company.objects.get(pk=self.pk)
             if old_instance.is_active and not self.is_active:
                 self.stores.all().update(is_active=False)
-                Gateway.objects.filter(store__company=self).update(is_active=False)
         super().save(*args, **kwargs)
 
 class User(AbstractUser, AuditModel):
@@ -109,13 +108,6 @@ class Store(AuditModel):
     location_code = models.CharField(max_length=50) 
     is_active = models.BooleanField(default=True)
 
-    def save(self, *args, **kwargs):
-        """Cascade deactivation to gateways if store is deactivated."""
-        if self.pk:
-            old_instance = Store.objects.get(pk=self.pk)
-            if old_instance.is_active and not self.is_active:
-                self.gateways.all().update(is_active=False)
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.company.name} - {self.name}"
@@ -153,7 +145,6 @@ class Gateway(AuditModel):
     password = models.CharField(max_length=100, blank=True, null=True)
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
-    is_active = models.BooleanField(default=True)
 
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     last_successful_heartbeat = models.DateTimeField(null=True, blank=True)

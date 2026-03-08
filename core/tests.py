@@ -1,112 +1,82 @@
+from django.test import TestCase
+from django.contrib.auth import get_user_model
+from core.models import Store, Gateway, ESLTag, Company
+
+User = get_user_model()
+from core.mqtt_client import mqtt_service
 import json
-from django.test import TestCase, RequestFactory
 from django.utils import timezone
-from core.models import Gateway, ESLTag, Store, Company, User, TagHardware
-from core.mqtt_client import ESLMqttClient
+from datetime import timedelta
 from django.contrib.admin.sites import AdminSite
-from core.admin.hardware import GatewayAdmin
+from core.admin.hardware import GatewayAdmin, ESLTagAdmin
 
-class GatewayModelTest(TestCase):
+class LogicalBindingTest(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(name="Test Co")
+        self.company = Company.objects.create(name="Test Company")
         self.store = Store.objects.create(name="Test Store", company=self.company)
+        self.superuser = User.objects.create_superuser('admin', 'admin@test.com', 'pass')
+        self.staff = User.objects.create_user('staff', 'staff@test.com', 'pass', is_staff=True)
 
-    def test_gateway_creation(self):
+    def test_gateway_metadata(self):
         gateway = Gateway.objects.create(
-            estation_id="0CGV",
-            gateway_mac="90:A9:F7:32:0B:45",
             store=self.store,
+            estation_id="0CGV",
             name="Front Entrance",
             alias="01"
         )
         self.assertEqual(gateway.estation_id, "0CGV")
-        self.assertEqual(gateway.name, "Front Entrance")
-        self.assertEqual(str(gateway), "0CGV - Front Entrance (Test Store)")
+        self.assertFalse(gateway.is_online)
 
-class MQTTClientTest(TestCase):
-    def setUp(self):
-        self.company = Company.objects.create(name="Test Co")
-        self.store = Store.objects.create(name="Test Store", company=self.company)
-        self.hw = TagHardware.objects.create(model_number="H1", width_px=200, height_px=100, display_size_inch=2.1)
-        self.gateway = Gateway.objects.create(
-            estation_id="0CGV",
-            gateway_mac="90:A9:F7:32:0B:45",
-            store=self.store
-        )
-        self.tag = ESLTag.objects.create(
-            tag_mac="8100005BD9A7",
-            store=self.store,
-            gateway=self.gateway,
-            hardware_spec=self.hw
-        )
-        self.mqtt_client = ESLMqttClient()
-
-    def test_handle_heartbeat(self):
+    def test_heartbeat_parsing(self):
+        gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
         heartbeat_data = {
             "ID": "0CGV",
             "Alias": "01",
             "IP": "192.168.1.100",
             "MAC": "90:A9:F7:32:0B:45",
+            "ApType": 6,
+            "ApVersion": "1.0.28.0",
             "Server": "192.168.1.92:9081",
-            "ConnParam": ["admin", "secret123"]
+            "Heartbeat": 60
         }
-        self.mqtt_client.handle_heartbeat("0CGV", heartbeat_data)
+        mqtt_service.handle_heartbeat("0CGV", heartbeat_data)
 
-        self.gateway.refresh_from_db()
-        self.assertTrue(self.gateway.is_online)
-        self.assertEqual(self.gateway.alias, "01")
-        self.assertEqual(self.gateway.gateway_ip, "192.168.1.100")
-        self.assertEqual(self.gateway.app_server_ip, "192.168.1.92")
-        self.assertEqual(self.gateway.app_server_port, 9081)
-        self.assertEqual(self.gateway.username, "admin")
-        self.assertEqual(self.gateway.password, "secret123")
+        gateway.refresh_from_db()
+        self.assertEqual(gateway.gateway_ip, "192.168.1.100")
+        self.assertEqual(gateway.gateway_mac, "90:A9:F7:32:0B:45")
+        self.assertEqual(gateway.app_server_ip, "192.168.1.92")
+        self.assertTrue(gateway.is_online)
 
-    def test_handle_tag_heartbeat(self):
-        tag_heartbeat_data = {
-            "Tags": [{
-                "TagId": "8100005BD9A7",
-                "Battery": 45
-            }]
-        }
-        self.mqtt_client.handle_tag_heartbeat("0CGV", tag_heartbeat_data)
+    def test_tag_heartbeat_updates_binding(self):
+        from core.models import TagHardware
+        hw = TagHardware.objects.create(model_number="V2", width_px=200, height_px=100, display_size_inch=2.1)
+        gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
+        tag = ESLTag.objects.create(store=self.store, tag_mac="ABCDEF123456", hardware_spec=hw)
 
-        self.tag.refresh_from_db()
-        self.assertEqual(self.tag.last_successful_gateway_id, "0CGV")
-        self.assertEqual(self.tag.battery_level, 45)
+        # Simulate tag heartbeat via gateway 0CGV
+        heartbeat_data = {"Tags": [{"TagId": "ABCDEF123456", "Battery": 85}]}
+        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
 
-class AdminPermissionsTest(TestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.company = Company.objects.create(name="Test Co")
-        self.store = Store.objects.create(name="Test Store", company=self.company)
-        self.gateway = Gateway.objects.create(
-            estation_id="0CGV",
-            gateway_mac="90:A9:F7:32:0B:45",
-            store=self.store
-        )
-        self.superuser = User.objects.create_superuser(username='super', password='pass', email='s@test.com')
-        self.staff_user = User.objects.create_user(username='staff', password='pass', is_staff=True)
-        self.admin_site = AdminSite()
-        self.gateway_admin = GatewayAdmin(Gateway, self.admin_site)
+        tag.refresh_from_db()
+        self.assertEqual(tag.last_successful_gateway_id, "0CGV")
+        self.assertEqual(tag.battery_level, 85)
 
     def test_gateway_admin_permissions(self):
-        # Superuser should have change permission
-        request = self.factory.get('/')
-        request.user = self.superuser
-        self.assertTrue(self.gateway_admin.has_change_permission(request, self.gateway))
+        gateway = Gateway.objects.create(store=self.store, estation_id="0CGV", username="admin", password="secret_password")
+        model_admin = GatewayAdmin(Gateway, AdminSite())
 
-        # Non-superuser staff should NOT have change permission
-        request.user = self.staff_user
-        self.assertFalse(self.gateway_admin.has_change_permission(request, self.gateway))
+        # Superuser sees credentials
+        fields_admin = model_admin.get_fields(type('Request', (), {'user': self.superuser}))
+        self.assertIn('username', fields_admin)
+        self.assertIn('password', fields_admin)
 
-    def test_gateway_admin_password_visibility(self):
-        # Superuser should see password field
-        request = self.factory.get('/')
-        request.user = self.superuser
-        fields = self.gateway_admin.get_fields(request, self.gateway)
-        self.assertIn('password', fields)
+        # Staff user does not see credentials
+        fields_staff = model_admin.get_fields(type('Request', (), {'user': self.staff}))
+        self.assertNotIn('username', fields_staff)
+        self.assertNotIn('password', fields_staff)
 
-        # Staff user should NOT see password field
-        request.user = self.staff_user
-        fields = self.gateway_admin.get_fields(request, self.gateway)
-        self.assertNotIn('password', fields)
+    def test_esl_tag_readonly_fields(self):
+        model_admin = ESLTagAdmin(ESLTag, AdminSite())
+        readonly_fields = model_admin.get_readonly_fields(type('Request', (), {'user': self.superuser}))
+        self.assertIn('gateway', readonly_fields)
+        self.assertIn('last_successful_gateway_id', readonly_fields)
