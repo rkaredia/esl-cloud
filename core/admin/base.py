@@ -14,7 +14,7 @@ import traceback
 import os
 from PIL import Image, ImageDraw
 
-from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier
+from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting
 from ..utils import template_v1, template_v2, template_v3
 
 logger = logging.getLogger(__name__)
@@ -196,7 +196,7 @@ class SAISAdminSite(admin.AdminSite):
             hardware = {
                 'name': '📡 Hardware',
                 'app_label': 'hardware',
-                'models': [m for m in [find_model('Gateway'), find_model('TagHardware')] if m]
+                'models': [m for m in [find_model('Gateway'), find_model('TagHardware'), find_model('GlobalSetting')] if m]
             }
             org = {
                 'name': '🏢 Organisation',
@@ -238,6 +238,11 @@ class SAISAdminSite(admin.AdminSite):
 admin_site = SAISAdminSite(name='sais_admin')
 
 # --- MIXINS ---
+
+@admin.register(GlobalSetting, site=admin_site)
+class GlobalSettingAdmin(admin.ModelAdmin):
+    list_display = ('key', 'value', 'description')
+    list_editable = ('value',)
 
 class AuditAdminMixin:
     """

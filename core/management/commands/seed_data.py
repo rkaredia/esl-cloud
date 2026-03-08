@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from core.models import User, Company, Store, TagHardware, Gateway, ESLTag, Product
+from core.models import User, Company, Store, TagHardware, Gateway, ESLTag, Product, GlobalSetting
 from decimal import Decimal
 
 class Command(BaseCommand):
@@ -145,7 +145,16 @@ class Command(BaseCommand):
         # 6. Pre-populate Test Gateway
         Gateway.objects.get_or_create(
             gateway_mac="testGateway",
-            defaults={'store': store, 'is_active': True}
+            defaults={'store': store}
         )
+
+        # 7. Global Settings
+        settings_to_seed = [
+            {'key': 'ESL_ENCRYPTION_KEY', 'value': 'FFFFFFFFFFFFFFFF', 'description': '8-byte encryption key (16-digit hex)'},
+            {'key': 'DEFAULT_HEARTBEAT_INTERVAL', 'value': '300', 'description': 'Default heartbeat interval in seconds if not provided by gateway'},
+            {'key': 'OFFLINE_TIMEOUT_MULTIPLIER', 'value': '4', 'description': 'Multiply heartbeat interval by this to determine offline status'},
+        ]
+        for s in settings_to_seed:
+            GlobalSetting.objects.get_or_create(key=s['key'], defaults={'value': s['value'], 'description': s['description']})
 
         self.stdout.write(self.style.SUCCESS('Successfully seeded all base data with monitoring access.'))

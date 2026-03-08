@@ -1,4 +1,5 @@
 import io
+import os
 import time
 import random
 import logging
@@ -7,7 +8,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.core.cache import cache
-from .models import ESLTag, Store
+from .models import ESLTag, Store, Gateway, GlobalSetting
 from .utils import generate_esl_image
 from .mqtt_client import mqtt_service
 
@@ -149,3 +150,72 @@ def refresh_store_products_task(store_id):
     except Exception as e:
         logger.exception(f"Error in refresh_store_products_task for store {store_id}")
         raise e
+
+@shared_task(name="core.tasks.check_gateways_status_task")
+def check_gateways_status_task():
+    """
+    Checks all gateways and marks them offline if they haven't sent a heartbeat within the timeout window.
+    Runs every minute (configured in Celery Beat).
+    """
+    try:
+        # Get settings or defaults
+        default_interval = int(GlobalSetting.objects.filter(key='DEFAULT_HEARTBEAT_INTERVAL').values_list('value', flat=True).first() or 300)
+        multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
+
+        gateways = Gateway.objects.filter(is_online=True)
+        count_offline = 0
+        now = timezone.now()
+
+        for gw in gateways:
+            interval = gw.heartbeat_interval or default_interval
+            timeout_seconds = interval * multiplier
+
+            last_signal = gw.last_heartbeat or gw.created_at
+            if (now - last_signal).total_seconds() > timeout_seconds:
+                gw.is_online = False
+                gw.save(update_fields=['is_online'])
+                count_offline += 1
+                logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
+
+        return f"Checked status. Marked {count_offline} gateways offline."
+    except Exception:
+        logger.exception("Error in check_gateways_status_task")
+        return "Status check failed"
+
+@shared_task(name="core.tasks.cleanup_old_logs_task")
+def cleanup_old_logs_task():
+    """
+    Deletes MQTT and system logs older than 15 days.
+    """
+    try:
+        import os
+        from django.conf import settings
+        import time
+
+        log_dirs = [
+            os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'received'),
+            os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'sent'),
+            os.path.join(settings.BASE_DIR, 'logs', 'mqtt'),
+            os.path.join(settings.BASE_DIR, 'logs'),
+        ]
+
+        now = time.time()
+        retention_days = 15
+        count_deleted = 0
+
+        for directory in log_dirs:
+            if not os.path.exists(directory): continue
+
+            for f in os.listdir(directory):
+                filepath = os.path.join(directory, f)
+                if not os.path.isfile(filepath): continue
+
+                # Check age
+                if os.stat(filepath).st_mtime < now - (retention_days * 86400):
+                    os.remove(filepath)
+                    count_deleted += 1
+
+        return f"Cleaned up {count_deleted} old log files."
+    except Exception:
+        logger.exception("Error in cleanup_old_logs_task")
+        return "Cleanup failed"

@@ -14,6 +14,7 @@ from openpyxl import Workbook
 import openpyxl
 
 from .models import Store, ESLTag, Gateway, TagHardware, Product
+from .mqtt_client import mqtt_service
 from .services import BulkMapProcessor, process_modisoft_file_logic
 from .middleware import InputSanitizationMiddleware
 
@@ -242,3 +243,47 @@ def bulk_map_tags_view(request):
         return redirect('admin:core_esltag_changelist')
 
     return render(request, 'admin/core/esltag/bulk_map_upload.html', context)
+
+@login_required
+def configure_gateway_view(request, gateway_id):
+    """View to handle gateway configuration push via MQTT."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
+    gateway = get_object_or_404(Gateway, pk=gateway_id)
+    opts = Gateway._meta
+
+    if request.method == "POST":
+        alias = request.POST.get('alias')
+        server = request.POST.get('server')
+        encrypt = request.POST.get('encrypt') == 'on'
+        try:
+            heartbeat = int(request.POST.get('heartbeat', 300))
+        except ValueError:
+            heartbeat = 300
+
+        success = mqtt_service.publish_config(
+            gateway.estation_id,
+            alias,
+            server,
+            encrypt,
+            heartbeat
+        )
+
+        if success:
+            messages.success(request, f"Configuration push for {gateway} initiated.")
+            # Optionally update local record if we trust it was sent
+            gateway.alias = alias
+            gateway.heartbeat_interval = heartbeat
+            gateway.save()
+        else:
+            messages.error(request, f"Failed to send configuration to {gateway}. Check MQTT connection.")
+
+        return redirect('admin:core_gateway_changelist')
+
+    context = {
+        'gateway': gateway,
+        'opts': opts,
+        'title': f"Configure Gateway: {gateway.estation_id}",
+    }
+    return render(request, 'admin/core/gateway/configure.html', context)

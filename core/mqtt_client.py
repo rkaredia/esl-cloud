@@ -2,9 +2,11 @@ import paho.mqtt.client as mqtt
 import msgpack
 import json
 import logging
+import os
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
-from .models import ESLTag, Gateway
+from .models import ESLTag, Gateway, Store, GlobalSetting
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,8 @@ class ESLMqttClient:
             self.client.subscribe("/estation/+/result", qos=2)
             self.client.subscribe("/estation/+/heartbeat", qos=0)
             self.client.subscribe("/estation/+/tagheartbeat", qos=0)
+            self.client.subscribe("/estation/+/infor", qos=0)
+            self.client.subscribe("/estation/+/message", qos=0)
         except Exception:
             logger.exception("Error in MQTT on_connect callback")
 
@@ -58,12 +62,19 @@ class ESLMqttClient:
                     logger.error(f"Failed to unpack MQTT payload on {msg.topic}")
                     return
 
+            self._log_mqtt_message("received", estation_id, msg.topic, data)
+
             if msg.topic.endswith("/result"):
                 self.handle_result(estation_id, data)
             elif msg.topic.endswith("/heartbeat"):
                 self.handle_heartbeat(estation_id, data)
             elif msg.topic.endswith("/tagheartbeat"):
                 self.handle_tag_heartbeat(estation_id, data)
+            elif msg.topic.endswith("/infor"):
+                self.handle_infor(estation_id, data)
+            elif msg.topic.endswith("/message"):
+                # Logged via _log_mqtt_message already
+                pass
         except Exception:
             logger.exception(f"Error processing MQTT message on topic {msg.topic}")
 
@@ -99,42 +110,85 @@ class ESLMqttClient:
         try:
             # Expected JSON: {"ID":"0CGV","Alias":"01","IP":"...","MAC":"...","Server":"192.168.1.92:9081","ConnParam":["user","pass"],...}
             gateway_id = data.get('ID', estation_id)
-            alias = data.get('Alias')
-            ip = data.get('IP')
             mac = data.get('MAC')
+
+            update_data = {
+                'alias': data.get('Alias'),
+                'gateway_ip': data.get('IP'),
+                'gateway_mac': mac,
+                'ap_version': data.get('ApVersion'),
+                'free_space': data.get('FreeSpace'),
+                'heartbeat_interval': data.get('Heartbeat'),
+                'last_heartbeat': timezone.now(),
+                'last_successful_heartbeat': timezone.now(),
+                'is_online': True,
+                'last_seen': timezone.now()
+            }
+
             server = data.get('Server', '')
+            if server:
+                if ':' in server:
+                    parts = server.split(':', 1)
+                    update_data['app_server_ip'] = parts[0]
+                    try:
+                        update_data['app_server_port'] = int(parts[1])
+                    except ValueError: pass
+                else:
+                    update_data['app_server_ip'] = server
+
             conn_param = data.get('ConnParam', [])
+            if len(conn_param) >= 2:
+                update_data['username'] = conn_param[0]
+                update_data['password'] = conn_param[1]
 
-            app_server_ip = None
-            app_server_port = None
-            if server and ':' in server:
-                parts = server.split(':', 1)
-                app_server_ip = parts[0]
-                try:
-                    app_server_port = int(parts[1])
-                except ValueError:
-                    pass
-            elif server:
-                app_server_ip = server
-
-            username = conn_param[0] if len(conn_param) > 0 else None
-            password = conn_param[1] if len(conn_param) > 1 else None
-
-            Gateway.objects.filter(estation_id=gateway_id).update(
-                alias=alias,
-                gateway_ip=ip,
-                gateway_mac=mac,
-                app_server_ip=app_server_ip,
-                app_server_port=app_server_port,
-                username=username,
-                password=password,
-                last_heartbeat=timezone.now(),
-                last_successful_heartbeat=timezone.now(),
-                is_online=True,
-                last_seen=timezone.now()
-            )
+            Gateway.objects.filter(estation_id=gateway_id).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
+
+    def handle_infor(self, estation_id, data):
+        """Processes device info and auto-registers gateways."""
+        try:
+            # Property: ID, Alias, IP, MAC, ApVersion, FreeSpace, Server, Heartbeat
+            mac = data.get('MAC')
+            if not mac: return
+
+            admin_store = Store.objects.filter(name='Admin Store').first()
+            if not admin_store:
+                logger.error("Admin Store not found for auto-discovery")
+                return
+
+            gateway, created = Gateway.objects.get_or_create(
+                gateway_mac=mac,
+                defaults={
+                    'estation_id': data.get('ID', estation_id),
+                    'alias': data.get('Alias'),
+                    'gateway_ip': data.get('IP'),
+                    'ap_version': data.get('ApVersion'),
+                    'free_space': data.get('FreeSpace'),
+                    'heartbeat_interval': data.get('Heartbeat'),
+                    'store': admin_store,
+                    'is_online': True,
+                    'last_heartbeat': timezone.now(),
+                    'last_seen': timezone.now()
+                }
+            )
+
+            if not created:
+                # Update existing record
+                gateway.estation_id = data.get('ID', gateway.estation_id)
+                gateway.alias = data.get('Alias', gateway.alias)
+                gateway.gateway_ip = data.get('IP', gateway.gateway_ip)
+                gateway.ap_version = data.get('ApVersion', gateway.ap_version)
+                gateway.free_space = data.get('FreeSpace', gateway.free_space)
+                gateway.heartbeat_interval = data.get('Heartbeat', gateway.heartbeat_interval)
+                gateway.is_online = True
+                gateway.last_heartbeat = timezone.now()
+                gateway.last_seen = timezone.now()
+                gateway.save()
+
+            logger.info(f"Gateway {mac} (ID:{estation_id}) {'registered' if created else 'updated'} via /infor")
+        except Exception:
+            logger.exception(f"Error handling infor for gateway {estation_id}")
 
     def handle_tag_heartbeat(self, estation_id, data):
         """Updates tag mapping and battery based on tag heartbeat messages."""
@@ -160,7 +214,12 @@ class ESLMqttClient:
             task_params = [tag_mac, 0, 0, True, False, False, 0, token, "", ""]
             payload = msgpack.packb([task_params, image_bytes])
             topic = f"/estation/{gateway_id}/taskESL2"
+
             result = self.client.publish(topic, payload, qos=2)
+
+            # Log sent message (hide binary for log)
+            self._log_mqtt_message("sent", gateway_id, topic, {"params": task_params, "image_len": len(image_bytes)})
+
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logger.debug(f"Published update for {tag_mac} to gateway {gateway_id}")
                 return True
@@ -170,5 +229,41 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Exception during MQTT publish for tag {tag_mac}")
             return False
+
+    def publish_config(self, gateway_id, alias, server, encrypt, heartbeat):
+        """Publishes configuration to a specific gateway."""
+        try:
+            config_data = {
+                'Alias': alias,
+                'Server': server,
+                'Encrypt': encrypt,
+                'Heartbeat': heartbeat
+            }
+            payload = msgpack.packb(config_data)
+            topic = f"/estation/{gateway_id}/configure"
+
+            result = self.client.publish(topic, payload, qos=2)
+            self._log_mqtt_message("sent", gateway_id, topic, config_data)
+
+            return result.rc == mqtt.MQTT_ERR_SUCCESS
+        except Exception:
+            logger.exception(f"Exception during MQTT publish config for gateway {gateway_id}")
+            return False
+
+    def _log_mqtt_message(self, direction, estation_id, topic, data):
+        """Logs MQTT messages to daily files with 15-day retention intent."""
+        try:
+            log_dir = os.path.join(settings.BASE_DIR, 'logs', 'mqtt', direction)
+            os.makedirs(log_dir, exist_ok=True)
+
+            filename = f"{datetime.now().strftime('%Y-%m-%d')}.log"
+            filepath = os.path.join(log_dir, filename)
+
+            with open(filepath, 'a') as f:
+                timestamp = datetime.now().isoformat()
+                log_entry = f"[{timestamp}] ID:{estation_id} TOPIC:{topic} DATA:{json.dumps(data)}\n"
+                f.write(log_entry)
+        except Exception:
+            logger.exception("Failed to log MQTT message to file")
 
 mqtt_service = ESLMqttClient()

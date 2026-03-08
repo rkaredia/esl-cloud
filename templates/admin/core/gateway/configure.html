@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' gateway.pk %}">{{ gateway }}</a>
+&rsaquo; Configure
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <div>
+            <fieldset class="module aligned">
+                <h2>Configure eStation Hardware</h2>
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="id_alias">Alias:</label>
+                        <input type="text" name="alias" value="{{ gateway.alias|default:'' }}" class="vTextField" maxlength="2" id="id_alias" required>
+                        <div class="help">2-character gateway alias.</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="id_server">Server:</label>
+                        <input type="text" name="server" value="{{ gateway.app_server_ip }}{% if gateway.app_server_port %}:{{ gateway.app_server_port }}{% endif %}" class="vTextField" id="id_server" required>
+                        <div class="help">Target application server address (IP:Port).</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label for="id_encrypt">Enable TLS (Encrypt):</label>
+                        <input type="checkbox" name="encrypt" id="id_encrypt" {% if gateway.encrypt %}checked{% endif %}>
+                        <div class="help">Enable TLS 1.2 communication.</div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="id_heartbeat">Heartbeat Interval (sec):</label>
+                        <input type="number" name="heartbeat" value="{{ gateway.heartbeat_interval|default:300 }}" class="vIntegerField" id="id_heartbeat" min="15" required>
+                        <div class="help">Frequency of heartbeat signals (minimum 15s).</div>
+                    </div>
+                </div>
+            </fieldset>
+            <div class="submit-row">
+                <input type="submit" value="Push Configuration" class="default" name="_save">
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

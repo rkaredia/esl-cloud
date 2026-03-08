@@ -112,6 +112,15 @@ class Store(AuditModel):
     def __str__(self):
         return f"{self.company.name} - {self.name}"
 
+class GlobalSetting(models.Model):
+    """Global configuration parameters for the system."""
+    key = models.CharField(max_length=100, unique=True)
+    value = models.TextField()
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.key
+
 class TagHardware(AuditModel):
     """Technical specifications for different ESL hardware models."""
     model_number = models.CharField(max_length=100, unique=True)
@@ -143,6 +152,10 @@ class Gateway(AuditModel):
 
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
+
+    ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
+    free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
+    heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
 

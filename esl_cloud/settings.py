@@ -183,6 +183,23 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_RESULT_EXPIRES = 259200  # 3 days
 
+from celery.schedules import crontab
+
+# =================================================================
+# CELERY BEAT SCHEDULE
+# =================================================================
+
+CELERY_BEAT_SCHEDULE = {
+    'check-gateways-status-every-minute': {
+        'task': 'core.tasks.check_gateways_status_task',
+        'schedule': crontab(minute='*'),
+    },
+    'cleanup-old-logs-daily': {
+        'task': 'core.tasks.cleanup_old_logs_task',
+        'schedule': crontab(hour=0, minute=0),
+    },
+}
+
 # =================================================================
 # MQTT SETTINGS
 # =================================================================

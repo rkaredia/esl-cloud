@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 from .base import admin_site, CompanySecurityMixin, UIHelperMixin
 from .mixins import StoreFilteredAdmin
 from ..models import Gateway, TagHardware, ESLTag
-from ..views import download_tag_template, preview_tag_import, bulk_map_tags_view
+from ..views import download_tag_template, preview_tag_import, bulk_map_tags_view, configure_gateway_view
 from ..tasks import update_tag_image_task
 import time
 import logging
@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """Admin for Managing ESL Gateways."""
-    list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat')
+    list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat', 'configure_link')
     list_editable = ('name', 'alias')
-    readonly_fields = ('is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen', 'created_at', 'updated_at', 'updated_by')
+    readonly_fields = ('is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen', 'created_at', 'updated_at', 'updated_by', 'ap_version', 'free_space', 'heartbeat_interval')
 
     fieldsets = (
         ('General', {'fields': ('estation_id', 'name', 'alias', 'store')}),
-        ('Technical', {'fields': ('gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port')}),
+        ('Technical', {'fields': ('gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port', 'ap_version', 'free_space', 'heartbeat_interval')}),
         ('Credentials', {'fields': ('username', 'password')}),
         ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
         ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
@@ -33,6 +33,12 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         text = "Online" if obj.is_online else "Offline"
         return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
     status_indicator.short_description = "Status"
+
+    def configure_link(self, obj):
+        if not obj.estation_id: return "-"
+        url = reverse('admin:gateway-configure', args=[obj.pk])
+        return format_html('<a class="button" href="{}">⚙ Config</a>', url)
+    configure_link.short_description = "Configuration"
 
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
@@ -240,6 +246,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             path('bulk-map/', self.admin_site.admin_view(bulk_map_tags_view), name='bulk-map-tags'),
             path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
             path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
+            path('<path:gateway_id>/configure/', self.admin_site.admin_view(configure_gateway_view), name='gateway-configure'),
         ] + super().get_urls()
 
     def changelist_view(self, request, extra_context=None):
