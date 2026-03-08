@@ -230,13 +230,13 @@ class ESLMqttClient:
             logger.exception(f"Exception during MQTT publish for tag {tag_mac}")
             return False
 
-    def publish_config(self, gateway_id, alias, server, encrypt, heartbeat, auto_ip=True, local_ip="", subnet="", gateway=""):
+    def publish_config(self, gateway_id, alias, server, encrypt, heartbeat, auto_ip=True, local_ip="", subnet="", gateway="", username="test", password="123456"):
         """Publishes configuration to a specific gateway."""
         try:
             config_data = {
                 'Alias': alias,
                 'Server': server,
-                'ConnParam': ["admin", "admin123"], # Defaults
+                'ConnParam': [username, password],
                 'Encrypt': encrypt,
                 'AutoIP': auto_ip,
                 'LocalIP': local_ip,
@@ -244,11 +244,6 @@ class ESLMqttClient:
                 'Gateway': gateway,
                 'Heartbeat': heartbeat
             }
-
-            # Fetch credentials from DB if possible
-            gw_obj = Gateway.objects.filter(estation_id=gateway_id).first()
-            if gw_obj and gw_obj.username and gw_obj.password:
-                config_data['ConnParam'] = [gw_obj.username, gw_obj.password]
 
             payload = msgpack.packb(config_data)
             topic = f"/estation/{gateway_id}/configure"

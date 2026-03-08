@@ -255,18 +255,31 @@ def configure_gateway_view(request, gateway_id):
 
     if request.method == "POST":
         alias = request.POST.get('alias')
-        server = request.POST.get('server')
+        server = request.POST.get('server') or "192.168.1.92:9081"
+        username = request.POST.get('username') or "test"
+        password = request.POST.get('password') or "123456"
         encrypt = request.POST.get('encrypt') == 'on'
         auto_ip = request.POST.get('auto_ip') == 'on'
         local_ip = request.POST.get('local_ip', '')
         netmask = request.POST.get('netmask', '')
         network_gateway = request.POST.get('network_gateway', '')
 
+        # Basic IP:Port validation
+        import re
+        ip_port_pattern = r'^(\d{1,3}\.){3}\d{1,3}:\d{1,5}$'
+        if not re.match(ip_port_pattern, server):
+            messages.error(request, f"Invalid Server format: {server}. Expected IP:Port (e.g., 192.168.1.92:9081)")
+            return redirect(request.path)
+
         try:
             heartbeat = int(request.POST.get('heartbeat', 300))
         except ValueError:
             heartbeat = 300
 
+        # Extract IP and Port for model storage
+        server_ip, server_port = server.split(':')
+
+        # Use explicitly provided credentials for the publish call
         success = mqtt_service.publish_config(
             gateway.estation_id,
             alias,
@@ -276,13 +289,19 @@ def configure_gateway_view(request, gateway_id):
             auto_ip=auto_ip,
             local_ip=local_ip,
             subnet=netmask,
-            gateway=network_gateway
+            gateway=network_gateway,
+            username=username,
+            password=password
         )
 
         if success:
             messages.success(request, f"Configuration push for {gateway} initiated.")
             # Update local record
             gateway.alias = alias
+            gateway.app_server_ip = server_ip
+            gateway.app_server_port = int(server_port)
+            gateway.username = username
+            gateway.password = password
             gateway.heartbeat_interval = heartbeat
             gateway.is_encrypt_enabled = encrypt
             gateway.is_auto_ip = auto_ip
@@ -295,9 +314,15 @@ def configure_gateway_view(request, gateway_id):
 
         return redirect('admin:core_gateway_changelist')
 
+    # Prepare default server display
+    server_display = "192.168.1.92:9081"
+    if gateway.app_server_ip:
+        server_display = f"{gateway.app_server_ip}:{gateway.app_server_port or 9081}"
+
     context = {
         'gateway': gateway,
         'opts': opts,
+        'server_display': server_display,
         'title': f"Configure Gateway: {gateway.estation_id}",
     }
     return render(request, 'admin/core/gateway/configure.html', context)
