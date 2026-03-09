@@ -314,6 +314,11 @@ class CompanySecurityMixin(AuditAdminMixin):
                 qs = qs.filter(store__company=request.user.company)
             elif self.model == ESLTag:
                 qs = qs.filter(gateway__store__company=request.user.company)
+            elif self.model.__name__ == 'MQTTMessage':
+                # Filter by gateways that belong to the user's company
+                from ..models import Gateway
+                authorized_gateway_ids = Gateway.objects.filter(store__company=request.user.company).values_list('estation_id', flat=True)
+                qs = qs.filter(estation_id__in=authorized_gateway_ids)
 
             if request.user.role == 'manager':
                 assigned_stores = request.user.managed_stores.all()
@@ -323,6 +328,10 @@ class CompanySecurityMixin(AuditAdminMixin):
                     qs = qs.filter(id__in=assigned_stores.values_list('id', flat=True))
                 elif self.model == ESLTag:
                     qs = qs.filter(gateway__store__in=assigned_stores)
+                elif self.model.__name__ == 'MQTTMessage':
+                    from ..models import Gateway
+                    authorized_gateway_ids = Gateway.objects.filter(store__in=assigned_stores).values_list('estation_id', flat=True)
+                    qs = qs.filter(estation_id__in=authorized_gateway_ids)
             return qs
         except Exception:
             logger.exception("Error in CompanySecurityMixin.get_queryset")

@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.utils.html import format_html
 from django_celery_results.models import TaskResult, GroupResult
 from django_celery_results.admin import GroupResultAdmin, TaskResultAdmin
-from .base import admin_site
+from .base import admin_site, CompanySecurityMixin
 from ..models import MQTTMessage
 import json
 
@@ -31,7 +31,7 @@ class CustomGroupResultAdmin(GroupResultAdmin):
 admin_site.register(TaskResult, TaskResultAdmin)
 
 @admin.register(MQTTMessage, site=admin_site)
-class MQTTMessageAdmin(admin.ModelAdmin):
+class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     """Admin for viewing MQTT communication logs."""
     list_display = ('timestamp', 'direction_indicator', 'estation_id', 'topic', 'data_preview', 'status_indicator')
     list_filter = ('direction', 'is_success', 'estation_id', 'topic')
@@ -71,8 +71,14 @@ class MQTTMessageAdmin(admin.ModelAdmin):
 
     @admin.action(description="Clear all communication logs")
     def clear_all_messages(self, request, queryset):
-        count = MQTTMessage.objects.all().count()
-        MQTTMessage.objects.all().delete()
+        if not request.user.is_superuser:
+            self.message_user(request, "Only superusers can clear communication logs.", messages.ERROR)
+            return
+
+        # Use get_queryset to ensure only authorized messages are cleared (defense-in-depth)
+        qs = self.get_queryset(request)
+        count = qs.count()
+        qs.delete()
         self.message_user(request, f"Cleared {count} messages.", messages.SUCCESS)
 
     def has_add_permission(self, request): return False
