@@ -48,12 +48,12 @@
                 <div class="card-inner" style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
                     <div class="help-card-icon" style="width: 64px; height: 64px; background: #f1f5f9; border-radius: 14px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; transition: all 0.3s;">
                         <span aria-hidden="true">
-                            {% if slug == 'product-management' %}🛒
+                            {% if slug == 'getting-started' %}🚀
+                            {% elif slug == 'product-management' %}🛒
                             {% elif slug == 'tag-manager' %}🏷️
                             {% elif slug == 'linkage' %}🔗
                             {% elif slug == 'access-management' %}👥
                             {% elif slug == 'troubleshooting' %}🛠️
-                            {% elif slug == 'standard-errors' %}⚠️
                             {% elif slug == 'dashboard' %}📊
                             {% elif slug == 'store-context' %}🏪
                             {% else %}📄{% endif %}

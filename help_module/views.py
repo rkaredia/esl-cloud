@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 HELP_CONTENT_DIR = os.path.join(settings.BASE_DIR, 'help_module', 'content')
 
 TOPICS = {
+    'getting-started': {'title': 'Getting Started', 'file': 'getting_started.md'},
     'product-management': {'title': 'Product Management', 'file': 'product_management.md'},
     'tag-manager': {'title': 'Tag Manager', 'file': 'tag_manager.md'},
     'linkage': {'title': 'Product to Tag Linkage', 'file': 'linkage.md'},
-    'access-management': {'title': 'Access Management', 'file': 'access_management.md'},
-    'troubleshooting': {'title': 'Troubleshooting', 'file': 'troubleshooting.md'},
-    'standard-errors': {'title': 'Standard Errors', 'file': 'standard_errors.md'},
     'dashboard': {'title': 'Analytics Dashboard', 'file': 'dashboard.md'},
     'store-context': {'title': 'Store Context & Isolation', 'file': 'store_context.md'},
+    'troubleshooting': {'title': 'Troubleshooting & Errors', 'file': 'troubleshooting.md'},
+    'access-management': {'title': 'Access Management', 'file': 'access_management.md'},
 }
 
 @login_required
