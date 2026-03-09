@@ -1,4 +1,12 @@
 {% extends "admin/base_site.html" %}
+
+{#
+   BULK MAPPING: PREVIEW & CONFIRM
+   -------------------------------
+   Shows the user which Product SKUs were successfully paired with which
+   Tag MAC addresses based on their scanner upload.
+#}
+
 {% load i18n %}
 
 {% block content %}
@@ -6,6 +14,7 @@
     <h1>Confirm Bulk Mapping</h1>
     <p><b>Please review the proposed changes carefully. No data has been modified yet. Incorrect mapping may map wrong products to tags.</b></p>
 
+    {# SECTION 1: SUCCESSFUL PAIRS #}
     <div class="module">
         <h2 style="background: #28a745;">Valid Pairs Detected ({{ proposed|length }})</h2>
         <table style="width:100%">
@@ -24,6 +33,7 @@
                     <td><code>{{ item.product_sku }}</code></td>
                     <td><code>{{ item.tag_mac }}</code></td>
                     <td>
+                        {# Logic to warn if we are overwriting an existing pairing #}
                         {% if item.old_product %}
                             <span style="color: #856404; font-weight: bold;">⚠️ Reassigning from {{ item.old_product }}</span>
                         {% else %}
@@ -38,6 +48,7 @@
         </table>
     </div>
 
+    {# SECTION 2: FAILED / REJECTED SCANS #}
     {% if rejections %}
     <div class="module" style="margin-top: 30px;">
         <h2 style="background: #dc3545;">Rejected Scans ({{ rejections|length }})</h2>
@@ -64,6 +75,7 @@
     </div>
     {% endif %}
 
+    {# CONFIRMATION FORM #}
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="confirm_mapping" value="1">

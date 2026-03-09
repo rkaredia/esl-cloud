@@ -1,11 +1,30 @@
 {% extends "admin/base_site.html" %}
+
+{% comment %}
+   HELP CENTER INDEX TEMPLATE
+   --------------------------
+   The landing page for user documentation.
+
+   INHERITANCE NOTE:
+   This extends 'admin/base_site.html' to keep the top header and store
+   selector, but we use CSS to hide the default Django Admin sidebar
+   to make more room for the documentation cards.
+{% endcomment %}
+
 {% load static %}
 
 {% block extrastyle %}
 {{ block.super }}
+{# Load the dedicated help module CSS #}
 <link rel="stylesheet" href="{% static 'help_module/css/help.css' %}">
+
 <style>
-    /* Force hide the admin sidebar on Help pages */
+    /*
+       LAYOUT OVERRIDE
+       ---------------
+       We use !important to force the help page to be full-width
+       by hiding the standard Django Admin navigation elements.
+    */
     #nav-sidebar, .nav-sidebar, #nav-filter { display: none !important; }
     .main { display: block !important; }
     #content { margin-left: 0 !important; width: 100% !important; }
@@ -14,23 +33,17 @@
     #container { display: flex; flex-direction: column; }
     #main { display: block !important; }
 
+    /* Mobile Responsive Adjustments */
     @media (max-width: 768px) {
-        .help-topics {
-            gap: 1rem !important;
-        }
-        .card-inner {
-            padding: 1rem !important;
-        }
-        .help-container {
-            padding: 1rem !important;
-        }
-        h1 {
-            font-size: 1.75rem !important;
-        }
+        .help-topics { gap: 1rem !important; }
+        .card-inner { padding: 1rem !important; }
+        .help-container { padding: 1rem !important; }
+        h1 { font-size: 1.75rem !important; }
     }
 </style>
 {% endblock %}
 
+{# Empty block to remove the sidebar content entirely #}
 {% block nav-sidebar %}{% endblock %}
 
 {% block content %}
@@ -42,10 +55,17 @@
         </p>
     </div>
 
+    {% comment %}
+       DOCUMENTATION GRID
+       ------------------
+       Iterates through the 'topics' dictionary passed from help_module/views.py.
+    {% endcomment %}
     <div class="help-topics" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2rem;">
         {% for slug, topic in topics.items %}
             <a href="{% url 'help_module:detail' slug %}" class="help-card" style="text-decoration: none; border-radius: 16px;">
                 <div class="card-inner" style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: all 0.3s;">
+
+                    {% comment %} DYNAMIC EMOJI BASED ON SLUG {% endcomment %}
                     <div class="help-card-icon" style="width: 64px; height: 64px; background: #f1f5f9; border-radius: 14px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; transition: all 0.3s;">
                         <span aria-hidden="true">
                             {% if slug == 'getting-started' %}🚀
@@ -59,6 +79,7 @@
                             {% else %}📄{% endif %}
                         </span>
                     </div>
+
                     <h3 style="margin: 0 0 1.25rem 0; color: #003459; font-size: 1.5rem; font-weight: 700;">{{ topic.title }}</h3>
                     <p style="margin: 0; color: #64748b; font-size: 1rem; line-height: 1.6;">Step-by-step instructions for {{ topic.title|lower }}.</p>
                 </div>
@@ -69,6 +90,7 @@
         {% endfor %}
     </div>
 
+    {# SUPPORT CALL-TO-ACTION #}
     <div style="margin-top: 8rem; background: linear-gradient(135deg, #003459 0%, #00171f 100%); border-radius: 24px; padding: 4rem; color: white; display: flex; align-items: center; justify-content: space-between; overflow: hidden; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
         <div style="position: relative; z-index: 2; max-width: 600px;">
             <h2 style="margin: 0 0 1.5rem 0; font-size: 2.25rem; color: white; font-weight: 800;">Need personalized help?</h2>

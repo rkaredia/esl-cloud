@@ -1,11 +1,23 @@
 {% extends "admin/change_list.html" %}
+
+{% comment %}
+   PRODUCT LIST VIEW OVERRIDE
+   --------------------------
+   Adds the 'Import Modisoft Products' tool and custom column widths
+   to the main product table.
+{% endcomment %}
+
 {% load i18n admin_urls static admin_list %}
 
 {% block object-tools-items %}
     <li>
+        {# Custom button pointing to views.preview_product_import #}
         <a href="import-modisoft/" class="addlink">Import Modisoft Products</a>
     </li>
+
+    {# block.super includes the standard 'Add Product' button #}
     {{ block.super }}
+
     <li>
         <a href="#" id="filter-toggle-btn" class="addlink" style="background: #64748b !important;" aria-controls="changelist-filter">Show Filters 👁</a>
     </li>
@@ -14,7 +26,12 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
-    /* Column specific widths for Products */
+    /*
+       TABLE COLUMN WIDTHS
+       -------------------
+       Standard Django admin tables can sometimes look cramped.
+       These CSS rules ensure the columns have appropriate breathing room.
+    */
     .column-image_status { width: 100px; }
     .column-sku { width: 140px; }
     .column-name { width: auto; min-width: 250px; }

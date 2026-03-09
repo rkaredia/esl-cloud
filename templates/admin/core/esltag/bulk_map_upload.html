@@ -1,4 +1,13 @@
 {% extends "admin/base_site.html" %}
+
+{#
+   BULK MAPPING: SCANNER UPLOAD
+   ----------------------------
+   This page accepts a raw text file from a handheld scanner.
+   The backend logic (BulkMapProcessor) will attempt to reconstruct
+   the 'Product -> Tag' sequence from this file.
+#}
+
 {% load i18n admin_urls static %}
 
 {% block breadcrumbs %}
@@ -30,6 +39,7 @@
         </form>
     </div>
     
+    {# INSTRUCTIONS BOX #}
     <div class="module" style="margin-top: 20px; padding: 15px; background: #f8f8f8; border: 1px solid #ddd;">
         <h3>How it works:</h3>
         <ul style="line-height: 1.6;">

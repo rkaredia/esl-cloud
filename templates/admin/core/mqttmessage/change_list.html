@@ -1,11 +1,21 @@
 {% extends "admin/change_list.html" %}
+
+{#
+   MQTT MESSAGE LIST VIEW
+   ----------------------
+   Adds a custom 'Refresh' button to the technical log view.
+#}
+
 {% load i18n admin_urls %}
 
 {% block object-tools-items %}
   <li>
+    {# Simple link to the current page to reload the latest logs #}
     <a href="." class="addlink" style="background-color: var(--primary-blue, #2563eb); border-color: var(--primary-blue, #2563eb);">
       <span class="icon">🔄</span> {% translate "Refresh Messages" %}
     </a>
   </li>
+
+  {# Keeps the standard 'Delete' or 'Add' tools if they exist #}
   {{ block.super }}
 {% endblock %}

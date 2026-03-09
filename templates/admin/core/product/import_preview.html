@@ -1,8 +1,24 @@
 {% extends "admin/base_site.html" %}
+
+{#
+   IMPORT PREVIEW TEMPLATE
+   -----------------------
+   This template shows the user exactly what will happen to their
+   database before they commit a large Excel import.
+
+   It categorizes records into 'New', 'Update', 'Rejected', and 'Unchanged'.
+#}
+
 {% block content %}
 <div id="content-main">
     <h2>Import Summary for {{ store.name }}</h2>
     
+    {#
+       SUMMARY TILES
+       -------------
+       Use simple 'length' filters to count the items in each list
+       passed from the View context.
+    #}
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
         <a href="#new-products" style="text-decoration: none; color: inherit; flex: 1;">
             <div style="background: #dcfce7; padding: 15px; border-radius: 8px; border: 1px solid #86efac; cursor: pointer;">
@@ -28,6 +44,11 @@
         </div>
     </div>
 
+    {#
+       NEW PRODUCTS TABLE
+       ------------------
+       Only shows if there are new items to add.
+    #}
     {% if results.new %}
     <div class="module" id="new-products">
         <table style="width: 100%;">
@@ -52,6 +73,11 @@
     </div>
     {% endif %}
 
+    {#
+       UPDATES TABLE
+       -------------
+       Compares old vs new price to show the trend.
+    #}
     {% if results.update %}
     <div class="module" id="update-products">
         <table style="width: 100%;">
@@ -73,6 +99,7 @@
                     <td style="color: #64748b; text-decoration: line-through;">${{ item.old_price }}</td>
                     <td style="font-weight: bold;">${{ item.new_price }}</td>
                     <td>
+                        {# Use conditional logic in templates #}
                         {% if item.new_price > item.old_price %}
                             <span style="color: red;">▲ Increase</span>
                         {% else %}
@@ -86,6 +113,11 @@
     </div>
     {% endif %}
 
+    {#
+       REJECTED TABLE
+       --------------
+       Helps the user identify errors in their Excel file (missing data, etc.).
+    #}
     {% if results.rejected %}
     <div class="module" id="rejected-records">
         <table style="width: 100%;">
@@ -114,18 +146,24 @@
     </div>
     {% endif %}
 
+    {#
+       CONFIRMATION FORM
+       -----------------
+       Sends the 'temp_filename' back to the server so it knows
+       which file to finally process.
+    #}
     <div class="submit-row">
         <form action="." method="POST">
             {% csrf_token %}
             <input type="hidden" name="temp_filename" value="{{ temp_filename }}">
+
             <p style="float: left; margin-top: 10px; color: #64748b;">
                 <strong>Note:</strong> Only "New" and "Update" records will be saved. Rejected records are ignored.
             </p>
+
             <input type="submit" name="confirm_save" value="Confirm and Process Import" class="default">
             <a href=".." class="button" style="float: right; margin-left: 10px;">Cancel</a>
         </form>
-
-
-
+    </div>
 </div>
 {% endblock %}

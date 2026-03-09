@@ -1,5 +1,12 @@
 {% extends "admin/base_site.html" %}
 
+{#
+   NO ACCESS TEMPLATE
+   ------------------
+   Shown when a user is logged in but doesn't have access to the
+   company or any stores.
+#}
+
 {% block content %}
 <div id="content-main" style="text-align: center; margin-top: 50px;">
     <h1 style="color: #ba2121;">Access Restricted</h1>
@@ -8,6 +15,7 @@
     <div style="margin-top: 30px; padding: 20px; background: #f8f8f8; border: 1px solid #ddd; display: inline-block; border-radius: 4px;">
         <p>You do not have permission to view data for this company.</p>
         
+        {# Give them an easy way to logout and try a different account #}
         <form action="{% url 'admin:logout' %}" method="post">
             {% csrf_token %}
             <button type="submit" class="button" style="background: #417690; color: white; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 14px;">

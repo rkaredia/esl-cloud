@@ -1,5 +1,15 @@
 {% extends "admin/base_site.html" %}
 
+{#
+   TEMPLATE DESIGN LAB
+   -------------------
+   A developer tool to visualize how the different rendering templates
+   look across all supported hardware models (Tag Specs).
+
+   It dynamically calls the 'mock_render_view' for every combination
+   of spec, template ID, and promo status.
+#}
+
 {% block content %}
 <style>
     .gallery-container { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; background: #f4f4f4; }
@@ -20,12 +30,18 @@
 </div>
 
 <div class="gallery-container">
+    {# Loop through all Hardware Specs (e.g., Mi 05, Mi 21, etc.) #}
     {% for spec in specs %}
     <div class="card">
         <h3>{{ spec.model_number }} ({{ spec.width_px }}x{{ spec.height_px }} - {{ spec.color_scheme }})</h3>
         
         <div class="preview-box">
-            <!-- Template 1 -->
+            {#
+               The 'src' URLs below call a Python view that generates
+               a mock PNG on the fly.
+            #}
+
+            <!-- Template 1: Standard Split -->
             <div class="preview-item">
                 <p>V1 Standard</p>
                  <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=false" alt="V1 Std">
@@ -35,7 +51,7 @@
                 <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=true" alt="V1 Promo">
             </div>
             
-            <!-- Template 2 -->
+            <!-- Template 2: Large Price -->
             <div class="preview-item">
                 <p>V2 Standard</p>
                 <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=false" alt="V2 Std">
@@ -50,6 +66,12 @@
 </div>
 
 <script>
+    /*
+       FORCE REFRESH
+       -------------
+       Adds a random timestamp parameter to the image URLs to
+       bypass browser caching.
+    */
     function refreshImages() {
         const images = document.querySelectorAll('.esl-img');
         const timestamp = new Date().getTime();

@@ -19,34 +19,71 @@ from PIL import Image, ImageDraw
 from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting, MQTTMessage
 from ..utils import template_v1, template_v2, template_v3
 
+"""
+CUSTOM DJANGO ADMIN ARCHITECTURE
+--------------------------------
+The Django Admin is a powerful, automatic interface for managing data.
+In this project, we have subclassed the standard 'AdminSite' to create
+the 'SAIS Control Panel'.
+
+Key Customizations:
+1. CUSTOM URLS: We added views for the Dashboard and the Design Lab.
+2. CONTEXT INJECTION: We inject custom CSS/JS into every page to change
+   the look and feel (e.g., adding the store selector).
+3. MODEL GROUPING: We reorganized the sidebar into logical business
+   sections (Inventory, Hardware, Organisation).
+4. MULTI-TENANT SECURITY: Mixins ensure users only see data for their
+   authorized companies and stores.
+
+Think of this as the 'Front-End' for the internal data warehouse and
+IOT management system.
+"""
+
 logger = logging.getLogger(__name__)
 
 class SAISAdminSite(admin.AdminSite):
     """
-    Custom admin site with SAIS branding, grouped menu, and Design Lab.
-    Provides the central hub for the ESL management platform.
+    SAIS CONTROL PANEL
+    ------------------
+    The central hub for the platform. This class overrides the default
+    Django Admin behavior to provide a custom, branded experience.
     """
     site_header = "SAIS Platform Administration"
     site_title = "SAIS Admin"
     index_title = "Welcome to SAIS Control Panel"
 
     def get_urls(self):
-        """Register custom admin views for dashboard and template lab."""
+        """
+        URL ROUTING OVERRIDE
+        --------------------
+        EDUCATIONAL: Django matches URLs against a list. By overriding
+        get_urls(), we can add our own 'Pages' to the Admin.
+        """
         urls = super().get_urls()
         custom_urls = [
+            # Template Design Lab: A playground to preview ESL image layouts
             path('template-lab/', self.admin_view(self.template_gallery), name='template-gallery'),
             path('template-render/<int:spec_id>/', self.admin_view(self.mock_render_view), name='template-render'),
+
+            # Analytics Dashboard: The landing page showing store stats
             path('dashboard/', self.admin_view(self.dashboard_view), name="dashboard"),
         ]
         return custom_urls + urls
 
     def dashboard_view(self, request):
-        """Renders the analytics dashboard for the active store."""
+        """
+        ANALYTICS DASHBOARD LOGIC
+        -------------------------
+        This view acts as a 'Data Aggregator'. It queries the DB for
+        various counts and statuses (Battery levels, Sync states,
+        Gateway loads) and passes them to the 'dashboard.html' template.
+        """
         try:
             active_store = getattr(request, 'active_store', None)
             if not active_store:
                 return redirect('admin:index')
 
+            # Aggregate data for the active store only
             tags_qs = ESLTag.objects.for_store(active_store)
             gateways_qs = Gateway.objects.for_store(active_store)
             products_qs = Product.objects.for_store(active_store)
@@ -54,6 +91,7 @@ class SAISAdminSite(admin.AdminSite):
             tag_count = tags_qs.count()
             low_battery_count = tags_qs.filter(battery_level__lte=20).count()
 
+            # GROUP BY: Count how many of each hardware model exists
             tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
                 count=Count('id')
             ).order_by('-count'))
@@ -61,6 +99,7 @@ class SAISAdminSite(admin.AdminSite):
             for item in tag_types:
                 item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
 
+            # LOAD CALCULATION: How many tags are assigned to each gateway?
             gateway_loads = []
             for gw in gateways_qs:
                 count = tags_qs.filter(gateway=gw).count()
@@ -69,7 +108,7 @@ class SAISAdminSite(admin.AdminSite):
                     'estation_id': gw.estation_id,
                     'is_active': gw.is_online,
                     'tag_count': count,
-                    'load_percent': min(int((count / 500) * 100), 100)
+                    'load_percent': min(int((count / 500) * 100), 100) # Max 500 tags per gateway
                 })
 
             context = {
@@ -94,6 +133,7 @@ class SAISAdminSite(admin.AdminSite):
                 }
             }
 
+            # each_context() adds standard admin variables (user, site_header, etc.)
             context.update(self.each_context(request))
             return render(request, "admin/dashboard.html", context)
         except Exception as e:
@@ -102,7 +142,7 @@ class SAISAdminSite(admin.AdminSite):
             return redirect('admin:index')
 
     def template_gallery(self, request):
-        """Renders the gallery of hardware specs for template testing."""
+        """Displays all supported hardware models for testing."""
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -115,12 +155,19 @@ class SAISAdminSite(admin.AdminSite):
             return redirect('admin:index')
 
     def mock_render_view(self, request, spec_id):
-        """Generates a mock preview image using the current template code."""
+        """
+        THE MOCK RENDERER
+        -----------------
+        Generates a preview PNG image on-the-fly without needing a real
+        tag or database record. This allows developers to tweak layouts
+        and see results instantly.
+        """
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
             is_promo_active = request.GET.get('promo', 'false') == 'true'
 
+            # 'Mock' objects simulate a Product so we can use the real template functions
             class MockSupplier:
                 def __init__(self, abbreviation):
                     self.abbreviation = abbreviation
@@ -144,9 +191,11 @@ class SAISAdminSite(admin.AdminSite):
             height = int(spec.height_px) if spec.height_px else 128
             color_scheme = (spec.color_scheme or "BW").upper()
 
+            # Create a blank white canvas
             image = Image.new('RGB', (width, height), color=(255, 255, 255))
             draw = ImageDraw.Draw(image)
 
+            # Route to the physical layout logic in utils.py
             if template_id == 3:
                 template_v3(image, draw, mock_product, width, height, color_scheme)
             elif template_id == 2:
@@ -154,6 +203,7 @@ class SAISAdminSite(admin.AdminSite):
             else:
                 template_v1(image, draw, mock_product, width, height, color_scheme)
 
+            # Return the image directly to the browser as a PNG
             response = HttpResponse(content_type="image/png")
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
             image.save(response, "PNG")
@@ -161,6 +211,7 @@ class SAISAdminSite(admin.AdminSite):
 
         except Exception as e:
             logger.exception(f"Design Lab Render Error for spec {spec_id}")
+            # Render a 'Red Box' with the error message if something fails
             err_img = Image.new('RGB', (400, 150), color='#fee2e2')
             d = ImageDraw.Draw(err_img)
             d.text((10, 10), "PYTHON RENDER ERROR:", fill="black")
@@ -170,47 +221,70 @@ class SAISAdminSite(admin.AdminSite):
             return response
 
     def each_context(self, request):
-        """Adds custom CSS, JS, and dashboard URL to the admin context."""
+        """
+        GLOBAL CONTEXT INJECTION
+        ------------------------
+        Variables added here are available in EVERY admin page.
+        We use this to inject our custom CSS and JS themes.
+        """
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
-        # Inject the custom CSS and JS into the base admin context for site-wide consistency
+
+        # Inject custom styles and scripts using 'mark_safe' to allow raw HTML
         context['custom_admin_css'] = mark_safe(f'<link rel="stylesheet" type="text/css" href="{settings.STATIC_URL}admin/css/sais_admin.css">')
         context['custom_admin_js'] = mark_safe(f'<script src="{settings.STATIC_URL}admin/js/sais_admin.js" defer></script>')
         return context
 
     def get_app_list(self, request, app_label=None):
-        """Customizes the admin sidebar by grouping models into logical sections."""
+        """
+        SIDEBAR REORGANIZATION
+        ----------------------
+        By default, Django groups models by 'Application' (folder).
+        This method overrides that to group them by 'Business Function'.
+        """
         try:
+            # Get the raw list of all models registered in the admin
             app_dict = self._build_app_dict(request)
             if not app_dict: return []
 
+            # Flatten the list so we can pick and choose where they go
             all_models = []
             for app in app_dict.values():
                 all_models.extend(app['models'])
 
             def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
 
+            # --- DEFINE CUSTOM GROUPS ---
+
+            # Group 1: Daily Store Operations
             inventory = {
                 'name': '📦 Inventory',
                 'app_label': 'inventory',
                 'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]
             }
+
+            # Group 2: Base Stations & Hardware setup
             hardware = {
                 'name': '📡 Hardware',
                 'app_label': 'hardware',
                 'models': [m for m in [find_model('Gateway'), find_model('TagHardware'), find_model('GlobalSetting')] if m]
             }
+
+            # Group 3: Multi-tenant management (Admin only)
             org = {
                 'name': '🏢 Organisation',
                 'app_label': 'organisation',
                 'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]
             }
 
+            # Group 4: Logs & Monitoring
             monitoring = {
                 'name': '⚙️ System Monitoring',
                 'app_label': 'monitoring',
                 'models': []
             }
+
+            # Add 'Virtual' models (links to our custom views) to the sidebar
             monitoring['models'].append({
                 'name': '📊 Analytics Dashboard',
                 'object_name': 'dashboard',
@@ -226,9 +300,11 @@ class SAISAdminSite(admin.AdminSite):
                     'view_only': True,
                 })
 
+                # Background Task logs
                 celery_res = find_model('TaskResult')
                 if celery_res: monitoring['models'].append(celery_res)
 
+                # Raw MQTT Packet logs
                 mqtt_logs = find_model('MQTTMessage')
                 if mqtt_logs:
                     mqtt_logs['name'] = '📡 eStation Communication'
@@ -242,27 +318,37 @@ class SAISAdminSite(admin.AdminSite):
             logger.exception("Error in get_app_list")
             return super().get_app_list(request, app_label)
 
+# EXPORT: This instance replaces the default django.contrib.admin.site
 admin_site = SAISAdminSite(name='sais_admin')
 
-# --- MIXINS ---
+# =================================================================
+# GLOBAL SYSTEM SETTINGS ADMIN
+# =================================================================
 
 @admin.register(GlobalSetting, site=admin_site)
 class GlobalSettingAdmin(admin.ModelAdmin):
-    """Admin for system-wide configuration parameters."""
+    """
+    SYSTEM CONFIGURATION UI
+    -----------------------
+    Restricted to Superusers only. Manages things like 'LOG_RETENTION_DAYS'.
+    """
     list_display = ('key', 'value_display', 'description')
     search_fields = ('key', 'description')
 
     def value_display(self, obj):
+        """Prettifies the value field in the list view with a 'Code' look."""
         val = obj.value
         if len(val) > 100:
             val = val[:97] + "..."
         return mark_safe(f'<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{val}</code>')
     value_display.short_description = "Value"
 
+    # UI Enhancement: Use a monospace font for the text area
     formfield_overrides = {
         models.TextField: {'widget': forms.Textarea(attrs={'rows': 2, 'cols': 40, 'style': 'font-family: monospace; width: 100%; max-width: 600px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;'})},
     }
 
+    # PERMISSIONS: Only Superusers can see/touch global settings
     def has_module_permission(self, request):
         return request.user.is_superuser
 
@@ -278,18 +364,25 @@ class GlobalSettingAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
 
+# =================================================================
+# SECURITY & AUDIT MIXINS
+# =================================================================
+
 class AuditAdminMixin:
     """
-    Automatically stamps the user who last modified the record
-    and assigns the active store for new records if applicable.
+    AUTOMATIC AUDIT LOGGING
+    ----------------------
+    EDUCATIONAL: 'save_model' is called when you click 'Save' in the admin.
+    This mixin automatically sets the 'updated_by' field to the current user.
     """
     def save_model(self, request, obj, form, change):
         try:
-            # Update modified by user
+            # 1. Update the 'Who' audit field
             if hasattr(obj, 'updated_by_id') or any(f.name == 'updated_by' for f in obj._meta.fields):
                 obj.updated_by = request.user
 
-            # Automatically assign active store for new objects if the model has a store field
+            # 2. Store Inheritance: For NEW objects, automatically assign them to
+            # the store currently selected in the user's session.
             if not change and hasattr(request, 'active_store') and request.active_store:
                 if any(f.name == 'store' for f in obj._meta.fields):
                     if not getattr(obj, 'store_id', None):
@@ -301,13 +394,23 @@ class AuditAdminMixin:
             raise e
 
 class CompanySecurityMixin(AuditAdminMixin):
-    """Restricts access to data based on the user's company and role."""
+    """
+    HIERARCHICAL SECURITY MIXIN
+    ---------------------------
+    Filters all data based on the User's Company and Assigned Stores.
+    This is the primary defense against IDOR (Insecure Direct Object Reference)
+    within the Admin interface.
+    """
     def get_queryset(self, request):
         try:
             qs = super().get_queryset(request)
+
+            # Superusers bypass all filters
             if request.user.is_superuser:
                 return qs
 
+            # LEVEL 1: COMPANY ISOLATION
+            # If the model has a company link, only show records for the user's company.
             if hasattr(self.model, 'company'):
                 qs = qs.filter(company=request.user.company)
             elif hasattr(self.model, 'store'):
@@ -315,11 +418,12 @@ class CompanySecurityMixin(AuditAdminMixin):
             elif self.model == ESLTag:
                 qs = qs.filter(gateway__store__company=request.user.company)
             elif self.model.__name__ == 'MQTTMessage':
-                # Filter by gateways that belong to the user's company
                 from ..models import Gateway
                 authorized_gateway_ids = Gateway.objects.filter(store__company=request.user.company).values_list('estation_id', flat=True)
                 qs = qs.filter(estation_id__in=authorized_gateway_ids)
 
+            # LEVEL 2: STORE ISOLATION (For Managers)
+            # If the user is a manager, only show data for their specific stores.
             if request.user.role == 'manager':
                 assigned_stores = request.user.managed_stores.all()
                 if hasattr(self.model, 'store'):
@@ -335,13 +439,18 @@ class CompanySecurityMixin(AuditAdminMixin):
             return qs
         except Exception:
             logger.exception("Error in CompanySecurityMixin.get_queryset")
+            # Fail Securely: Return nothing if an error occurs
             return self.model.objects.none()
 
 class UIHelperMixin:
-    """Utility methods for common UI components in the admin."""
+    """
+    REUSABLE UI COMPONENTS
+    ----------------------
+    Contains methods that generate HTML 'Snippets' for the admin list view.
+    """
     def sync_button(self, obj):
+        """Generates a Blue 'Sync' button to manually trigger a tag refresh."""
         try:
-            # Try to reverse with sais_admin first, then fall back to admin
             try:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:

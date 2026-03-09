@@ -1,8 +1,25 @@
 {% extends "admin/base.html" %}
 
+{% comment %}
+   DJANGO TEMPLATE LANGUAGE (DTL) - THE BASICS
+   ------------------------------------------
+   - {% tag %}: Logic tags (if, for, block, extends).
+   - {{ variable }}: Prints data passed from the View.
+   - {# comment #}: Template comments (not visible in HTML source).
+
+   INHERITANCE:
+   This file 'extends' the default Django admin base. By overriding
+   'blocks', we can inject our own SAIS branding and the Store Selector
+   into every page of the system.
+{% endcomment %}
+
 {% block extrahead %}
     {{ block.super }}
-    {# This renders the colors and icons on every admin page #}
+
+    {% comment %}
+       These variables are injected globally by 'core/context_processors.py'.
+       They load our custom CSS and JS themes.
+    {% endcomment %}
     {{ custom_admin_css }}
     {{ custom_admin_js }}
 {% endblock %}
@@ -15,6 +32,10 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
+    /*
+       INLINE STYLING for the Header Bar components.
+       This is specific to the top navigation of the Admin.
+    */
     #branding-container {
         display: flex;
         align-items: center;
@@ -33,7 +54,7 @@
         font-weight: bold;
         font-size: 11px;
         margin-right: 8px;
-        color: #ffffff  ; /* Highlight color */
+        color: #ffffff;
     }
     .header-store-selector select {
         background: #fff;
@@ -53,10 +74,22 @@
         <a href="{% url 'admin:index' %}">SAIS ESL Management</a>
     </h1>
 
+    {# Only show the store selector if the user is logged in #}
     {% if request.user.is_authenticated %}
         <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
+            {# Dashboard Link #}
             <a href="{{ dashboard_url }}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Analytics Dashboard">Dashboard</a>
+
+            {# Help Module Link #}
             <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation">Help</a>
+
+            {% comment %}
+               THE GLOBAL STORE SELECTOR
+               -------------------------
+               Allows users to switch which store they are managing.
+               When changed, a JavaScript listener in 'sais_admin.js'
+               redirects to the 'set_active_store' view.
+            {% endcomment %}
             <div class="header-store-selector">
             <label for="header-store-select" class="selector-label">🏪 ACTIVE STORE:</label>
             <select id="header-store-select" aria-label="Select active store">
@@ -64,6 +97,7 @@
                     <option value="" selected disabled>Choose a Store...</option>
                 {% endif %}
                 
+                {# Loop through the stores assigned to this user #}
                 {% for store in user_stores %}
                     <option value="{{ store.id }}" {% if store.id == active_store.id %}selected{% endif %}>
                         {{ store.name }}

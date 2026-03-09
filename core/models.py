@@ -7,92 +7,155 @@ from .storage import OverwriteStorage
 from django.core.exceptions import ValidationError
 from .managers import StoreManager
 
+"""
+SAIS CORE MODELS: DATA ARCHITECTURE & RELATIONSHIPS
+---------------------------------------------------
+In Django, 'Models' are the single, definitive source of truth about your data.
+If you are familiar with Data Warehousing:
+- A Model class maps to a Database Table.
+- A Class Attribute (e.g., name = models.CharField) maps to a Table Column.
+- An Instance of a Model (e.g., my_company = Company()) maps to a Table Row.
+
+This project follows a Multi-Tenant architecture, meaning data for multiple
+companies and stores is stored in the same tables but isolated logically
+via 'company' and 'store' foreign key references.
+"""
+
 # =================================================================
-# 1. BASE CLASSES & UTILS
+# 1. BASE CLASSES & UTILS (Reusable data patterns)
 # =================================================================
 
 class AuditModel(models.Model):
     """
-    Consolidated Base Class for all models.
-    Provides creation/update timestamps and user tracking.
+    EDUCATIONAL: This is an 'Abstract Base Class'. It doesn't create a table
+    itself in the DB, but other models inherit its fields.
+    In Data Warehousing, these are standard 'Audit Dimensions' used to
+    track when data was created or changed and by whom.
     """
+    # auto_now_add: Sets the timestamp once when the row is first created.
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # auto_now: Updates the timestamp every time the row is saved (updated).
     updated_at = models.DateTimeField(auto_now=True)
+
+    # ForeignKey: Creates a many-to-one relationship.
+    # Many rows in this table can point to one User in the Auth table.
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
-        on_delete=models.SET_NULL, 
+        on_delete=models.SET_NULL, # If the user is deleted, keep the record but set this to NULL.
         null=True, 
         blank=True,
-        related_name="%(class)s_updates"
+        related_name="%(class)s_updates" # Dynamic naming for reverse lookups (e.g., user.company_updates.all())
     )
 
     class Meta:
+        # abstract = True tells Django NOT to create a table for this class.
         abstract = True
 
 def get_tag_path(instance, filename):
-    """Generates the storage path for ESL tag images based on company and store."""
+    """
+    DYNAMIC FILE PATH GENERATOR
+    ---------------------------
+    Determines where an ESL image should be stored on the disk.
+    Organizes files as: /media/<company-slug>/<store-slug>/tag_images/<mac>.bmp
+    This keeps the storage bucket clean and facilitates bulk backups/purges.
+    """
     try:
-        # Prioritize instance.store, fallback to gateway.store
+        # Step 1: Find the store associated with this tag
         store = instance.store
         if not store and instance.gateway:
             store = instance.gateway.store
 
+        # Step 2: Slugify names (removes spaces/special chars) for safe folder names
         company_name = slugify(store.company.name)
         store_name = slugify(store.name)
+
+        # Step 3: Extract file extension (e.g., .bmp)
         ext = os.path.splitext(filename)[1]
+
+        # Step 4: Rename file to the Tag's MAC address (unique identifier)
         new_filename = f"{instance.tag_mac.replace(':', '')}{ext}"
+
+        # Resulting path: 'my-company/store-1/tag_images/AABBCCDDEEFF.bmp'
         return os.path.join(company_name, store_name, 'tag_images', new_filename)
     except Exception:
+        # Fallback for orphaned records
         return os.path.join('tag_images', 'orphaned', filename)
 
 # =================================================================
-# 2. CORE MODELS
+# 2. CORE MODELS (Entity Definitions)
 # =================================================================
 
 class Company(AuditModel):
-    """Represents a client organization that owns one or more stores."""
+    """
+    THE TOP-LEVEL TENANT
+    -------------------
+    Represents the business entity that owns stores.
+    In the data hierarchy, this is the root of most relationships.
+    """
     name = models.CharField(max_length=255)
     owner_name = models.CharField(max_length=255, blank=True, null=True)
     mailing_address = models.TextField(blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tax/VAT ID")
+
+    # Soft Delete / Active State: Instead of deleting rows (which breaks history),
+    # we toggle this boolean to hide records from the UI.
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
+        # This determines how the object is named in the Admin UI and logs.
         return self.name
     
     class Meta:
-        verbose_name_plural = "Companies"
+        verbose_name_plural = "Companies" # Corrects the pluralization in the Admin sidebar
 
     def save(self, *args, **kwargs):
-        """Cascade deactivation to stores if company is deactivated."""
-        if self.pk:
+        """
+        CUSTOM SAVE LOGIC (Interceptor Pattern)
+        ---------------------------------------
+        When a company is deactivated, we want to automatically deactivate
+        all of its stores as well (Cascading Deactivation).
+        """
+        if self.pk: # If the record already exists (has a Primary Key)
             old_instance = Company.objects.get(pk=self.pk)
+            # If it was active and is now being set to inactive:
             if old_instance.is_active and not self.is_active:
+                # Update all related stores in one efficient SQL query
                 self.stores.all().update(is_active=False)
+
+        # Call the original save() to actually write to the database
         super().save(*args, **kwargs)
 
 class User(AbstractUser, AuditModel):
-    """Custom user model supporting multi-tenant access via company and store assignments."""
+    """
+    CUSTOM USER & AUTHENTICATION
+    ----------------------------
+    Extends Django's built-in User with multi-tenant company/store links.
+    """
     company = models.ForeignKey(
         'Company', 
-        on_delete=models.CASCADE, 
+        on_delete=models.CASCADE, # If company is deleted, delete all users in it.
         related_name='users', 
         null=True, 
         blank=True
     )
+
+    # ManyToManyField: Creates a bridge table (Join Table) in the DB.
+    # Allows one user to manage multiple stores, and one store to have multiple managers.
     managed_stores = models.ManyToManyField(
         'Store', 
         blank=True, 
         related_name='managers',
         help_text="The specific stores this user can manage."
     )
+
     ROLE_CHOICES = [
-        ('admin', 'Global Admin'),
-        ('owner', 'Company Owner'),
-        ('manager', 'Store Manager'),
-        ('staff', 'Store Staff'),
+        ('admin', 'Global Admin'),   # Full system access
+        ('owner', 'Company Owner'),  # Access to all company stores
+        ('manager', 'Store Manager'),# Access to assigned stores
+        ('staff', 'Store Staff'),    # Operational access
         ('readonly', 'Read-Only User'),
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='admin')
@@ -102,18 +165,28 @@ class User(AbstractUser, AuditModel):
 # =================================================================
 
 class Store(AuditModel):
-    """Represents a physical retail location."""
+    """
+    THE OPERATIONAL HUB
+    -------------------
+    A physical retail location. Most operational data (Products, Tags, Gateways)
+    is siloed by Store.
+    """
+    # Foreign Key to Company (Many-to-One)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='stores')
     name = models.CharField(max_length=255)
     location_code = models.CharField(max_length=50) 
     is_active = models.BooleanField(default=True)
 
-
     def __str__(self):
         return f"{self.company.name} - {self.name}"
 
 class GlobalSetting(models.Model):
-    """Global configuration parameters for the system."""
+    """
+    SYSTEM CONFIGURATION KEY-VALUE STORE
+    -------------------------------------
+    A simple table for runtime parameters (e.g., 'LOG_RETENTION_DAYS').
+    Similar to an Environment Variables table in a Data Warehouse.
+    """
     key = models.CharField(max_length=100, unique=True)
     value = models.TextField()
     description = models.TextField(blank=True)
@@ -122,23 +195,35 @@ class GlobalSetting(models.Model):
         return self.key
 
 class TagHardware(AuditModel):
-    """Technical specifications for different ESL hardware models."""
+    """
+    HARDWARE SPECIFICATION REGISTRY
+    -------------------------------
+    Acts as a 'Dimension Table' for ESL hardware types.
+    Defines the physical resolution and capabilities of the labels.
+    """
     model_number = models.CharField(max_length=100, unique=True)
-    width_px = models.IntegerField()
-    height_px = models.IntegerField()
+    width_px = models.IntegerField() # e.g. 250px
+    height_px = models.IntegerField() # e.g. 122px
     color_scheme = models.CharField(
         max_length=10, 
         choices=[('BW', 'B&W'), ('BWR', 'BWR'), ('BWRY', 'BWRY')],
         default='BWRY'
     )
-    display_size_inch = models.DecimalField(max_digits=4, decimal_places=2)
+    display_size_inch = models.DecimalField(max_digits=4, decimal_places=2) # e.g. 2.13
 
     def __str__(self):
         return f"{self.model_number}"
 
 class Gateway(AuditModel):
-    """Communication hub that manages a set of ESL tags in a store."""
+    """
+    IOT COMMUNICATION HUB (eStation)
+    --------------------------------
+    Represents the physical base station that communicates with the ESL tags.
+    Every heartbeat or command sent to tags goes through a Gateway.
+    """
+    # Custom Manager for automatic store-level filtering
     objects = StoreManager()
+
     is_active = models.BooleanField(default=True)
     estation_id = models.CharField(max_length=4, unique=True, null=True, blank=True, verbose_name="Gateway ID")
     name = models.CharField(max_length=255, blank=True, null=True, help_text="Logical name for the gateway")
@@ -146,14 +231,16 @@ class Gateway(AuditModel):
     is_online = models.BooleanField(default=False)
     gateway_mac = models.CharField(max_length=100, unique=True, verbose_name="MAC Address")
 
-    # Connection details
+    # Network Connection Details (Source of truth for MQTT handshakes)
     gateway_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Gateway IP")
     app_server_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Application Server IP")
     app_server_port = models.IntegerField(null=True, blank=True, verbose_name="Application Server Port")
 
+    # Gateway Login Credentials
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
 
+    # Hardware Metadata (Updated via MQTT Heartbeats)
     ap_type = models.IntegerField(null=True, blank=True, verbose_name="AP Type")
     ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
     module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Module Version")
@@ -162,13 +249,16 @@ class Gateway(AuditModel):
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
 
+    # Static IP Configuration
     is_auto_ip = models.BooleanField(default=True, verbose_name="Auto IP (DHCP)")
     local_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="Static Local IP")
     netmask = models.GenericIPAddressField(null=True, blank=True, verbose_name="Subnet Mask")
     network_gateway = models.GenericIPAddressField(null=True, blank=True, verbose_name="Network Gateway")
 
+    # Multi-Tenant relationship
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='gateways')
 
+    # Monitoring Timestamps
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     last_successful_heartbeat = models.DateTimeField(null=True, blank=True)
     last_seen = models.DateTimeField(auto_now=True)
@@ -178,7 +268,12 @@ class Gateway(AuditModel):
         return f"{self.estation_id or 'No ID'}{name_str} ({self.store.name if self.store else 'No Store'})"
 
 class Supplier(models.Model):
-    """Supplier info for products, used on ESL tag display."""
+    """
+    PRODUCT SUPPLIER REGISTRY
+    -------------------------
+    Dimension table for brands/suppliers. The abbreviation is often
+    displayed on the ESL tag image.
+    """
     name = models.CharField(max_length=100, unique=True)
     abbreviation = models.CharField(max_length=3, unique=True, help_text="3 character code (e.g., GSC, STM)")
     
@@ -186,13 +281,20 @@ class Supplier(models.Model):
         return f"{self.name} ({self.abbreviation})"
 
 class Product(AuditModel):
-    """Product catalog item for a specific store."""
+    """
+    RETAIL PRODUCT RECORD
+    ---------------------
+    The core business entity. Contains pricing and marketing info
+    that will eventually be rendered onto a physical shelf label.
+    """
     objects = StoreManager()
+
     store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='products')
-    sku = models.CharField(max_length=50)
+    sku = models.CharField(max_length=50) # Stock Keeping Unit (Unique per store)
     name = models.CharField(max_length=255)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2) # Precise financial data
     is_on_special = models.BooleanField(default=False)
+
     preferred_supplier = models.ForeignKey(
         Supplier, 
         on_delete=models.SET_NULL, 
@@ -202,9 +304,17 @@ class Product(AuditModel):
     )
     
     class Meta:
+        # DB-Level Constraint: Prevent two products from having the same SKU in the same Store.
         unique_together = ('sku', 'store')
 
     def __init__(self, *args, **kwargs):
+        """
+        CONSTRUCTOR OVERRIDE
+        --------------------
+        We snapshot the original data when the object is loaded from the DB.
+        This allows us to compare and see IF a field like 'price' actually
+        changed when save() is called.
+        """
         super().__init__(*args, **kwargs)
         self._original_data = {
             'price': self.__dict__.get('price'),
@@ -217,30 +327,40 @@ class Product(AuditModel):
         return f"{self.sku} - {self.name}"
 
     def save(self, *args, **kwargs):
-        """Detection logic to trigger tag image updates only on relevant changes."""
+        """
+        CHANGE DETECTION LOGIC
+        ----------------------
+        We only want to trigger an expensive 'Tag Image Refresh' task
+        if fields that appear on the label (Price, Name, Promo status)
+        have actually been modified.
+        """
         trigger_refresh = False
-        if self.pk:
+        if self.pk: # If updating existing record
             if (self._original_data['price'] != self.price or
                 self._original_data['name'] != self.name or
                 self._original_data['is_on_special'] != self.is_on_special or
                 self._original_data['preferred_supplier_id'] != self.preferred_supplier_id):
                 trigger_refresh = True
-        else:
+        else: # If creating new record
             trigger_refresh = True
 
         super().save(*args, **kwargs)
         
-        # Refactored: Task triggering is now handled exclusively by signals
-        # to prevent redundant task queuing.
-        # if trigger_refresh:
-        #     from .tasks import update_tag_image_task
-        #     for tag in self.esl_tags.all():
-        #         update_tag_image_task.delay(tag.id)
+        # NOTE: Task triggering is handled by 'signals.py' post_save receivers
+        # to keep this model code lean and avoid circular imports.
 
 
 class ESLTag(AuditModel):
-    """Electronic Shelf Label device and its association with a product."""
+    """
+    ELECTRONIC SHELF LABEL (ESL) DEVICE
+    -----------------------------------
+    Represents the physical digital label hardware.
+    This model acts as the 'Mapping Table' between a Product and the
+    Hardware device.
+    """
     objects = StoreManager()
+
+    # Life-cycle states of an ESL Update
     SYNC_STATES = [
         ('IDLE', 'No Pending Tasks'),
         ('PROCESSING', 'Generating Image...'),
@@ -251,14 +371,25 @@ class ESLTag(AuditModel):
         ('PUSH_FAILED', 'Gateway Delivery Failed'),
         ('FAILED', 'General Failure'),
     ]
+
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='esl_tags', null=True)
+
+    # Logical Binding: Which gateway should this tag talk to?
     gateway = models.ForeignKey(Gateway, on_delete=models.SET_NULL, related_name='tags', null=True, blank=True)
     last_successful_gateway_id = models.CharField(max_length=4, blank=True, null=True, verbose_name="Last Successful Gateway ID")
+
+    # The physical Hardware ID (MAC Address)
     tag_mac = models.CharField(max_length=50, verbose_name="Tag ID/MAC")
+
+    # Link to hardware specs (Width/Height)
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
+
+    # PRODUCT PAIRING: This is the 'Logic Link' that determines what content is on the tag.
     paired_product = models.ForeignKey(
         Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='esl_tags'
     )
+
+    # Image Management
     tag_image = models.ImageField(
         upload_to=get_tag_path, 
         storage=OverwriteStorage(),
@@ -267,18 +398,23 @@ class ESLTag(AuditModel):
     )
     last_image_gen_success = models.DateTimeField(null=True, blank=True)
     sync_state = models.CharField(max_length=20, choices=SYNC_STATES, default='IDLE')
+
+    # Background Task Tracking (for Celery)
     last_image_task_id = models.CharField(max_length=255, null=True, blank=True)
     last_image_task_token = models.IntegerField(null=True, blank=True)
 
+    # Hardware Status (Telemetery)
     battery_level = models.IntegerField(default=100)
     aisle = models.CharField(max_length=20, blank=True, null=True)
     section = models.CharField(max_length=20, blank=True, null=True)
     shelf_row = models.CharField(max_length=20, blank=True, null=True)
 
+    # Visual Layout
     TEMPLATE_CHOICES = [(1, 'Standard (V1)'), (2, 'Promo (V2)'), (3, 'Modern (V3)')]
     template_id = models.IntegerField(choices=TEMPLATE_CHOICES, default=1)
 
     def __init__(self, *args, **kwargs):
+        # Snapshot state for change detection (same pattern as Product model)
         super().__init__(*args, **kwargs)
         self._original_data = {
             'paired_product_id': self.__dict__.get('paired_product_id'),
@@ -287,16 +423,28 @@ class ESLTag(AuditModel):
         }
 
     def clean(self):
+        """
+        MODEL VALIDATION
+        ----------------
+        Enforces business rules at the application level before saving to DB.
+        Ensures a Tag and its Gateway/Product all belong to the same Store.
+        """
         if self.gateway and self.store and self.gateway.store != self.store:
             raise ValidationError("Gateway Mismatch: Gateway must belong to the same store as the Tag.")
         if self.paired_product and self.store and self.store != self.paired_product.store:
             raise ValidationError("Store Mismatch: Product and Tag must be in the same store.")
 
     def save(self, *args, **kwargs):
-        """Triggers image generation on pairing or template changes."""
+        """
+        AUTO-LOGIC ON SAVE
+        ------------------
+        Ensures data integrity (Store inheritance) and detects pairing changes.
+        """
+        # Rule: If a tag is assigned to a gateway, it must inherit that gateway's store.
         if self.gateway and not self.store:
             self.store = self.gateway.store
 
+        # Detect changes that require a physical refresh of the ESL screen.
         trigger_refresh = False
         if self.pk:
             if (self._original_data['paired_product_id'] != self.paired_product_id or
@@ -307,39 +455,40 @@ class ESLTag(AuditModel):
             if self.paired_product_id:
                 trigger_refresh = True
 
+        # Run full_clean() manually as Django models don't call it automatically on save()
         self.full_clean()
         super().save(*args, **kwargs)
-
-        # Refactored: Task triggering is now handled exclusively by signals
-        # to prevent redundant task queuing.
-        # if trigger_refresh:
-        #     from .tasks import update_tag_image_task
-        #     update_tag_image_task.delay(self.id)
 
     def __str__(self):
         return f"{self.tag_mac} ({self.store.name if self.store else 'No Store'}) -> {self.paired_product.name if self.paired_product else 'Unpaired'}"
 
     class Meta:
+        # Constraint: MAC addresses are unique only within a Store (Physical tagging rule)
         unique_together = ('tag_mac', 'store')
         verbose_name = "ESL Tag"
         verbose_name_plural = "ESL Tags"
 
 
 class MQTTMessage(models.Model):
-    """Logs communication between the system and ESL gateways."""
+    """
+    COMMUNICATION LOG (EVENT LOG)
+    -----------------------------
+    A 'Fact Table' capturing every single packet sent or received from the Gateways.
+    Crucial for auditing and troubleshooting hardware connectivity.
+    """
     DIRECTION_CHOICES = [('sent', 'Sent'), ('received', 'Received')]
 
     timestamp = models.DateTimeField(auto_now_add=True)
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     estation_id = models.CharField(max_length=50, verbose_name="Gateway ID")
     topic = models.CharField(max_length=255)
-    data = models.TextField(help_text="JSON payload")
+    data = models.TextField(help_text="JSON payload") # Stores the raw message body
     is_success = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "MQTT Message"
         verbose_name_plural = "MQTT Messages"
-        ordering = ['-timestamp']
+        ordering = ['-timestamp'] # Newest first
 
     def __str__(self):
         return f"{self.direction.upper()} | {self.estation_id} | {self.topic} | {self.timestamp}"

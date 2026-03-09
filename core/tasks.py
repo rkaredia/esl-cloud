@@ -12,16 +12,39 @@ from .models import ESLTag, Store, Gateway, GlobalSetting, MQTTMessage
 from .utils import generate_esl_image
 from .mqtt_client import mqtt_service
 
+"""
+CELERY BACKGROUND TASKS
+-----------------------
+In SAIS, expensive or time-consuming operations (like generating images
+or talking to hardware) are moved to the 'Background'.
+
+Why use Celery?
+- If a user updates a price, the website shouldn't "hang" while waiting
+  for an image to be generated and sent to a physical tag.
+- Tasks are added to a 'Queue' (Redis) and processed by 'Workers'.
+- This allows the system to handle thousands of updates simultaneously
+  without slowing down the Admin UI.
+"""
+
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, name="core.tasks.update_tag_image_task")
 def update_tag_image_task(self, tag_id):
     """
-    STAGE 1: Generate and Store.
-    Renders the ESL BMP image and saves it to the storage system.
+    STAGE 1: IMAGE GENERATION
+    -------------------------
+    This task creates the physical BMP file that will be displayed on the tag.
+
+    EDUCATIONAL: 'shared_task' makes this function available to Celery.
+    'bind=True' gives us access to 'self' (the task instance).
     """
     try:
+        # Small random delay to prevent 'Thundering Herd' (too many tasks hitting
+        # the DB at the exact same microsecond during bulk imports).
         time.sleep(random.uniform(0, 0.1))
+
+        # DISTRIBUTED LOCKING:
+        # Prevents two workers from generating the same image at the same time.
         lock_id = f"lock-tag-gen-{tag_id}"
         if not cache.add(lock_id, self.request.id, 30):
             logger.info(f"Aborting duplicate task for Tag {tag_id}. Lock held.")
@@ -29,18 +52,16 @@ def update_tag_image_task(self, tag_id):
 
         logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id}")
 
-        # Bolt: Prefetch nested relationships to avoid N+1 queries during image storage path
-        # calculation (upload_to) and model validation.
-        # Prefetch everything needed for image generation AND storage path calculation
+        # DATA PREFETCHING:
+        # select_related performs a SQL JOIN to get related data (Company, Store, Product)
+        # in a single query rather than multiple individual queries.
         tag = ESLTag.objects.select_related(
             'hardware_spec',
             'paired_product__preferred_supplier',
             'gateway__store__company'
         ).get(pk=tag_id)
-        # Bolt: Use direct .update() to bypass heavy model validation (full_clean)
-        # and redundant queries triggered by instance.save().
 
-        # Use .update() for state changes to bypass full_clean() and redundant queries
+        # Update status to 'PROCESSING' in the DB
         ESLTag.objects.filter(pk=tag_id).update(sync_state='PROCESSING')
 
         if not tag.paired_product:
@@ -48,7 +69,7 @@ def update_tag_image_task(self, tag_id):
             cache.delete(lock_id)
             return "Skipped: No product"
 
-        # Image Generation
+        # CALL UTILS: Render the actual BMP image using Pillow (PIL)
         try:
             pil_img = generate_esl_image(tag_id, tag_instance=tag)
             if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
@@ -58,12 +79,14 @@ def update_tag_image_task(self, tag_id):
             cache.delete(lock_id)
             return f"Generation Failed: {str(e)}"
 
-        # Save to Storage
+        # SAVE TO DISK:
+        # Write the image to a memory buffer, then save it to Django's storage system.
         buf = io.BytesIO()
         pil_img.save(buf, format='BMP')
         filename = f"{tag.tag_mac.replace(':', '')}_{int(time.time())}.bmp"
         tag.tag_image.save(filename, ContentFile(buf.getvalue()), save=False)
 
+        # UPDATE DB: Record that the image is ready for delivery.
         now = timezone.now()
         ESLTag.objects.filter(pk=tag_id).update(
             tag_image=tag.tag_image.name,
@@ -72,6 +95,7 @@ def update_tag_image_task(self, tag_id):
             last_image_task_id=self.request.id
         )
         
+        # CHAINING: Trigger the next stage (MQTT Delivery)
         dispatch_tag_image_task.delay(tag_id)
         return f"BMP Generated for {tag.tag_mac}"
 
@@ -84,9 +108,10 @@ def update_tag_image_task(self, tag_id):
 @shared_task(name="core.tasks.dispatch_tag_image_task")
 def dispatch_tag_image_task(tag_id):
     """
-    STAGE 2: MQTT Communication.
-    Publishes the generated image to the physical ESL gateway.
-    Implements a failover rotation strategy.
+    STAGE 2: HARDWARE PUSH (MQTT)
+    -----------------------------
+    Takes the BMP generated in Stage 1 and sends it to the physical gateway.
+    Includes 'Failover' logic to try multiple gateways if one is offline.
     """
     lock_id = f"lock-tag-gen-{tag_id}"
     try:
@@ -97,18 +122,18 @@ def dispatch_tag_image_task(tag_id):
             cache.delete(lock_id)
             return "No image to push"
 
-        # 1. Build list of potential gateways to try (Rotation Strategy)
+        # FAILOVER ROTATION STRATEGY:
+        # 1. Try the gateway that succeeded last time.
+        # 2. Try the gateway currently assigned in the Admin.
+        # 3. Try ANY other online gateway in the same store.
         gateways_to_try = []
 
-        # Primary: Last successful gateway
         if tag.last_successful_gateway_id:
             gateways_to_try.append(tag.last_successful_gateway_id)
 
-        # Secondary: Currently assigned/preferred gateway
         if tag.gateway and tag.gateway.estation_id and tag.gateway.estation_id not in gateways_to_try:
             gateways_to_try.append(tag.gateway.estation_id)
 
-        # Fallback: Any other online gateway in the same store
         online_gateways = list(Gateway.objects.filter(
             store=tag.store,
             is_online=True
@@ -123,17 +148,21 @@ def dispatch_tag_image_task(tag_id):
             cache.delete(lock_id)
             return "No online gateways found for store"
 
+        # READ BMP: Load the file from disk into memory
         with tag.tag_image.open('rb') as f:
             image_bytes = f.read()
 
+        # Generate a unique 'Token' for this specific hardware transaction.
+        # The gateway will send this back in the result so we know WHICH update finished.
         token = random.randint(1, 255)
 
-        # 2. Iterate through gateways until one succeeds
+        # DELIVERY LOOP: Try each gateway until one accepts the message.
         for gateway_id in gateways_to_try:
             logger.info(f"Attempting update for {tag.tag_mac} via gateway {gateway_id}")
             success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
 
             if success:
+                # MARK AS PUSHED: We now wait for the '/result' MQTT message to mark it SUCCESS.
                 ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
                 cache.delete(lock_id)
                 return f"MQTT Pushed via {gateway_id}"
@@ -153,11 +182,14 @@ def dispatch_tag_image_task(tag_id):
 
 @shared_task(name="core.tasks.refresh_store_products_task")
 def refresh_store_products_task(store_id):
-    """Refreshes all tags for a specific store."""
+    """
+    BULK REFRESH
+    ------------
+    Queues an update for EVERY tag in a specific store.
+    Useful after a template change or a bulk import.
+    """
     try:
-        # Bolt: Optimization - Use .values_list('id', flat=True) to avoid instantiating full model objects.
-        # This significantly reduces memory usage and DB payload for stores with thousands of tags.
-        # We use list() to evaluate the queryset once and then use len() to avoid a redundant COUNT query.
+        # Use .values_list('id') to get only IDs (very fast, low memory).
         tag_ids = list(ESLTag.objects.filter(
             gateway__store_id=store_id,
             paired_product__isnull=False
@@ -174,11 +206,13 @@ def refresh_store_products_task(store_id):
 @shared_task(name="core.tasks.check_gateways_status_task")
 def check_gateways_status_task():
     """
-    Checks all gateways and marks them offline if they haven't sent a heartbeat within the timeout window.
-    Runs every minute (configured in Celery Beat).
+    HEALTH MONITORING (Heartbeat Check)
+    -----------------------------------
+    Runs every minute via Celery Beat (Scheduled Task).
+    If a gateway hasn't sent a heartbeat in X minutes, mark it 'Offline'.
     """
     try:
-        # Get settings or defaults
+        # Load timeout thresholds from Global Settings
         default_interval = int(GlobalSetting.objects.filter(key='DEFAULT_HEARTBEAT_INTERVAL').values_list('value', flat=True).first() or 300)
         multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
 
@@ -205,18 +239,21 @@ def check_gateways_status_task():
 @shared_task(name="core.tasks.cleanup_old_logs_task")
 def cleanup_old_logs_task():
     """
-    Deletes MQTT logs (files and DB) and system logs older than retention period.
+    DATA HOUSEKEEPING
+    -----------------
+    Deletes old MQTT messages and log files to keep the database
+    and disk from filling up. Retention is usually 15-30 days.
     """
     try:
         from django.conf import settings
         import time
 
-        # 1. Database Cleanup
+        # 1. Database Purge
         retention_days = int(GlobalSetting.objects.filter(key='LOG_RETENTION_DAYS').values_list('value', flat=True).first() or 15)
         cutoff = timezone.now() - timezone.timedelta(days=retention_days)
         db_count, _ = MQTTMessage.objects.filter(timestamp__lt=cutoff).delete()
 
-        # 2. File Cleanup
+        # 2. File Purge
         log_dirs = [
             os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'received'),
             os.path.join(settings.BASE_DIR, 'logs', 'mqtt', 'sent'),
@@ -234,7 +271,7 @@ def cleanup_old_logs_task():
                 filepath = os.path.join(directory, f)
                 if not os.path.isfile(filepath): continue
 
-                # Check age
+                # Delete files older than retention_days
                 if os.stat(filepath).st_mtime < now - (retention_days * 86400):
                     os.remove(filepath)
                     count_deleted += 1

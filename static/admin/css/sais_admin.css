@@ -1,17 +1,27 @@
-/* static/admin/css/sais_admin.css */
+/*
+   SAIS GLOBAL DESIGN SYSTEM
+   -------------------------
+   This stylesheet defines the visual identity of the SAIS platform.
+   It uses CSS Variables (:root) for consistent colors across the UI.
+*/
 
 :root {
+    /* PRIMARY PALETTE */
+    --navy: #003459;        /* Main brand color (Headers, buttons) */
+    --dark-navy: #00171F;   /* Deep accents */
+    --azure: #C7EFFF;       /* Highlight background (Badges) */
+    --primary-blue: #2563eb;/* Functional blue (Links, sync buttons) */
+    --primary-hover: #1d4ed8;
+
+    /* UI NEUTRALS */
     --bg-sidebar: #f1f5f9;
-    --navy: #003459;
-    --dark-navy: #00171F;
-    --azure: #C7EFFF;
     --white: #ffffff;
     --light-gray: #f1f5f9;
-    --primary-blue: #2563eb;
-    --primary-hover: #1d4ed8;
 }
 
-/* Base layout adjustments */
+/* 1. BRANDED HEADER
+   Overrides the standard gray Django header with SAIS Navy.
+*/
 #header {
     background: var(--navy);
     border-bottom: 3px solid var(--light-gray);
@@ -21,7 +31,10 @@
     color: var(--white) !important;
 }
 
-/* Table responsiveness and Horizontal Scrolling */
+/* 2. RESPONSIVE DATA TABLES
+   Ensures large product tables can scroll horizontally without
+   breaking the page layout.
+*/
 .results {
     overflow-x: auto !important;
     width: 100% !important;
@@ -33,12 +46,15 @@
 #result_list {
     width: max-content !important;
     min-width: 100%;
-    table-layout: fixed; /* Necessary for resizing */
+    table-layout: fixed; /* Fixed layout is required for JS column resizing */
 }
 
+/* 3. TABLE CELL STYLING
+   Enforces clean alignment and prevents text wrapping for a "spreadsheet" feel.
+*/
 #result_list th, #result_list td {
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: ellipsis; /* Adds '...' if text is too long */
     white-space: nowrap;
     padding: 4px 10px;
     border-bottom: 1px solid #eee;
@@ -55,23 +71,10 @@
     height: 36px;
 }
 
-/* Checkbox Alignment */
-.action-checkbox-column, .action-checkbox {
-    width: 40px !important;
-    padding: 4px 0 !important;
-    text-align: center !important;
-}
-
-.action-checkbox input {
-    margin: 0 !important;
-    vertical-align: middle;
-}
-
-/* Resize handles */
-#result_list th {
-    position: relative;
-}
-
+/* 4. COLUMN RESIZER HANDLES
+   These invisible bars sit on the edge of every table header.
+   The JS in sais_admin.js uses these for dragging.
+*/
 .resizer {
     position: absolute;
     right: 0;
@@ -87,31 +90,14 @@
     background: var(--primary-blue);
 }
 
-/* Filter Toggling */
-#changelist-filter {
-    transition: width 0.3s ease;
-}
-
-.filter-hidden #changelist-filter {
-    display: none !important;
-}
-
-.filter-hidden #changelist {
-    display: block !important;
-}
-
-#changelist-wrapper {
-    width: 100%;
-}
-
-/* Dashboard & Cards (from core/admin.py) */
+/* 5. DASHBOARD GRID & CARDS
+   Layout rules for the Analytics Dashboard widgets.
+*/
 .dashboard-grid {
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
     gap: 1.5rem !important;
     padding: 1.5rem !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
 }
 
 .stat-card {
@@ -120,39 +106,23 @@
     border-radius: 8px !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
     border: 1px solid #e2e8f0 !important;
-    min-height: 120px !important;
 }
 
-.stat-card h3 {
-    margin: 0 0 0.5rem 0 !important;
-    font-size: 0.75rem !important;
-    color: #64748b !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-}
-
-.stat-card .value {
-    font-size: 2rem !important;
-    font-weight: 800 !important;
-    color: #1e293b !important;
-    line-height: 1 !important;
-}
-
-/* Navigation & Sidebar icons */
+/* 6. SIDEBAR CUSTOMIZATION
+   Changes the look of the sidebar section headers.
+*/
 #nav-sidebar .section {
     color: var(--white) !important;
     background: #417690 !important;
-    margin: 0 !important;
-    display: flex;
-    align-items: center;
-    border: none !important;
     padding: 10px 15px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
 }
 
-/* Action Buttons */
+/* 7. PILL BUTTONS
+   Gives standard Django 'Add' buttons a modern, rounded look.
+*/
 .object-tools a, .addlink {
     background-color: var(--navy) !important;
     color: var(--white) !important;
@@ -162,38 +132,9 @@
     font-size: 11px;
     font-weight: bold;
     text-decoration: none;
-    background-image: none !important; /* Remove the + icon */
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
 }
 
 .object-tools a:hover, .addlink:hover {
     background-color: #00A8E8 !important;
 }
-
-/* Remove default Django icons */
-.addlink::before, .changelink::before, .deletelink::before, .viewlink::before {
-    display: none !important;
-}
-
-/* Remove related field controls (add, change, delete, view) in list views */
-#result_list .related-widget-wrapper-link {
-    display: none !important;
-}
-
-#result_list .related-lookup {
-    display: none !important;
-}
-
-/* Filter Toggle Button */
-#filter-toggle-btn {
-    margin-right: 10px;
-    cursor: pointer;
-    background: #64748b;
-}
-
-/* Custom Status Styles */
-.sync-success { color: #059669; font-weight: bold; }
-.sync-pending { color: #ea580c; font-style: italic; }

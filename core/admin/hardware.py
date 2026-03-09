@@ -11,19 +11,46 @@ from ..tasks import update_tag_image_task
 import time
 import logging
 
+"""
+HARDWARE & CONNECTIVITY ADMIN
+-----------------------------
+This module provides the management interface for the physical IOT devices:
+Gateways (eStations), Tag Hardware specs, and the ESL Tags themselves.
+
+Features:
+- REAL-TIME STATUS: Visual indicators showing if a gateway is online.
+- REMOTE CONFIG: Buttons to push network settings to gateways via MQTT.
+- TAG MONITORING: Tracking battery levels and sync states for every label.
+- BULK PAIRING: Custom view for mapping products to tags using a barcode scanner.
+"""
+
 logger = logging.getLogger(__name__)
 
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
-    """Admin for Managing ESL Gateways."""
-    list_display = ('status_indicator', 'estation_id', 'name', 'alias', 'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat', 'configure_link')
+    """
+    GATEWAY (eSTATION) MANAGEMENT
+    -----------------------------
+    Used to track the physical base stations.
+    Note: Many fields are 'Read-Only' because they are updated automatically
+    via MQTT heartbeats from the hardware.
+    """
+    list_display = (
+        'status_indicator', 'estation_id', 'name', 'alias',
+        'gateway_mac', 'gateway_ip', 'store', 'last_heartbeat',
+        'configure_link'
+    )
     list_editable = ('name',)
+
+    # These fields are technical telemetry and shouldn't be edited by hand.
     readonly_fields = (
-        'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat', 'last_successful_heartbeat',
-        'last_seen', 'created_at', 'updated_at', 'updated_by', 'ap_type', 'ap_version',
+        'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
+        'last_successful_heartbeat', 'last_seen', 'created_at',
+        'updated_at', 'updated_by', 'ap_type', 'ap_version',
         'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
     )
 
+    # Organized layout for the detailed edit page
     fieldsets = (
         ('General', {'fields': ('estation_id', 'name', 'alias', 'store')}),
         ('Technical', {'fields': (
@@ -32,7 +59,7 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         )}),
         ('Credentials', {'fields': ('username', 'password')}),
         ('Network Settings', {
-            'classes': ('collapse',),
+            'classes': ('collapse',), # Collapsed by default to hide complexity
             'fields': ('is_auto_ip', 'local_ip', 'netmask', 'network_gateway', 'is_encrypt_enabled')
         }),
         ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
@@ -40,85 +67,87 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     )
 
     def status_indicator(self, obj):
+        """Visual Dot showing online status."""
         color = "#059669" if obj.is_online else "#dc2626"
         text = "Online" if obj.is_online else "Offline"
         return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
     status_indicator.short_description = "Status"
 
     def configure_link(self, obj):
+        """Link to the 'Remote Config' page for this gateway."""
         if not obj.estation_id: return "-"
         url = reverse('admin:gateway-configure', args=[obj.pk])
         return format_html('<a class="button" href="{}">⚙ Config</a>', url)
     configure_link.short_description = "Configuration"
 
+    # PERMISSION OVERRIDES:
+    # Only superusers can see credentials or perform destructive actions.
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
         if not request.user.is_superuser:
-            if 'password' in fields:
-                fields.remove('password')
-            if 'username' in fields:
-                fields.remove('username')
+            fields = [f for f in fields if f not in ['password', 'username']]
         return fields
 
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        if not request.user.is_superuser:
-            # Filter out the Credentials section or just password
-            new_fieldsets = []
-            for name, options in fieldsets:
-                if name == 'Credentials':
-                    # If not superuser, we might want to hide it entirely or just the password field
-                    # For now, let's hide the whole section if it contains sensitive info
-                    continue
-                new_fieldsets.append((name, options))
-            return new_fieldsets
-        return fieldsets
-
     def has_change_permission(self, request, obj=None):
-        if not request.user.is_superuser:
-            return False
-        return super().has_change_permission(request, obj)
+        return request.user.is_superuser
 
     def has_add_permission(self, request):
-        if not request.user.is_superuser:
-            return False
-        return super().has_add_permission(request)
-
-    def has_delete_permission(self, request, obj=None):
-        if not request.user.is_superuser:
-            return False
-        return super().has_delete_permission(request, obj)
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        # Check superuser for delete action
-        if not request.user.is_superuser:
-            if 'delete_selected' in actions:
-                del actions['delete_selected']
-        return actions
+        return request.user.is_superuser
 
 @admin.register(TagHardware, site=admin_site)
 class TagHardwareAdmin(admin.ModelAdmin):
-    """Admin for Hardware specifications (Screen size, color, etc)."""
-    list_display = ('model_number', 'width_px', 'height_px', 'color_scheme', 'display_size_inch', 'created_at', 'updated_at', 'updated_by')
+    """
+    HARDWARE DICTIONARY
+    -------------------
+    Defines physical specs like '2.13 inch' or 'BWR color'.
+    """
+    list_display = ('model_number', 'width_px', 'height_px', 'color_scheme', 'display_size_inch')
     readonly_fields = ('updated_at', 'updated_by')
-    def has_change_permission(self, request, obj=None): return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 @admin.register(ESLTag, site=admin_site)
 class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
-    """Admin for individual ESL Tags and their mapping to products."""
+    """
+    ESL TAG REGISTRY (THE LABELS)
+    -----------------------------
+    The most used page in the system. It links Products to MAC addresses.
+    """
     change_list_template = "admin/core/esltag/change_list.html"
-    list_display = ('image_status', 'tag_mac', 'paired_product', 'last_sync_status', 'battery_level_display', 'hardware_spec', 'template_id', 'gateway', 'last_successful_gateway_id', 'sync_button', 'aisle', 'section', 'shelf_row', 'updated_at', 'created_at', 'updated_by')
+
+    list_display = (
+        'image_status', 'tag_mac', 'paired_product', 'last_sync_status',
+        'battery_level_display', 'hardware_spec', 'template_id', 'gateway',
+        'last_successful_gateway_id', 'sync_button', 'aisle', 'section',
+        'shelf_row', 'updated_at'
+    )
+
+    # SKU/Name search for quick finding
     search_fields = ('tag_mac', 'paired_product__name', 'paired_product__sku')
+
+    # Rapid data entry: Edit location and pairing directly in the list
     list_editable = ('paired_product', 'template_id', 'aisle', 'section', 'shelf_row')
+
+    # Filters on the right sidebar
     list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
+
+    # UI Enhancement: Search-as-you-type for product pairing
     autocomplete_fields = ['paired_product']
-    readonly_fields = ('get_paired_info', 'image_preview_large', 'sync_state', 'last_image_gen_success', 'last_image_task_id', 'audit_log_link', 'updated_at', 'updated_by', 'created_at', 'last_successful_gateway_id', 'gateway')
+
+    readonly_fields = (
+        'get_paired_info', 'image_preview_large', 'sync_state',
+        'last_image_gen_success', 'last_image_task_id', 'audit_log_link',
+        'updated_at', 'updated_by', 'created_at', 'last_successful_gateway_id', 'gateway'
+    )
 
     fieldsets = (
         ('Hardware', {'fields': ('tag_mac', 'gateway', 'last_successful_gateway_id', 'hardware_spec', 'battery_level')}),
         ('Pairing', {'description': 'Search for a product by SKU or Name below.', 'fields': ('paired_product',)}),
-        ('Visuals', {'fields': ('template_id', 'image_preview_large', 'last_image_gen_success', 'sync_state', 'last_image_task_id', 'audit_log_link')}),
+        ('Visuals', {'fields': (
+            'template_id', 'image_preview_large', 'last_image_gen_success',
+            'sync_state', 'last_image_task_id', 'audit_log_link'
+        )}),
         ('Location', {'fields': ('aisle', 'section', 'shelf_row')}),
         ('Audit', {'fields': ('updated_by', 'updated_at', 'created_at')}),
     )
@@ -126,6 +155,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
 
     def image_status(self, obj):
+        """Visual status indicator for image generation."""
         try:
             if not obj.paired_product: return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
             color = "#059669" if obj.tag_image else "#ea580c"
@@ -135,6 +165,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     image_status.admin_order_field = 'tag_image'
 
     def get_paired_info(self, obj):
+        """Formatted product info for read-only displays."""
         try:
             if obj.paired_product: return f"{obj.paired_product.sku} - {obj.paired_product.name}"
             return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
@@ -143,8 +174,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     get_paired_info.admin_order_field = 'paired_product__name'
 
     def last_sync_status(self, obj):
+        """Visual status of the last hardware update."""
         try:
-            color_map = {'SUCCESS': '#059669', 'PROCESSING': '#2563eb', 'PUSHED': '#7c3aed', 'IDLE': '#a2a2a3', 'GEN_FAILED': '#f50000', 'PUSH_FAILED': '#f50000', 'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000'}
+            color_map = {
+                'SUCCESS': '#059669', 'PROCESSING': '#2563eb', 'PUSHED': '#7c3aed',
+                'IDLE': '#a2a2a3', 'GEN_FAILED': '#f50000', 'PUSH_FAILED': '#f50000',
+                'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000'
+            }
             color = color_map.get(obj.sync_state, '#ea580c')
             status_text = obj.get_sync_state_display()
             if obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
@@ -155,6 +191,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     last_sync_status.admin_order_field = 'sync_state'
 
     def battery_level_display(self, obj):
+        """Renders a visual progress bar for battery life."""
         try:
             val = obj.battery_level or 0
             color = "#059669" if val > 20 else "#dc2626"
@@ -170,20 +207,49 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     battery_level_display.admin_order_field = 'battery_level'
 
     def image_preview_large(self, obj):
+        """Shows the actual BMP image that is currently on the tag."""
         try:
             if not obj.paired_product: return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
-            if obj.tag_image: return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
+            if obj.tag_image:
+                return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
             return "Waiting for background generation..."
         except: return "Error loading image"
     image_preview_large.short_description = "Current Tag Image"
 
     def audit_log_link(self, obj):
+        """Link to the Celery Task record for debugging generation failures."""
         try:
             if not obj.last_image_task_id: return "No task record"
             url = reverse('admin:django_celery_results_taskresult_changelist') + f"?task_id={obj.last_image_task_id}"
             return format_html('<a href="{}" target="_blank">View Task Results ↗</a>', url)
         except: return obj.last_image_task_id
     audit_log_link.short_description = "Audit Trail"
+
+    # CUSTOM VIEW METHODS
+    def manual_sync_view(self, request, object_id):
+        """Logic for the 'Sync' button in the list view."""
+        if not self.get_queryset(request).filter(pk=object_id).exists():
+            messages.error(request, "Permission denied.")
+            return redirect('admin:index')
+
+        update_tag_image_task.delay(object_id) # Queue the task
+        messages.success(request, "Sync task queued.")
+        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
+
+    def get_urls(self):
+        """Register auxiliary URLs for templates, imports, and manual sync."""
+        return [
+            path('download-template/', self.admin_site.admin_view(download_tag_template), name='download_tag_template'),
+            path('bulk-map/', self.admin_site.admin_view(bulk_map_tags_view), name='bulk-map-tags'),
+            path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
+            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
+            path('<path:gateway_id>/configure/', self.admin_site.admin_view(configure_gateway_view), name='gateway-configure'),
+        ] + super().get_urls()
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions: del actions['delete_selected']
+        return actions
 
     @admin.action(description="Regenerate selected (Max 100)")
     def safe_regenerate_images(self, request, queryset):
@@ -246,38 +312,3 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         except Exception as e:
             logger.exception("Error in set_template_v2")
             self.message_user(request, "Error updating templates.", messages.ERROR)
-
-    def manual_sync_view(self, request, object_id):
-        """
-        Triggers a manual sync for a specific tag.
-        Security: Verifies that the tag belongs to the user's authorized queryset to prevent IDOR.
-        """
-        try:
-            # Security: Ensure the user has permission to sync THIS specific tag
-            if not self.get_queryset(request).filter(pk=object_id).exists():
-                messages.error(request, "Permission denied or tag not found.")
-                return redirect('admin:index')
-
-            update_tag_image_task.delay(object_id)
-            messages.success(request, "Sync task queued.")
-        except Exception as e:
-            logger.exception(f"Manual sync failed for {object_id}")
-            messages.error(request, "Failed to queue sync.")
-        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
-
-    def get_urls(self):
-        return [
-            path('download-template/', self.admin_site.admin_view(download_tag_template), name='download_tag_template'),
-            path('bulk-map/', self.admin_site.admin_view(bulk_map_tags_view), name='bulk-map-tags'),
-            path('import-preview/', self.admin_site.admin_view(preview_tag_import), name='preview_tag_import'),
-            path('<path:object_id>/sync/', self.admin_site.admin_view(self.manual_sync_view), name='sync-tag-manual'),
-            path('<path:gateway_id>/configure/', self.admin_site.admin_view(configure_gateway_view), name='gateway-configure'),
-        ] + super().get_urls()
-
-    def changelist_view(self, request, extra_context=None):
-        return super().changelist_view(request, extra_context=extra_context)
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if 'delete_selected' in actions: del actions['delete_selected']
-        return actions
