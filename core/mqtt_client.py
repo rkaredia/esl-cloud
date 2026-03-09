@@ -227,40 +227,77 @@ class ESLMqttClient:
     def handle_tag_heartbeat(self, estation_id, data):
         """Updates tag mapping and battery based on tag heartbeat messages. Supports Auto-Discovery."""
         try:
-            # Expected JSON: {"Tags":[{"TagId":"...","Battery":30,...}],...}
+            # Bolt: Optimized with bulk operations and in-memory lookups.
+            # Reduces O(N) database queries to O(1) bulk operations.
+
             tags_list = data.get('Tags', [])
-            gateway = Gateway.objects.filter(estation_id=estation_id).first()
+            if not tags_list:
+                return
+
+            gateway = Gateway.objects.filter(estation_id=estation_id).select_related('store').first()
+            if not gateway:
+                logger.error(f"Received tag heartbeat from unknown gateway {estation_id}")
+                return
+
+            incoming_macs = [t.get('TagId') for t in tags_list if t.get('TagId')]
+            if not incoming_macs:
+                return
+
+            # Prefetch existing tags in bulk
+            existing_tags = {t.tag_mac: t for t in ESLTag.objects.filter(tag_mac__in=incoming_macs)}
+
+            from .models import TagHardware
+            default_hw = None
+
+            tags_to_update = {} # Use dict for deduplication
+            tags_to_create = {} # Use dict for deduplication
+            now = timezone.now()
+            default_hw_queried = False
 
             for tag_data in tags_list:
                 tag_mac = tag_data.get('TagId')
                 battery = tag_data.get('Battery')
+                if not tag_mac:
+                    continue
 
-                if not tag_mac: continue
-
-                # Update existing or create new tag (Auto-discovery)
-                tag = ESLTag.objects.filter(tag_mac=tag_mac).first()
+                tag = existing_tags.get(tag_mac)
                 if tag:
+                    # Update existing tag
                     tag.last_successful_gateway_id = estation_id
                     tag.battery_level = battery
-                    # Do not overwrite gateway/store if already set and valid
-                    if not tag.store and gateway:
-                        tag.store = gateway.store
-                    tag.save(update_fields=['last_successful_gateway_id', 'battery_level', 'store', 'updated_at'])
-                elif gateway:
-                    # Discover new tag
-                    # Use a default hardware spec for auto-discovered tags if none exists
-                    from .models import TagHardware
-                    default_hw = TagHardware.objects.first()
+                    tag.updated_at = now # Manual update for bulk_update
 
-                    ESLTag.objects.create(
+                    if not tag.store:
+                        tag.store = gateway.store
+
+                    tags_to_update[tag_mac] = tag
+                else:
+                    # Discover new tag
+                    if default_hw is None and not default_hw_queried:
+                        default_hw = TagHardware.objects.first()
+                        default_hw_queried = True
+
+                    tags_to_create[tag_mac] = ESLTag(
                         tag_mac=tag_mac,
                         battery_level=battery,
                         last_successful_gateway_id=estation_id,
                         store=gateway.store,
                         sync_state='IDLE',
-                        hardware_spec=default_hw
+                        hardware_spec=default_hw,
+                        created_at=now,
+                        updated_at=now
                     )
-                    logger.info(f"Auto-discovered new tag {tag_mac} via gateway {estation_id}")
+
+            # Perform bulk operations
+            if tags_to_update:
+                ESLTag.objects.bulk_update(
+                    tags_to_update.values(),
+                    ['last_successful_gateway_id', 'battery_level', 'store', 'updated_at']
+                )
+
+            if tags_to_create:
+                ESLTag.objects.bulk_create(tags_to_create.values())
+                logger.info(f"Auto-discovered {len(tags_to_create)} new tags via gateway {estation_id}")
 
         except Exception:
             logger.exception(f"Error handling tag heartbeat for gateway {estation_id}")

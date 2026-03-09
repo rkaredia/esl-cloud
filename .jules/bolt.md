@@ -13,3 +13,7 @@
 ## 2026-03-08 - [Redundant Task Triggering and Initialization Recursion]
 **Learning:** Having task triggering logic in both model `.save()` and `post_save` signals causes $2N$ tasks to be queued for every save. Additionally, accessing fields in `__init__` snapshots can trigger lazy-loading recursion if not careful.
 **Action:** Centralize background task triggering in Django signals to ensure a single source of truth and prevent redundant processing. Use `self.__dict__.get('field')` in `__init__` to safely snapshot original data without triggering unintended database queries or recursion.
+
+## 2026-03-09 - [MQTT Heartbeat Processing Optimization]
+**Learning:** Processing large batches of MQTT heartbeats (e.g., 500+ tags) using individual `.save()` calls creates an O(N) database bottleneck. `bulk_update` and `bulk_create` reduce this to O(1). However, `bulk_update` does not trigger `auto_now` fields, so `updated_at` must be manually set. Deduplication of incoming data is also necessary to prevent `IntegrityError` during `bulk_create`.
+**Action:** Use dict-based deduplication and Django bulk operations for high-frequency hardware signal processing. Manually update timestamp fields when using bulk methods on models with `AuditModel` or `auto_now` fields.
