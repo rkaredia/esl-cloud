@@ -1,15 +1,19 @@
 # Analytics Dashboard
 
-The dashboard provides a high-level overview of your store's health.
+The Analytics Dashboard provides a real-time overview of your store's ESL system health.
 
-![Dashboard Preview](/static/img/help/dashboard_guide.png)
+![Analytics Dashboard](/static/help_module/images/dashboard.png)
+*Use the Analytics Dashboard to monitor system status and identify issues at a glance.*
 
-## Key Metrics
-- **Gateway Status**: See which gateways are online.
-- **Tag Health**: Total tags, low battery counts, and sync statuses.
-- **Sync Stats**: A breakdown of tags that are synced, pending, or failed.
+## Dashboard Features
 
-## Load Monitoring
-The dashboard shows how many tags are assigned to each gateway. Each gateway has a maximum capacity (e.g., 500 tags).
+- **Inventory Status**: Total number of tags, products, and paired tags.
+- **Battery Monitoring**: Critical and low battery levels for tags.
+- **Gateway Infrastructure**: Live status of all communication hubs in your store.
+- **Sync Pipeline Status**: Breakdown of update progress and any failures.
 
-> **Pro Tip**: Use the dashboard to proactively monitor for low battery tags before they lose connectivity in the store.
+## Using the Dashboard for Troubleshooting
+If you see any "Image Generation Failed" or "Gateway Push Failed" messages, you can click on those metrics to see a filtered list of the tags with those errors. This allows you to quickly identify and resolve issues.
+
+---
+*Next: [Store Context & Isolation](store-context)*

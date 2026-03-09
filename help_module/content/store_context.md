@@ -1,12 +1,21 @@
 # Store Context & Isolation
 
-The SAIS platform is designed to support multiple stores while keeping data strictly isolated.
+The SAIS ESL platform is built with multi-tenant isolation in mind. This means each store's data is completely separate and secure.
 
 ## Active Store Selection
-You must select an **Active Store** from the header. Once selected:
-- All product lists will only show products for that store.
-- All tag lists will only show tags for that store.
-- Import and Export operations will only affect that store.
+When you first log in, you will be prompted to select a store. Once selected, all pages and lists will be filtered to only show data for that specific store.
 
-## Security
-Isolation is enforced at the database level. Even if a user has access to multiple stores, they only work with one at a time to prevent accidental cross-store updates.
+![Store Selector](/static/help_module/images/dashboard.png)
+*Use the store selector at the top right to choose the store you are working in.*
+
+## Key Isolation Rules
+- **Products**: Products from one store cannot be linked to tags in another store.
+- **Gateways**: Each gateway is assigned to a specific store.
+- **ESL Tags**: Each tag is assigned to a specific store and gateway.
+- **Users**: Some users might have access to only one store, while others can manage multiple stores.
+
+## Switching Stores
+You can switch stores at any time using the store selector in the top right corner of the admin header.
+
+---
+*Next: [Troubleshooting](troubleshooting)*
