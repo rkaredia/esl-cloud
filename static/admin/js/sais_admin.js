@@ -61,8 +61,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (changelistWrapper && filter) {
         const updateToggleButton = (btn, isVisible) => {
             if (!btn) return;
-            btn.innerHTML = isVisible ? 'Hide Filters 👁' : 'Show Filters 👁';
+            btn.innerHTML = isVisible ? 'Hide Filters 👁 [F]' : 'Show Filters 👁 [F]';
             btn.setAttribute('aria-expanded', isVisible);
+            // Also update any other buttons with the same class/id if they exist in multiple places
+            document.querySelectorAll('#filter-toggle-btn').forEach(b => {
+                b.innerHTML = isVisible ? 'Hide Filters 👁 [F]' : 'Show Filters 👁 [F]';
+            });
         };
 
         // Load initial state - default to hidden if not explicitly set to 'true'
@@ -176,4 +180,33 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // 5. Global Keyboard Shortcuts
+    const searchInput = document.querySelector('input[name="q"]');
+    if (searchInput && !searchInput.placeholder.includes('[/]')) {
+        searchInput.placeholder += ' [/]';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        // Ignore if typing in an input, textarea or select
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+            return;
+        }
+
+        // '/' to focus search (only if not using Ctrl/Meta)
+        if (e.key === '/' && searchInput && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            searchInput.focus();
+        }
+
+        // 'f' to toggle filters (only if not using Ctrl/Meta)
+        if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
+            const toggleBtn = document.getElementById('filter-toggle-btn');
+            if (toggleBtn) {
+                e.preventDefault();
+                toggleBtn.click();
+            }
+        }
+    });
 });

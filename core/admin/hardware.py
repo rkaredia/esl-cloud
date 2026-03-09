@@ -158,7 +158,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         try:
             val = obj.battery_level or 0
             color = "#059669" if val > 20 else "#dc2626"
-            return format_html('<div style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;"><div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div></div><small>{}%</small>', val, color, val)
+            return format_html(
+                '<div role="progressbar" aria-valuenow="{}" aria-valuemin="0" aria-valuemax="100" title="Battery Level: {}%" '
+                'style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;">'
+                '<div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div>'
+                '</div><small aria-hidden="true">{}%</small>',
+                val, val, val, color, val
+            )
         except: return "Error"
     battery_level_display.short_description = "Battery"
     battery_level_display.admin_order_field = 'battery_level'
