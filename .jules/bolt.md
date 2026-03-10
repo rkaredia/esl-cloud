@@ -17,3 +17,7 @@
 ## 2026-03-09 - [MQTT Heartbeat Processing Optimization]
 **Learning:** Processing large batches of MQTT heartbeats (e.g., 500+ tags) using individual `.save()` calls creates an O(N) database bottleneck. `bulk_update` and `bulk_create` reduce this to O(1). However, `bulk_update` does not trigger `auto_now` fields, so `updated_at` must be manually set. Deduplication of incoming data is also necessary to prevent `IntegrityError` during `bulk_create`.
 **Action:** Use dict-based deduplication and Django bulk operations for high-frequency hardware signal processing. Manually update timestamp fields when using bulk methods on models with `AuditModel` or `auto_now` fields.
+
+## 2026-03-10 - [Admin Dashboard Query Consolidation]
+**Learning:** Populating a dashboard with multiple status counts (e.g., sync states, battery levels) often leads to a "waterfall" of `.count()` queries. Consolidating these into a single `.aggregate(Count(filter=...))` call drastically reduces database round-trips. Similarly, counting related objects in a loop (e.g., tags per gateway) creates an N+1 problem that can be solved with `.annotate(Count('relation'))`.
+**Action:** Always audit dashboard and list views for redundant `.count()` calls. Use Django's conditional aggregation (`filter=Q(...)`) to fetch all necessary metrics in one SQL execution.
