@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import gzip
-import base64
 import io
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -489,7 +488,8 @@ class ESLMqttClient:
             # Log the outgoing message (sanitizing binary data for the logs)
             log_data = esl_entity.copy()
             log_data[10] = f"<binary:{len(gzipped_image)} bytes>"
-            self._log_mqtt_message("sent", gateway_id, topic, {"esl_entity_v2": log_data})
+            # Payload is a list containing the entity array
+            self._log_mqtt_message("sent", gateway_id, topic, [log_data])
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logger.debug(f"Published v2 update for {tag_mac} to gateway {gateway_id}")
