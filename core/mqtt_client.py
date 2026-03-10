@@ -81,7 +81,7 @@ class ESLMqttClient:
             # loop_start() runs the client in a separate background thread
             # so it doesn't block the main Django/Celery process.
             self.client.loop_start()
-            logger.info(f"MQTT Client loop started for {host}:{port} (TLS Enabled)")
+            logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled)")
         except Exception:
             logger.exception("MQTT Connection Failed")
 
