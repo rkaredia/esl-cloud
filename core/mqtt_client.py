@@ -476,8 +476,8 @@ class ESLMqttClient:
                 True            # 11: Compress (Bool)
             ]
 
-            # 4. Wrap in a PayloadSegment list and encode with MessagePack
-            payload = msgpack.packb([esl_entity])
+            # 4. Encode ESLEntity2 array directly with MessagePack
+            payload = msgpack.packb(esl_entity)
 
             # The topic the physical gateway is listening on
             topic = f"/estation/{gateway_id}/taskESL2"
@@ -488,8 +488,8 @@ class ESLMqttClient:
             # Log the outgoing message (sanitizing binary data for the logs)
             log_data = esl_entity.copy()
             log_data[10] = f"<binary:{len(gzipped_image)} bytes>"
-            # Payload is a list containing the entity array
-            self._log_mqtt_message("sent", gateway_id, topic, [log_data])
+            # Record the single array format
+            self._log_mqtt_message("sent", gateway_id, topic, log_data)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logger.debug(f"Published v2 update for {tag_mac} to gateway {gateway_id}")
