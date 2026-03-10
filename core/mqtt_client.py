@@ -3,6 +3,8 @@ import msgpack
 import json
 import logging
 import os
+import gzip
+import io
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -441,29 +443,56 @@ class ESLMqttClient:
 
     def publish_tag_update(self, gateway_id, tag_mac, image_bytes, token):
         """
-        COMMAND: UPDATE TAG IMAGE
-        -------------------------
-        The most important function in the system. Sends a BMP image
-        to a physical tag via a specific Gateway.
+        COMMAND: UPDATE TAG IMAGE (eStation Protocol 2.0)
+        ------------------------------------------------
+        Sends a BMP image to a physical tag via a specific Gateway.
+        Uses the 'PayloadSegment' format: An array of ESLEntity2 objects.
         """
         try:
-            # Task Parameters: [TagId, OffsetX, OffsetY, IsWait, IsFast, IsInvert, Color, Token, RFU, RFU]
-            task_params = [tag_mac, 0, 0, True, False, False, 0, token, "", ""]
+            # 1. Prepare Compressed Image
+            # eStation requires GZIP compression (LZSS internally, but GZIP over wire).
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode='wb', mtime=0) as f:
+                f.write(image_bytes)
+            gzipped_image = buf.getvalue()
 
-            # Pack parameters and image bytes into a single msgpack binary payload
-            payload = msgpack.packb([task_params, image_bytes])
+            # 2. Format TagID (Remove colons and ensure Uppercase)
+            clean_tag_mac = tag_mac.replace(':', '').upper()
+
+            # 3. Construct ESLEntity2 (Positional Array format)
+            # [TagID, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, Bytes, Compress]
+            esl_entity = [
+                clean_tag_mac,  # 0: TagID (String)
+                0,              # 1: Pattern (0 = UpdateDisplay)
+                0,              # 2: PageIndex (0 = P0)
+                False,          # 3: R (Red LED)
+                True,           # 4: G (Green LED)
+                False,          # 5: B (Blue LED)
+                60,             # 6: Times (2 byte LED freq)
+                token,          # 7: Token (2 byte)
+                "",             # 8: OldKey (8 byte)
+                "",             # 9: NewKey (8 byte)
+                gzipped_image,  # 10: Bytes (Byte Array)
+                True            # 11: Compress (Bool)
+            ]
+
+            # 4. Wrap in a PayloadSegment list and encode with MessagePack
+            payload = msgpack.packb([esl_entity])
 
             # The topic the physical gateway is listening on
             topic = f"/estation/{gateway_id}/taskESL2"
 
-            # QoS 2: 'Exactly Once' delivery. Ensures the command isn't lost or duplicated.
+            # QoS 2: 'Exactly Once' delivery.
             result = self.client.publish(topic, payload, qos=2)
 
             # Log the outgoing message (sanitizing binary data for the logs)
-            self._log_mqtt_message("sent", gateway_id, topic, {"params": task_params, "image_len": len(image_bytes)})
+            log_data = esl_entity.copy()
+            log_data[10] = f"<binary:{len(gzipped_image)} bytes>"
+            # Payload is a list containing the entity array
+            self._log_mqtt_message("sent", gateway_id, topic, [log_data])
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published update for {tag_mac} to gateway {gateway_id}")
+                logger.debug(f"Published v2 update for {tag_mac} to gateway {gateway_id}")
                 return True
             else:
                 logger.error(f"Failed to publish MQTT message for {tag_mac}: RC {result.rc}")

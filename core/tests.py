@@ -55,7 +55,7 @@ class LogicalBindingTest(TestCase):
 
         # Simulate tag heartbeat via gateway 0CGV
         heartbeat_data = {"Tags": [{"TagId": "ABCDEF123456", "Battery": 85}]}
-        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
+        mqtt_service._process_tags("0CGV", heartbeat_data["Tags"])
 
         tag.refresh_from_db()
         self.assertEqual(tag.last_successful_gateway_id, "0CGV")
@@ -69,7 +69,7 @@ class LogicalBindingTest(TestCase):
 
         # Simulate heartbeat for unknown tag
         heartbeat_data = {"Tags": [{"TagId": "NEWTAG999", "Battery": 90}]}
-        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
+        mqtt_service._process_tags("0CGV", heartbeat_data["Tags"])
 
         # Verify tag was created
         new_tag = ESLTag.objects.filter(tag_mac="NEWTAG999").first()
