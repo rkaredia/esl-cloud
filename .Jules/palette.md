@@ -9,3 +9,7 @@
 ## 2026-03-08 - [Grid Fluidity & Emoji-based Sidebar Icons]
 **Learning:** Overly rigid 'minmax' values in CSS grids (e.g., 240px+) can cause layout breaking on smaller viewports before media queries kick in. When direct CSS pseudo-element injection is insufficient for dynamic sidebar categories, using emojis directly in the category 'name' string provides a reliable, cross-browser visual affordance.
 **Action:** Use fluid grid constraints (e.g., minmax(200px, 1fr)) and supplement with media queries for tighter mobile layouts. Favor emoji-based category icons in 'get_app_list' for immediate visual feedback in the Django Admin sidebar.
+
+## 2026-03-09 - [Decorative Symbol Isolation & Admin Security]
+**Learning:** Decorative status symbols (dots, arrows) in list views and buttons are announced as literal characters (e.g., "bullet") by screen readers, cluttering the experience.
+**Action:** Always wrap decorative symbols in `<span aria-hidden="true">` when adjacent to meaningful status text. Favor `format_html` over `mark_safe` in Django Admin to ensure both security (XSS prevention) and accessibility.

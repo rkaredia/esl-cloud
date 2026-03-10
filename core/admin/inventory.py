@@ -140,9 +140,11 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         try:
             has_image = obj.esl_tags.filter(tag_image__gt='').exists()
             has_tag = obj.esl_tags.exists()
-            if has_image: return mark_safe('<span style="color: #059669; font-weight: bold;">● Generated</span>')
-            if has_tag: return mark_safe('<span style="color: #ea580c; font-weight: bold;">● Pending</span>')
-            return mark_safe('<span style="color: #94a3b8;">○ No Tag</span>')
+            if has_image:
+                return format_html('<span style="color: #059669; font-weight: bold;"><span aria-hidden="true">●</span> Generated</span>')
+            if has_tag:
+                return format_html('<span style="color: #ea580c; font-weight: bold;"><span aria-hidden="true">●</span> Pending</span>')
+            return format_html('<span style="color: #94a3b8;"><span aria-hidden="true">○</span> No Tag</span>')
         except:
             return "Error"
     image_status.short_description = "Status"

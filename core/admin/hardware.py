@@ -70,7 +70,7 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """Visual Dot showing online status."""
         color = "#059669" if obj.is_online else "#dc2626"
         text = "Online" if obj.is_online else "Offline"
-        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
+        return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
 
     def configure_link(self, obj):
@@ -157,9 +157,11 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     def image_status(self, obj):
         """Visual status indicator for image generation."""
         try:
-            if not obj.paired_product: return mark_safe('<span style="color:#94a3b8;">○ No Product</span>')
+            if not obj.paired_product:
+                return format_html('<span style="color:#94a3b8;"><span aria-hidden="true">○</span> No Product</span>')
             color = "#059669" if obj.tag_image else "#ea580c"
-            return mark_safe(f'<span style="color:{color}; font-weight:bold;">● {"Generated" if obj.tag_image else "Pending"}</span>')
+            status_text = "Generated" if obj.tag_image else "Pending"
+            return format_html('<span style="color:{}; font-weight:bold;"><span aria-hidden="true">●</span> {}</span>', color, status_text)
         except: return "Error"
     image_status.short_description = "Image"
     image_status.admin_order_field = 'tag_image'
@@ -168,7 +170,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """Formatted product info for read-only displays."""
         try:
             if obj.paired_product: return f"{obj.paired_product.sku} - {obj.paired_product.name}"
-            return mark_safe('<i style="color: #94a3b8;">Unpaired</i>')
+            return format_html('<i style="color: #94a3b8;">Unpaired</i>')
         except: return "Error"
     get_paired_info.short_description = "Paired Product"
     get_paired_info.admin_order_field = 'paired_product__name'

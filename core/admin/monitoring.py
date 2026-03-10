@@ -89,7 +89,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     def status_indicator(self, obj):
         color = "#059669" if obj.is_success else "#dc2626"
         text = "SUCCESS" if obj.is_success else "FAILURE"
-        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', color, text)
+        return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
 
     def data_preview(self, obj):
