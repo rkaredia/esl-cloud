@@ -444,56 +444,55 @@ class ESLMqttClient:
 
     def publish_tag_update(self, gateway_id, tag_mac, image_bytes, token):
         """
-        COMMAND: UPDATE TAG IMAGE
-        -------------------------
-        The most important function in the system. Sends a BMP image
-        to a physical tag via a specific Gateway.
+        COMMAND: UPDATE TAG IMAGE (eStation Protocol 2.0)
+        ------------------------------------------------
+        Sends a BMP image to a physical tag via a specific Gateway.
+        Uses the 'PayloadSegment' format: An array of ESLEntity2 objects.
         """
         try:
-            # 1. Prepare Compressed & Encoded Image
-            # eStation requires GZIP compression followed by Base64 encoding.
+            # 1. Prepare Compressed Image
+            # eStation requires GZIP compression (LZSS internally, but GZIP over wire).
             buf = io.BytesIO()
             with gzip.GzipFile(fileobj=buf, mode='wb', mtime=0) as f:
                 f.write(image_bytes)
-            gzipped_data = buf.getvalue()
-            base64_image = base64.b64encode(gzipped_data).decode('utf-8')
+            gzipped_image = buf.getvalue()
 
             # 2. Format TagID (Remove colons and ensure Uppercase)
             clean_tag_mac = tag_mac.replace(':', '').upper()
 
-            # 3. Construct Payload (Dictionary format inside a List)
-            # Based on successful message from Demo software.
-            update_data = {
-                "Bytes": base64_image,
-                "Compress": True,
-                "TagID": clean_tag_mac,
-                "Pattern": 0,    # 0 = Update and display
-                "PageIndex": 0,  # 0 = Page 1
-                "R": False,
-                "G": True,      # Green LED active during update
-                "B": False,
-                "Times": 60,    # LED duration
-                "Token": token,
-                "OldKey": "",
-                "NewKey": ""
-            }
+            # 3. Construct ESLEntity2 (Positional Array format)
+            # [TagID, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, Bytes, Compress]
+            esl_entity = [
+                clean_tag_mac,  # 0: TagID (String)
+                0,              # 1: Pattern (0 = UpdateDisplay)
+                0,              # 2: PageIndex (0 = P0)
+                False,          # 3: R (Red LED)
+                True,           # 4: G (Green LED)
+                False,          # 5: B (Blue LED)
+                60,             # 6: Times (2 byte LED freq)
+                token,          # 7: Token (2 byte)
+                "",             # 8: OldKey (8 byte)
+                "",             # 9: NewKey (8 byte)
+                gzipped_image,  # 10: Bytes (Byte Array)
+                True            # 11: Compress (Bool)
+            ]
 
-            # Wrap in a list as per hardware protocol requirement
-            payload = msgpack.packb([update_data])
+            # 4. Wrap in a PayloadSegment list and encode with MessagePack
+            payload = msgpack.packb([esl_entity])
 
             # The topic the physical gateway is listening on
             topic = f"/estation/{gateway_id}/taskESL2"
 
-            # QoS 2: 'Exactly Once' delivery. Ensures the command isn't lost or duplicated.
+            # QoS 2: 'Exactly Once' delivery.
             result = self.client.publish(topic, payload, qos=2)
 
             # Log the outgoing message (sanitizing binary data for the logs)
-            log_data = update_data.copy()
-            log_data["Bytes"] = f"<base64:{len(base64_image)} chars>"
-            self._log_mqtt_message("sent", gateway_id, topic, log_data)
+            log_data = esl_entity.copy()
+            log_data[10] = f"<binary:{len(gzipped_image)} bytes>"
+            self._log_mqtt_message("sent", gateway_id, topic, {"esl_entity_v2": log_data})
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published update for {tag_mac} to gateway {gateway_id}")
+                logger.debug(f"Published v2 update for {tag_mac} to gateway {gateway_id}")
                 return True
             else:
                 logger.error(f"Failed to publish MQTT message for {tag_mac}: RC {result.rc}")
