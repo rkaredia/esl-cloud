@@ -12,3 +12,8 @@
 **Vulnerability:** The 'manual_sync_view' in ESLTagAdmin accepted an object ID and triggered a background task without verifying that the object belonged to the user's authorized store/company. An authenticated user could trigger sync tasks for any tag in the system by manually crafting the URL.
 **Learning:** Custom admin views that bypass the standard Django Admin 'change' flow must explicitly re-validate object ownership using the filtered queryset, especially in multi-tenant environments.
 **Prevention:** Always use 'self.get_queryset(request).filter(pk=object_id).exists()' (or similar) in custom admin actions and views to ensure the requested object is within the user's allowed scope.
+
+## 2026-03-25 - [Cross-Store Data Hijacking in MQTT Heartbeats]
+**Vulnerability:** The `handle_tag_heartbeat` method in `core/mqtt_client.py` performed a bulk lookup of tags by MAC address without filtering by the gateway's store. In a multi-tenant environment where the same MAC can exist in different stores, a heartbeat from one store's gateway could update or hijack tags in another store.
+**Learning:** Even automated background processes triggered by hardware signals must enforce tenant isolation. MAC addresses are not globally unique across stores in this system's architecture.
+**Prevention:** Always include the tenant context (e.g., `store=gateway.store`) in database queries, even when the trigger is a trusted hardware message, to prevent accidental or malicious cross-tenant data leakage.

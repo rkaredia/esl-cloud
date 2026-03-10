@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from core.models import Company, Store, Gateway, MQTTMessage, User
+from core.models import Company, Store, Gateway, MQTTMessage, User, ESLTag, TagHardware
 from core.admin.monitoring import MQTTMessageAdmin
 from core.admin.base import admin_site
 
@@ -112,3 +112,77 @@ class MQTTMessageSecurityTest(TestCase):
 
         self.assertContains(response, "Cleared 2 messages.")
         self.assertEqual(MQTTMessage.objects.count(), 0)
+
+class MQTTTagHeartbeatSecurityTest(TestCase):
+    def setUp(self):
+        # Store A setup
+        self.company_a = Company.objects.create(name="Company A")
+        self.store_a = Store.objects.create(name="Store A", company=self.company_a)
+        self.gw_a = Gateway.objects.create(estation_id="GW01", gateway_mac="MAC01", store=self.store_a)
+
+        # Store B setup
+        self.company_b = Company.objects.create(name="Company B")
+        self.store_b = Store.objects.create(name="Store B", company=self.company_b)
+        self.gw_b = Gateway.objects.create(estation_id="GW02", gateway_mac="MAC02", store=self.store_b)
+
+        # Common Tag MAC
+        self.shared_mac = "DEADBEEF0001"
+
+        self.hw = TagHardware.objects.create(
+            model_number="MODEL01",
+            width_px=200,
+            height_px=100,
+            display_size_inch=2.1
+        )
+
+        # Register same MAC in both stores
+        self.tag_a = ESLTag.objects.create(
+            tag_mac=self.shared_mac,
+            store=self.store_a,
+            battery_level=100,
+            sync_state='IDLE',
+            hardware_spec=self.hw
+        )
+        self.tag_b = ESLTag.objects.create(
+            tag_mac=self.shared_mac,
+            store=self.store_b,
+            battery_level=100,
+            sync_state='IDLE',
+            hardware_spec=self.hw
+        )
+
+        from core.mqtt_client import ESLMqttClient
+        self.mqtt_service = ESLMqttClient()
+
+    def test_heartbeat_from_store_a_does_not_affect_store_b(self):
+        """
+        SECURITY: Verify that a heartbeat from a gateway in Store A
+        ONLY updates tags in Store A, even if the same MAC exists in Store B.
+        """
+        # Payload from Gateway A (Store A)
+        data = {
+            'Tags': [
+                {'TagId': self.shared_mac, 'Battery': 50}
+            ]
+        }
+
+        # Trigger heartbeat handler
+        self.mqtt_service.handle_tag_heartbeat("GW01", data)
+
+        # Refresh from DB
+        self.tag_a.refresh_from_db()
+        self.tag_b.refresh_from_db()
+
+        # Store A tag SHOULD be updated
+        # Store B tag SHOULD NOT be updated
+
+        # In the current VULNERABLE state, one might be updated and the other not,
+        # or the wrong one might be updated.
+
+        # Store A tag SHOULD be updated
+        self.assertEqual(self.tag_a.battery_level, 50)
+        self.assertEqual(self.tag_a.last_successful_gateway_id, "GW01")
+
+        # Store B tag SHOULD NOT be updated
+        self.assertEqual(self.tag_b.battery_level, 100)
+        self.assertNotEqual(self.tag_b.last_successful_gateway_id, "GW01")

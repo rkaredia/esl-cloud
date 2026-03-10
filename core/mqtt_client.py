@@ -319,9 +319,12 @@ class ESLMqttClient:
 
             incoming_macs = [t.get('TagId') for t in tags_list if t.get('TagId')]
 
-            # BULK OPTIMIZATION: Instead of 100 queries for 100 tags,
-            # we do 1 query to find all existing tags in this batch.
-            existing_tags = {t.tag_mac: t for t in ESLTag.objects.filter(tag_mac__in=incoming_macs)}
+            # SECURITY & BULK OPTIMIZATION: Only retrieve tags that belong to this gateway's store
+            # to prevent cross-store data hijacking.
+            existing_tags = {t.tag_mac: t for t in ESLTag.objects.filter(
+                tag_mac__in=incoming_macs,
+                store=gateway.store
+            )}
 
             from .models import TagHardware
             default_hw = None
