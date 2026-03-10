@@ -145,9 +145,22 @@ class ESLMqttClient:
             if msg.topic.endswith("/result"):
                 self.handle_result(estation_id, data)
             elif msg.topic.endswith("/heartbeat"):
+                # Hardware can send a list of tags inside the heartbeat
                 self.handle_heartbeat(estation_id, data)
+
+                # Check if this heartbeat contains a tag list (List format at index 8 or 'Tags' key)
+                tags = []
+                if isinstance(data, list) and len(data) > 8:
+                    tags = data[8]
+                elif isinstance(data, dict):
+                    tags = data.get('Tags', [])
+
+                if tags:
+                    self._process_tags(estation_id, tags)
+
             elif msg.topic.endswith("/tagheartbeat"):
-                self.handle_tag_heartbeat(estation_id, data)
+                tags = data if isinstance(data, list) else data.get('Tags', [])
+                self._process_tags(estation_id, tags)
             elif msg.topic.endswith("/infor"):
                 self.handle_infor(estation_id, data)
         except Exception:
@@ -205,29 +218,61 @@ class ESLMqttClient:
         firmware version, and online status.
         """
         try:
-            gateway_id = data.get('ID', estation_id)
-            mac = data.get('MAC')
-
-            # Prepare update dictionary for bulk update performance
             update_data = {
-                'alias': data.get('Alias'),
-                'gateway_ip': data.get('IP'),
-                'gateway_mac': mac,
-                'ap_type': data.get('ApType'),
-                'ap_version': data.get('ApVersion'),
-                'module_version': data.get('ModVersion'),
-                'disk_size': data.get('DiskSize'),
-                'free_space': data.get('FreeSpace'),
-                'heartbeat_interval': data.get('Heartbeat'),
                 'last_heartbeat': timezone.now(),
                 'last_successful_heartbeat': timezone.now(),
                 'is_online': True,
                 'last_seen': timezone.now()
             }
 
-            # Parse "Server" string (e.g., "192.168.1.92:9081")
-            server = data.get('Server', '')
-            if server:
+            if isinstance(data, list):
+                # New Hardware List Format: ["ID", "Alias", "IP", "MAC", ApType, "ApVer", "ModVer", Disk, Free, "Server", [...], Encrypt, AutoIP, "LocalIP", "Subnet", "Gateway", Heartbeat]
+                if len(data) >= 17:
+                    update_data.update({
+                        'alias': data[1],
+                        'gateway_ip': data[2],
+                        'gateway_mac': data[3],
+                        'ap_type': data[4],
+                        'ap_version': data[5],
+                        'module_version': data[6],
+                        'disk_size': data[7],
+                        'free_space': data[8],
+                        'heartbeat_interval': data[16],
+                    })
+                    server = data[9]
+                    conn_param = data[10]
+                    update_data['is_encrypt_enabled'] = data[11]
+                    update_data['is_auto_ip'] = data[12]
+                    update_data['local_ip'] = data[13]
+                    update_data['netmask'] = data[14]
+                    update_data['network_gateway'] = data[15]
+                else:
+                    # Short Heartbeat format (from user log: ["", 0, "0.0.0", "", 3, "", 0, 0, []])
+                    # We rely on the topic ID (estation_id) since the payload ID is empty
+                    pass
+            else:
+                # Demo Dictionary Format: {"ID": "...", "MAC": "...", ...}
+                update_data.update({
+                    'alias': data.get('Alias'),
+                    'gateway_ip': data.get('IP'),
+                    'gateway_mac': data.get('MAC'),
+                    'ap_type': data.get('ApType'),
+                    'ap_version': data.get('ApVersion'),
+                    'module_version': data.get('ModVersion'),
+                    'disk_size': data.get('DiskSize'),
+                    'free_space': data.get('FreeSpace'),
+                    'heartbeat_interval': data.get('Heartbeat'),
+                })
+                server = data.get('Server', '')
+                conn_param = data.get('ConnParam', [])
+                if 'Encrypt' in data: update_data['is_encrypt_enabled'] = data['Encrypt']
+                if 'AutoIP' in data: update_data['is_auto_ip'] = data['AutoIP']
+                if 'LocalIP' in data: update_data['local_ip'] = data['LocalIP']
+                if 'Subnet' in data: update_data['netmask'] = data['Subnet']
+                if 'Gateway' in data: update_data['network_gateway'] = data['Gateway']
+
+            # Parse "Server" string common to both formats
+            if 'server' in locals() and server:
                 if ':' in server:
                     parts = server.split(':', 1)
                     update_data['app_server_ip'] = parts[0]
@@ -238,20 +283,12 @@ class ESLMqttClient:
                     update_data['app_server_ip'] = server
 
             # Update login credentials if provided
-            conn_param = data.get('ConnParam', [])
-            if len(conn_param) >= 2:
+            if 'conn_param' in locals() and len(conn_param) >= 2:
                 update_data['username'] = conn_param[0]
                 update_data['password'] = conn_param[1]
 
-            # Network Settings
-            if 'Encrypt' in data: update_data['is_encrypt_enabled'] = data['Encrypt']
-            if 'AutoIP' in data: update_data['is_auto_ip'] = data['AutoIP']
-            if 'LocalIP' in data: update_data['local_ip'] = data['LocalIP']
-            if 'Subnet' in data: update_data['netmask'] = data['Subnet']
-            if 'Gateway' in data: update_data['network_gateway'] = data['Gateway']
-
-            # Trigger the update
-            Gateway.objects.filter(estation_id=gateway_id).update(**update_data)
+            # Trigger the update using the unique ID from the topic
+            Gateway.objects.filter(estation_id=estation_id).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
 
@@ -263,64 +300,96 @@ class ESLMqttClient:
         a record in the DB if it doesn't exist.
         """
         try:
-            mac = data.get('MAC')
-            if not mac: return
-
-            # DEFAULT STORE: New gateways are assigned to the 'Admin Store' by default.
-            store = Store.objects.filter(name='Admin Store').first() or Store.objects.first()
-            if not store:
-                logger.error("No store found for auto-discovery")
-                return
-
             update_data = {
-                'estation_id': data.get('ID', estation_id),
-                'alias': data.get('Alias'),
-                'gateway_ip': data.get('IP'),
-                'ap_type': data.get('ApType'),
-                'ap_version': data.get('ApVersion'),
-                'module_version': data.get('ModVersion'),
-                'disk_size': data.get('DiskSize'),
-                'free_space': data.get('FreeSpace'),
-                'heartbeat_interval': data.get('Heartbeat'),
+                'estation_id': estation_id, # Always use the topic ID as primary
                 'is_online': True,
                 'last_heartbeat': timezone.now(),
                 'last_seen': timezone.now()
             }
 
-            # Register or Get existing
-            gateway, created = Gateway.objects.get_or_create(
-                gateway_mac=mac,
-                defaults={**update_data, 'store': store}
-            )
+            if isinstance(data, list):
+                # Hardware List format for /infor
+                if len(data) >= 7:
+                    mac = data[3]
+                    update_data.update({
+                        'alias': data[1],
+                        'gateway_ip': data[2],
+                        'gateway_mac': mac,
+                        'ap_type': data[4],
+                        'ap_version': data[5],
+                        'module_version': data[6],
+                    })
+                    if len(data) >= 9:
+                        update_data.update({
+                            'disk_size': data[7],
+                            'free_space': data[8],
+                        })
+                else: return
+            else:
+                # Dictionary format for /infor
+                mac = data.get('MAC')
+                if not mac: return
+                update_data.update({
+                    'alias': data.get('Alias'),
+                    'gateway_ip': data.get('IP'),
+                    'gateway_mac': mac,
+                    'ap_type': data.get('ApType'),
+                    'ap_version': data.get('ApVersion'),
+                    'module_version': data.get('ModVersion'),
+                    'disk_size': data.get('DiskSize'),
+                    'free_space': data.get('FreeSpace'),
+                    'heartbeat_interval': data.get('Heartbeat'),
+                })
 
-            if not created:
+            # Register or Get existing
+            # We first try to find by MAC to prevent duplicates if ID changed
+            gateway = Gateway.objects.filter(gateway_mac=mac).first()
+            if not gateway:
+                # DEFAULT STORE: New gateways are assigned to the 'Admin Store' by default.
+                store = Store.objects.filter(name='Admin Store').first() or Store.objects.first()
+                if not store:
+                    logger.error("No store found for auto-discovery")
+                    return
+                gateway = Gateway.objects.create(gateway_mac=mac, store=store, **update_data)
+            else:
                 Gateway.objects.filter(gateway_mac=mac).update(**update_data)
 
-            logger.info(f"Gateway {mac} (ID:{estation_id}) {'registered' if created else 'updated'} via /infor")
+            logger.info(f"Gateway {mac} (ID:{estation_id}) updated via /infor")
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
-    def handle_tag_heartbeat(self, estation_id, data):
+    def _process_tags(self, estation_id, tags_list):
         """
-        TAG AUTO-DISCOVERY & TELEMETRY
-        ------------------------------
-        Gateways periodically send a list of every tag they can see.
-        We use this to:
-        1. Auto-create new tags in the DB (Zero-Touch Provisioning).
-        2. Update battery levels for all tags.
-        3. Track which gateway is currently the best link for a tag.
+        TAG AUTO-DISCOVERY & TELEMETRY ENGINE
+        -------------------------------------
+        Centralized logic for processing tag lists found in /heartbeat
+        or /tagheartbeat messages.
         """
         try:
-            tags_list = data.get('Tags', [])
             if not tags_list: return
 
             gateway = Gateway.objects.filter(estation_id=estation_id).select_related('store').first()
             if not gateway: return
 
-            incoming_macs = [t.get('TagId') for t in tags_list if t.get('TagId')]
+            # Extract MACs based on format
+            incoming_macs = []
+            tag_data_map = {}
 
-            # SECURITY & BULK OPTIMIZATION: Only retrieve tags that belong to this gateway's store
-            # to prevent cross-store data hijacking.
+            for tag_entry in tags_list:
+                if isinstance(tag_entry, list):
+                    # List format: ["TagId", RfPower, Battery, Version, Status, Color, ...]
+                    mac = tag_entry[0]
+                    battery = tag_entry[2]
+                else:
+                    # Dictionary format: {"TagId": "...", "Battery": ...}
+                    mac = tag_entry.get('TagId')
+                    battery = tag_entry.get('Battery')
+
+                if mac:
+                    incoming_macs.append(mac)
+                    tag_data_map[mac] = {'battery': battery}
+
+            # SECURITY & BULK OPTIMIZATION
             existing_tags = {t.tag_mac: t for t in ESLTag.objects.filter(
                 tag_mac__in=incoming_macs,
                 store=gateway.store
@@ -333,28 +402,22 @@ class ESLMqttClient:
             now = timezone.now()
             default_hw_queried = False
 
-            for tag_data in tags_list:
-                tag_mac = tag_data.get('TagId')
-                battery = tag_data.get('Battery')
-                if not tag_mac: continue
-
+            for tag_mac, metadata in tag_data_map.items():
                 tag = existing_tags.get(tag_mac)
                 if tag:
-                    # Update existing record logic
                     tag.last_successful_gateway_id = estation_id
-                    tag.battery_level = battery
+                    tag.battery_level = metadata['battery']
                     tag.updated_at = now
                     if not tag.store: tag.store = gateway.store
                     tags_to_update[tag_mac] = tag
                 else:
-                    # NEW TAG DISCOVERED: Create it automatically.
                     if default_hw is None and not default_hw_queried:
                         default_hw = TagHardware.objects.first()
                         default_hw_queried = True
 
                     tags_to_create[tag_mac] = ESLTag(
                         tag_mac=tag_mac,
-                        battery_level=battery,
+                        battery_level=metadata['battery'],
                         last_successful_gateway_id=estation_id,
                         store=gateway.store,
                         sync_state='IDLE',
@@ -363,7 +426,6 @@ class ESLMqttClient:
                         updated_at=now
                     )
 
-            # EFFICIENT WRITES: Use bulk_update and bulk_create to minimize DB round-trips.
             if tags_to_update:
                 ESLTag.objects.bulk_update(
                     tags_to_update.values(),
@@ -372,10 +434,10 @@ class ESLMqttClient:
 
             if tags_to_create:
                 ESLTag.objects.bulk_create(tags_to_create.values())
-                logger.info(f"Auto-discovered {len(tags_to_create)} new tags via gateway {estation_id}")
+                logger.info(f"Gateway {estation_id} discovered {len(tags_to_create)} new tags")
 
         except Exception:
-            logger.exception(f"Error handling tag heartbeat for gateway {estation_id}")
+            logger.exception(f"Error processing tag list for gateway {estation_id}")
 
     def publish_tag_update(self, gateway_id, tag_mac, image_bytes, token):
         """

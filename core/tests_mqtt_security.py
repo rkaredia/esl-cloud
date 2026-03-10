@@ -167,7 +167,7 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         }
 
         # Trigger heartbeat handler
-        self.mqtt_service.handle_tag_heartbeat("GW01", data)
+        self.mqtt_service._process_tags("GW01", data['Tags'])
 
         # Refresh from DB
         self.tag_a.refresh_from_db()
