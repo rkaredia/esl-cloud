@@ -67,13 +67,13 @@ class ESLMqttClient:
             # TLS (SSL) CONFIGURATION
             # D21 Gateways require TLS 1.2 for secure communication.
             # We point to the CA (Certificate Authority) file stored in the repo.
-            ca_path = os.path.join(settings.BASE_DIR, 'mosquitto', 'certs', 'ca.crt')
-            if os.path.exists(ca_path):
-                import ssl
-                self.client.tls_set(ca_certs=ca_path, tls_version=ssl.PROTOCOL_TLSv1_2)
-                # tls_insecure_set(True) allows us to use self-signed certificates
-                # (common in local hardware setups).
-                self.client.tls_insecure_set(True)
+            # ca_path = os.path.join(settings.BASE_DIR, 'mosquitto', 'certs', 'ca.crt')
+            # if os.path.exists(ca_path):
+            #     import ssl
+            #     self.client.tls_set(ca_certs=ca_path, tls_version=ssl.PROTOCOL_TLSv1_2)
+            #     # tls_insecure_set(True) allows us to use self-signed certificates
+            #     # (common in local hardware setups).
+            #     self.client.tls_insecure_set(True)
 
             # Connect to the broker (timeout after 60 seconds)
             self.client.connect(host, port, 60)
