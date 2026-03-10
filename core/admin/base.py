@@ -88,8 +88,28 @@ class SAISAdminSite(admin.AdminSite):
             gateways_qs = Gateway.objects.for_store(active_store)
             products_qs = Product.objects.for_store(active_store)
 
-            tag_count = tags_qs.count()
-            low_battery_count = tags_qs.filter(battery_level__lte=20).count()
+            # PERFORMANCE: Combine multiple count queries into a single aggregate call for ESLTag
+            # This reduces database round-trips from ~12 to 1 for tag-related stats.
+            tag_stats = tags_qs.aggregate(
+                total=Count('id'),
+                low_battery=Count('id', filter=Q(battery_level__lte=20)),
+                with_products=Count('id', filter=Q(paired_product__isnull=False)),
+                success=Count('id', filter=Q(sync_state='SUCCESS')),
+                pushed=Count('id', filter=Q(sync_state='PUSHED')),
+                ready=Count('id', filter=Q(sync_state='IMAGE_READY')),
+                processing=Count('id', filter=Q(sync_state='PROCESSING')),
+                idle=Count('id', filter=Q(sync_state='IDLE')),
+                failed_total=Count('id', filter=Q(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED'))),
+                gen_failed=Count('id', filter=Q(sync_state='GEN_FAILED')),
+                push_failed=Count('id', filter=Q(sync_state='PUSH_FAILED')),
+            )
+            tag_count = tag_stats['total']
+
+            # PERFORMANCE: Combine gateway counts into one query
+            gateway_stats = gateways_qs.aggregate(
+                total=Count('id'),
+                online=Count('id', filter=Q(is_online=True))
+            )
 
             # GROUP BY: Count how many of each hardware model exists
             tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
@@ -99,10 +119,10 @@ class SAISAdminSite(admin.AdminSite):
             for item in tag_types:
                 item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
 
-            # LOAD CALCULATION: How many tags are assigned to each gateway?
+            # PERFORMANCE: Use annotate(Count) to avoid N+1 queries when calculating gateway loads.
             gateway_loads = []
-            for gw in gateways_qs:
-                count = tags_qs.filter(gateway=gw).count()
+            for gw in gateways_qs.annotate(tag_count_ann=Count('tags')):
+                count = gw.tag_count_ann
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
@@ -113,23 +133,23 @@ class SAISAdminSite(admin.AdminSite):
 
             context = {
                 'active_store': active_store,
-                'gateway_count': gateways_qs.count(),
-                'active_gateways': gateways_qs.filter(is_online=True).count(),
+                'gateway_count': gateway_stats['total'],
+                'active_gateways': gateway_stats['online'],
                 'tag_count': tag_count,
-                'tags_with_products': tags_qs.exclude(paired_product__isnull=True).count(),
-                'low_battery_count': low_battery_count,
+                'tags_with_products': tag_stats['with_products'],
+                'low_battery_count': tag_stats['low_battery'],
                 'product_count': products_qs.count(),
                 'tag_types': tag_types,
                 'gateway_loads': gateway_loads,
                 'sync_stats': {
-                    'success': tags_qs.filter(sync_state='SUCCESS').count(),
-                    'pushed': tags_qs.filter(sync_state='PUSHED').count(),
-                    'ready': tags_qs.filter(sync_state='IMAGE_READY').count(),
-                    'processing': tags_qs.filter(sync_state='PROCESSING').count(),
-                    'idle': tags_qs.filter(sync_state='IDLE').count(),
-                    'failed_total': tags_qs.filter(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED')).count(),
-                    'gen_failed': tags_qs.filter(sync_state='GEN_FAILED').count(),
-                    'push_failed': tags_qs.filter(sync_state='PUSH_FAILED').count(),
+                    'success': tag_stats['success'],
+                    'pushed': tag_stats['pushed'],
+                    'ready': tag_stats['ready'],
+                    'processing': tag_stats['processing'],
+                    'idle': tag_stats['idle'],
+                    'failed_total': tag_stats['failed_total'],
+                    'gen_failed': tag_stats['gen_failed'],
+                    'push_failed': tag_stats['push_failed'],
                 }
             }
 
