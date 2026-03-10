@@ -61,6 +61,8 @@ services:
       - db
       - mqtt_broker
     env_file: .env
+    volumes:
+      - .:/app
 
   worker:
     build: .
