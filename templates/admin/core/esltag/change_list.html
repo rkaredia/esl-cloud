@@ -1,11 +1,11 @@
 {% extends "admin/change_list.html" %}
 
-{#
+{% comment %}
    ESL TAG LIST VIEW OVERRIDE
    --------------------------
    We extend the standard Django 'Change List' (the table view)
    to add our custom hardware-specific tools.
-#}
+{% endcomment %}
 
 {% load i18n admin_urls static %}
 
@@ -13,20 +13,20 @@
     {{ block.super }}
 {% endblock %}
 
-{#
+{% comment %}
    OBJECT TOOLS: These are the buttons that appear at the top-right
    of the table (usually just 'Add Record').
-#}
+{% endcomment %}
 {% block object-tools-items %}
-    {# Tool 1: Download the Excel Template #}
+    {% comment %} Tool 1: Download the Excel Template {% endcomment %}
     <li><a href="{% url 'admin:download_tag_template' %}" class="addlink">Download Template</a></li>
 
-    {#
+    {% comment %}
        Tool 2: Hidden File Upload Form
        -------------------------------
        For a cleaner UI, we hide the actual file input and trigger it
        via the 'Import ESL Tags' link below it.
-    #}
+    {% endcomment %}
     <li>
         <form id="tag-import-form" action="{% url 'admin:preview_tag_import' %}" method="post" enctype="multipart/form-data" style="display:none;">
             {% csrf_token %}
@@ -35,10 +35,10 @@
         <a href="#" class="addlink" onclick="document.getElementById('tag_file_input').click(); return false;">Import ESL Tags</a>
     </li>
 
-    {# Tool 3: Link to the Barcode Scanner view #}
+    {% comment %} Tool 3: Link to the Barcode Scanner view {% endcomment %}
     <li><a href="{% url 'admin:bulk-map-tags' %}" class="addlink bulk-map-btn" title="Instructions: Scan a Product SKU followed by a Tag MAC." aria-label="Bulk Map Tags - Scan a Product SKU followed by a Tag MAC">{% trans "Bulk Map Tags" %}</a></li>
 
-    {# Tool 4: Toggle the right-hand filter sidebar #}
+    {% comment %} Tool 4: Toggle the right-hand filter sidebar {% endcomment %}
     <li><a href="#" id="filter-toggle-btn" class="addlink" style="background: #64748b !important;" aria-controls="changelist-filter">Show Filters 👁️</a></li>
 
     <style>
