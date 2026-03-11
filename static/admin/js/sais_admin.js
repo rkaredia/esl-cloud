@@ -216,6 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === '/' && searchInput && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
             searchInput.focus();
+            searchInput.select();
         }
 
         // 'f' toggles the Filters sidebar
