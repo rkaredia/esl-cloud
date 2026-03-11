@@ -360,7 +360,7 @@ class GlobalSettingAdmin(admin.ModelAdmin):
         val = obj.value
         if len(val) > 100:
             val = val[:97] + "..."
-        return mark_safe(f'<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{val}</code>')
+        return format_html('<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{}</code>', val)
     value_display.short_description = "Value"
 
     # UI Enhancement: Use a monospace font for the text area
