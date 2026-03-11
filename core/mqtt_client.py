@@ -159,8 +159,7 @@ class ESLMqttClient:
                     self._process_tags(estation_id, tags)
 
             elif msg.topic.endswith("/tagheartbeat"):
-                tags = data if isinstance(data, list) else data.get('Tags', [])
-                self._process_tags(estation_id, tags)
+                self.handle_tag_heartbeat(estation_id, data)
             elif msg.topic.endswith("/infor"):
                 self.handle_infor(estation_id, data)
         except Exception:
@@ -358,6 +357,16 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        WRAPPER: TAG HEARTBEAT HANDLER
+        -----------------------------
+        Ensures compatibility with existing tests and simplifies the entry point
+        for processing tag lists from MQTT messages.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
+
     def _process_tags(self, estation_id, tags_list):
         """
         TAG AUTO-DISCOVERY & TELEMETRY ENGINE
@@ -505,6 +514,24 @@ class ESLMqttClient:
             logger.exception(f"Exception during MQTT publish config for gateway {gateway_id}")
             return False
 
+    def _sanitize_data(self, data):
+        """
+        Recursively sanitizes sensitive information from MQTT payloads
+        before they are written to logs or the database.
+        """
+        if isinstance(data, dict):
+            new_dict = {}
+            for k, v in data.items():
+                # Sanitize common sensitive keys
+                if k.lower() in ['password', 'username', 'secret', 'token', 'connparam']:
+                    new_dict[k] = "********"
+                else:
+                    new_dict[k] = self._sanitize_data(v)
+            return new_dict
+        elif isinstance(data, list):
+            return [self._sanitize_data(item) for item in data]
+        return data
+
     def _log_mqtt_message(self, direction, estation_id, topic, data, force_success=None):
         """
         AUDIT LOGGING
@@ -513,6 +540,9 @@ class ESLMqttClient:
         (for Admin view) and a daily Log File (for deep debugging).
         """
         try:
+            # Security: Sanitize sensitive credentials before logging
+            data = self._sanitize_data(data)
+
             # Helper to handle binary/bytes in JSON logs
             class BytesEncoder(json.JSONEncoder):
                 def default(self, obj):
