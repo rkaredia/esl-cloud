@@ -227,6 +227,14 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         except: return obj.last_image_task_id
     audit_log_link.short_description = "Audit Trail"
 
+    def get_queryset(self, request):
+        """
+        Optimize the list view by pre-fetching related data.
+        Reduces query count from N+1 to 1 for the main list results.
+        """
+        qs = super().get_queryset(request)
+        return qs.select_related('paired_product', 'hardware_spec', 'gateway')
+
     # CUSTOM VIEW METHODS
     def manual_sync_view(self, request, object_id):
         """Logic for the 'Sync' button in the list view."""

@@ -135,11 +135,11 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """
         UI COMPONENT: Visual badge showing if a tag is ready.
         ---------------------------------------------------
-        Returns raw HTML formatted with styles.
+        Optimized to use annotations to avoid N+1 database queries.
         """
         try:
-            has_image = obj.esl_tags.filter(tag_image__gt='').exists()
-            has_tag = obj.esl_tags.exists()
+            has_image = getattr(obj, 'has_tag_image', 0) > 0
+            has_tag = getattr(obj, 'total_tags_count', 0) > 0
             if has_image:
                 return format_html('<span style="color: #059669; font-weight: bold;"><span aria-hidden="true">●</span> Generated</span>')
             if has_tag:
@@ -151,9 +151,15 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     image_status.admin_order_field = 'has_tag_image'
 
     def get_queryset(self, request):
-        """Pre-calculate (annotate) image counts to improve performance."""
+        """
+        Optimize the list view by pre-fetching related data and pre-calculating counts.
+        Reduces query count from N+1 to 1 for the main list results.
+        """
         qs = super().get_queryset(request)
-        return qs.annotate(has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt='')))
+        return qs.select_related('store', 'preferred_supplier', 'updated_by').annotate(
+            has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt='')),
+            total_tags_count=Count('esl_tags')
+        )
 
     def get_urls(self):
         """Register the custom Modisoft Excel Import view."""
