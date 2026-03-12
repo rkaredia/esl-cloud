@@ -250,9 +250,9 @@ class SAISAdminSite(admin.AdminSite):
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
 
-        # Inject custom styles and scripts using 'mark_safe' to allow raw HTML
-        context['custom_admin_css'] = mark_safe(f'<link rel="stylesheet" type="text/css" href="{settings.STATIC_URL}admin/css/sais_admin.css">')
-        context['custom_admin_js'] = mark_safe(f'<script src="{settings.STATIC_URL}admin/js/sais_admin.js" defer></script>')
+        # Inject custom styles and scripts using 'format_html' for security
+        context['custom_admin_css'] = format_html('<link rel="stylesheet" type="text/css" href="{}{}admin/css/sais_admin.css">', settings.STATIC_URL, "")
+        context['custom_admin_js'] = format_html('<script src="{}{}admin/js/sais_admin.js" defer></script>', settings.STATIC_URL, "")
         return context
 
     def get_app_list(self, request, app_label=None):
@@ -360,7 +360,7 @@ class GlobalSettingAdmin(admin.ModelAdmin):
         val = obj.value
         if len(val) > 100:
             val = val[:97] + "..."
-        return mark_safe(f'<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{val}</code>')
+        return format_html('<code style="background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{}</code>', val)
     value_display.short_description = "Value"
 
     # UI Enhancement: Use a monospace font for the text area
