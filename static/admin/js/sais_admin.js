@@ -212,10 +212,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // '/' focuses the Search Bar
+        // '/' focuses and selects the Search Bar content
         if (e.key === '/' && searchInput && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
             searchInput.focus();
+            searchInput.select();
         }
 
         // 'f' toggles the Filters sidebar

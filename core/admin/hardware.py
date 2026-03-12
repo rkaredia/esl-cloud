@@ -213,7 +213,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         try:
             if not obj.paired_product: return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
             if obj.tag_image:
-                return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
+                return format_html('<img src="{}?v={}" alt="Current ESL Tag Image" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
             return "Waiting for background generation..."
         except: return "Error loading image"
     image_preview_large.short_description = "Current Tag Image"
