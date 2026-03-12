@@ -21,3 +21,7 @@
 ## 2026-03-10 - [Admin Dashboard Query Consolidation]
 **Learning:** Populating a dashboard with multiple status counts (e.g., sync states, battery levels) often leads to a "waterfall" of `.count()` queries. Consolidating these into a single `.aggregate(Count(filter=...))` call drastically reduces database round-trips. Similarly, counting related objects in a loop (e.g., tags per gateway) creates an N+1 problem that can be solved with `.annotate(Count('relation'))`.
 **Action:** Always audit dashboard and list views for redundant `.count()` calls. Use Django's conditional aggregation (`filter=Q(...)`) to fetch all necessary metrics in one SQL execution.
+
+## 2026-03-11 - [Admin List View N+1 Query Optimization]
+**Learning:** Django Admin list views with multiple ForeignKeys or complex "status" methods often trigger N+1 query patterns. Using `select_related` handles simple relationships, but logic requiring existence checks (e.g., `.exists()`) or counts inside row-level methods will still hit the DB for every item.
+**Action:** Move all row-level logic requiring database access into `get_queryset` using `.annotate()`. Refactor Admin methods to use these pre-calculated attributes (with safe defaults via `getattr`) instead of performing fresh queries.

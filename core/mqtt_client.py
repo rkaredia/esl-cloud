@@ -159,8 +159,7 @@ class ESLMqttClient:
                     self._process_tags(estation_id, tags)
 
             elif msg.topic.endswith("/tagheartbeat"):
-                tags = data if isinstance(data, list) else data.get('Tags', [])
-                self._process_tags(estation_id, tags)
+                self.handle_tag_heartbeat(estation_id, data)
             elif msg.topic.endswith("/infor"):
                 self.handle_infor(estation_id, data)
         except Exception:
@@ -357,6 +356,17 @@ class ESLMqttClient:
             logger.info(f"Gateway {mac} (ID:{estation_id}) updated via /infor")
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
+
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        PUBLIC WRAPPER: TAG HEARTBEAT
+        -----------------------------
+        Extracts the tag list from various formats and routes to the
+        private processing engine. Maintains backward compatibility with tests.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        if tags:
+            self._process_tags(estation_id, tags)
 
     def _process_tags(self, estation_id, tags_list):
         """
