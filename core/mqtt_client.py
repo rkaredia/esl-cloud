@@ -292,6 +292,16 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        WRAPPER FOR TEST COMPATIBILITY
+        -----------------------------
+        Historically, this method handled tag lists. It now delegates
+        to the centralized _process_tags engine.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
+
     def handle_infor(self, estation_id, data):
         """
         GATEWAY AUTO-REGISTRATION
