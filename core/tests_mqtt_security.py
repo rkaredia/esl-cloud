@@ -186,3 +186,65 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         # Store B tag SHOULD NOT be updated
         self.assertEqual(self.tag_b.battery_level, 100)
         self.assertNotEqual(self.tag_b.last_successful_gateway_id, "GW01")
+
+class MQTTLoggingSanitizationTest(TestCase):
+    def setUp(self):
+        from core.mqtt_client import ESLMqttClient
+        self.mqtt_service = ESLMqttClient()
+
+    def test_sanitize_data_masks_sensitive_keys(self):
+        """
+        Verify that _sanitize_data recursively masks sensitive keys.
+        """
+        raw_data = {
+            "estation_id": "GW01",
+            "password": "secret_password",
+            "nested": {
+                "token": "token123",
+                "other": "safe"
+            },
+            "list": [
+                {"username": "admin", "id": 1},
+                {"secret": "hidden", "id": 2}
+            ],
+            "ConnParam": ["user", "pass"]
+        }
+
+        sanitized = self.mqtt_service._sanitize_data(raw_data)
+
+        # Check masking
+        self.assertEqual(sanitized["password"], "********")
+        self.assertEqual(sanitized["nested"]["token"], "********")
+        self.assertEqual(sanitized["nested"]["other"], "safe")
+        self.assertEqual(sanitized["list"][0]["username"], "********")
+        self.assertEqual(sanitized["list"][1]["secret"], "********")
+        self.assertEqual(sanitized["ConnParam"], "********")
+
+        # Verify original is NOT mutated
+        self.assertEqual(raw_data["password"], "secret_password")
+        self.assertEqual(raw_data["nested"]["token"], "token123")
+
+    def test_log_mqtt_message_saves_sanitized_data(self):
+        """
+        Verify that _log_mqtt_message saves sanitized JSON to the database.
+        """
+        sensitive_payload = {
+            "command": "configure",
+            "password": "my_password",
+            "nested": {"token": "my_token"}
+        }
+
+        self.mqtt_service._log_mqtt_message(
+            direction="sent",
+            estation_id="GW01",
+            topic="/estation/GW01/configure",
+            data=sensitive_payload
+        )
+
+        msg = MQTTMessage.objects.latest('id')
+        import json
+        logged_data = json.loads(msg.data)
+
+        self.assertEqual(logged_data["password"], "********")
+        self.assertEqual(logged_data["nested"]["token"], "********")
+        self.assertEqual(logged_data["command"], "configure")
