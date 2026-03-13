@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import msgpack
 import json
 import logging
+import copy
 import os
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -292,6 +293,14 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        Public wrapper for tag heartbeat processing.
+        Maintained for test compatibility and production routing.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
+
     def handle_infor(self, estation_id, data):
         """
         GATEWAY AUTO-REGISTRATION
@@ -505,6 +514,31 @@ class ESLMqttClient:
             logger.exception(f"Exception during MQTT publish config for gateway {gateway_id}")
             return False
 
+    def _sanitize_data(self, data):
+        """
+        Recursively masks sensitive keys in a dictionary or list.
+        """
+        sanitized = copy.deepcopy(data)
+
+        sensitive_keys = {
+            'password', 'username', 'secret', 'token',
+            'connparam', 'conn_param'
+        }
+
+        def _recursive_mask(obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if any(s_key in key.lower() for s_key in sensitive_keys):
+                        obj[key] = '********'
+                    else:
+                        _recursive_mask(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    _recursive_mask(item)
+
+        _recursive_mask(sanitized)
+        return sanitized
+
     def _log_mqtt_message(self, direction, estation_id, topic, data, force_success=None):
         """
         AUDIT LOGGING
@@ -513,6 +547,9 @@ class ESLMqttClient:
         (for Admin view) and a daily Log File (for deep debugging).
         """
         try:
+            # Mask sensitive data before logging
+            sanitized_data = self._sanitize_data(data)
+
             # Helper to handle binary/bytes in JSON logs
             class BytesEncoder(json.JSONEncoder):
                 def default(self, obj):
@@ -520,7 +557,7 @@ class ESLMqttClient:
                         return f"<binary:{len(obj)} bytes>"
                     return super().default(obj)
 
-            json_data = json.dumps(data, cls=BytesEncoder)
+            json_data = json.dumps(sanitized_data, cls=BytesEncoder)
 
             # 1. Database Logging (MQTTMessage model)
             if force_success is not None:
