@@ -40,8 +40,8 @@ class ESLMqttClient:
     def __init__(self):
         try:
             # Explicitly use Paho MQTT v2 API for compatibility with the latest library
-            # We use MQTTv5 for modern features and improved error reporting
-            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv5)
+            # Use default protocol (v3.1.1) for maximum hardware compatibility
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
             # Register callbacks (Event Handlers)
             self.client.on_connect = self.on_connect
@@ -496,8 +496,8 @@ class ESLMqttClient:
             # 4. Use confirmed topic: /estation/{id}/taskESL
             topic = f"/estation/{gateway_id}/taskESL"
 
-            # QoS 2: 'Exactly Once' delivery.
-            result = self.client.publish(topic, payload, qos=2)
+            # Use QoS 0 as per working sandbox script to ensure compatibility
+            result = self.client.publish(topic, payload, qos=0)
 
             # Log the outgoing message
             # The user requested to see the full Base64 payload in the monitoring tab for debugging.

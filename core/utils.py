@@ -254,24 +254,35 @@ def generate_esl_image(tag_id, tag_instance=None):
             tag = ESLTag.objects.select_related('hardware_spec', 'paired_product__preferred_supplier').get(pk=tag_id)
 
         spec, product = tag.hardware_spec, tag.paired_product
-        width, height = int(spec.width_px or 296), int(spec.height_px or 128)
+        width, height = int(spec.width_px or 250), int(spec.height_px or 122)
         color_scheme = (spec.color_scheme or "BW").upper()
 
-        # Match hardware sandbox: use RGBA for BMP generation
-        image = Image.new('RGBA', (width, height), color=(255, 255, 255, 255))
+        # HI-RES RENDERING PIPELINE
+        # To improve quality after resampling, we draw at 2x resolution
+        render_w, render_h = width * 2, height * 2
+
+        # 1. Create canvas
+        image = Image.new('RGBA', (render_w, render_h), color=(255, 255, 255, 255))
         draw = ImageDraw.Draw(image)
 
-        # Apply the selected template
+        # 2. Apply template (passing high-res dimensions)
         tid = getattr(tag, 'template_id', 1)
-        if tid == 3: template_v3(image, draw, product, width, height, color_scheme)
-        elif tid == 2: template_v2(image, draw, product, width, height, color_scheme)
-        else: template_v1(image, draw, product, width, height, color_scheme)
+        if tid == 3: template_v3(image, draw, product, render_w, render_h, color_scheme)
+        elif tid == 2: template_v2(image, draw, product, render_w, render_h, color_scheme)
+        else: template_v1(image, draw, product, render_w, render_h, color_scheme)
+
+        # 3. FINAL HARDWARE OPTIMIZATION (as per working sandbox code)
+        # Explicit conversion to RGBA
+        image = image.convert("RGBA")
+        # Resize to EXACT hardware dimensions using LANCZOS for maximum clarity
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
 
         return image
     except Exception as e:
         logger.error(f"Critical error in generate_esl_image: {e}", exc_info=True)
-        # Return a blank image as fallback to prevent worker crash
-        return Image.new('RGB', (296, 128), color=(255, 255, 255))
+        # Return a blank image as fallback (250x122 RGBA)
+        fallback = Image.new('RGBA', (250, 122), color=(255, 255, 255, 255))
+        return fallback
 
 def trigger_bulk_sync(tag_ids):
     """
