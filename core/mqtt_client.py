@@ -358,6 +358,11 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """Public wrapper for tag heartbeat processing, used by tests and router."""
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        return self._process_tags(estation_id, tags)
+
     def _process_tags(self, estation_id, tags_list):
         """
         TAG AUTO-DISCOVERY & TELEMETRY ENGINE

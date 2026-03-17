@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.urls import path, reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q
 from .base import admin_site, CompanySecurityMixin, UIHelperMixin
@@ -138,22 +139,31 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         Returns raw HTML formatted with styles.
         """
         try:
-            has_image = obj.esl_tags.filter(tag_image__gt='').exists()
-            has_tag = obj.esl_tags.exists()
+            # PERFORMANCE: Uses pre-calculated annotations from get_queryset
+            # to avoid N+1 database queries during list rendering.
+            has_image = getattr(obj, 'has_tag_image', 0) > 0
+            has_tag = getattr(obj, 'total_tags_count', 0) > 0
+
             if has_image:
                 return format_html('<span style="color: #059669; font-weight: bold;"><span aria-hidden="true">●</span> Generated</span>')
             if has_tag:
                 return format_html('<span style="color: #ea580c; font-weight: bold;"><span aria-hidden="true">●</span> Pending</span>')
             return format_html('<span style="color: #94a3b8;"><span aria-hidden="true">○</span> No Tag</span>')
-        except:
+        except Exception:
             return "Error"
     image_status.short_description = "Status"
     image_status.admin_order_field = 'has_tag_image'
 
     def get_queryset(self, request):
         """Pre-calculate (annotate) image counts to improve performance."""
-        qs = super().get_queryset(request)
-        return qs.annotate(has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt='')))
+        # select_related avoids N+1 queries for ForeignKey fields shown in the list
+        qs = super().get_queryset(request).select_related('store', 'preferred_supplier', 'updated_by')
+
+        # Annotate counts to avoid .exists() or .count() in the loop
+        return qs.annotate(
+            has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt='')),
+            total_tags_count=Count('esl_tags')
+        )
 
     def get_urls(self):
         """Register the custom Modisoft Excel Import view."""
