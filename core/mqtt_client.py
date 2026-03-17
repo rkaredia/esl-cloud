@@ -39,11 +39,14 @@ class ESLMqttClient:
     """
     def __init__(self):
         try:
+            # Explicitly use Paho MQTT v2 API for compatibility with the latest library
             # We use MQTTv5 for modern features and improved error reporting
-            self.client = mqtt.Client(protocol=mqtt.MQTTv5)
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv5)
 
             # Register callbacks (Event Handlers)
             self.client.on_connect = self.on_connect
+            self.client.on_publish = self.on_publish
+            self.client.on_subscribe = self.on_subscribe
             self.client.on_message = self.on_message
         except Exception:
             logger.exception("Failed to initialize MQTT client")
@@ -113,6 +116,12 @@ class ESLMqttClient:
         except Exception:
             logger.exception("Error in MQTT on_connect callback")
 
+    def on_publish(self, client, userdata, mid, reason_code=None, properties=None):
+        logger.debug(f"MQTT Message {mid} published")
+
+    def on_subscribe(self, client, userdata, mid, reason_code_list, properties=None):
+        logger.debug(f"MQTT Subscription {mid} confirmed")
+
     def on_message(self, client, userdata, msg):
         """
         EVENT: MESSAGE RECEIVED
@@ -130,7 +139,8 @@ class ESLMqttClient:
             # The eStation protocol primarily uses 'msgpack' (binary).
             # Some messages might be standard JSON.
             try:
-                data = msgpack.unpackb(msg.payload)
+                # Use raw=False to ensure strings are correctly decoded from bytes
+                data = msgpack.unpackb(msg.payload, raw=False)
             except Exception:
                 try:
                     data = json.loads(msg.payload.decode())
@@ -192,6 +202,10 @@ class ESLMqttClient:
         try:
             # Protocol definition: [TagID, RfPower, Battery, Version, Status, Token, Temp, Channel]
             if isinstance(data, list):
+                # Handle nested list wrapper if present (common in taskESL response)
+                if len(data) == 1 and isinstance(data[0], list):
+                    data = data[0]
+
                 if len(data) < 6: return
                 tag_mac, battery_raw, status_code, token = data[0], data[2], data[4], data[5]
             else:
