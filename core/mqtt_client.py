@@ -166,6 +166,22 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error processing MQTT message on topic {msg.topic}")
 
+    def _calculate_battery_percentage(self, voltage_raw):
+        """
+        CONVERT VOLTAGE TO PERCENTAGE
+        -----------------------------
+        ESL tags report raw voltage (e.g. 30 = 3.0V).
+        Mapping: 3.0V (30) = 100%, 2.2V (22) = 0%.
+        """
+        try:
+            val = int(voltage_raw)
+            if val >= 30: return 100
+            if val <= 22: return 0
+            # Linear interpolation: (val - 22) / (30 - 22) * 100
+            return int((val - 22) * 12.5)
+        except (ValueError, TypeError):
+            return 100
+
     def handle_result(self, estation_id, data):
         """
         PROCESS UPDATE RESULTS
@@ -198,7 +214,7 @@ class ESLMqttClient:
             if tag and tag.last_image_task_token == token:
                 is_success = (status_code == 0) # 0 = Success in eStation protocol
                 tag.sync_state = 'SUCCESS' if is_success else 'FAILED'
-                tag.battery_level = battery_raw
+                tag.battery_level = self._calculate_battery_percentage(battery_raw)
 
                 if is_success:
                     # Update 'last_successful_gateway_id' for future routing optimization
@@ -206,7 +222,7 @@ class ESLMqttClient:
 
                 # update_fields improves performance by only saving specific columns
                 tag.save(update_fields=['sync_state', 'battery_level', 'last_successful_gateway_id'])
-                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'}")
+                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {tag.battery_level}%)")
         except Exception:
             logger.exception("Error handling MQTT result message")
 
@@ -404,9 +420,11 @@ class ESLMqttClient:
 
             for tag_mac, metadata in tag_data_map.items():
                 tag = existing_tags.get(tag_mac)
+                battery_pct = self._calculate_battery_percentage(metadata['battery'])
+
                 if tag:
                     tag.last_successful_gateway_id = estation_id
-                    tag.battery_level = metadata['battery']
+                    tag.battery_level = battery_pct
                     tag.updated_at = now
                     if not tag.store: tag.store = gateway.store
                     tags_to_update[tag_mac] = tag
@@ -417,7 +435,7 @@ class ESLMqttClient:
 
                     tags_to_create[tag_mac] = ESLTag(
                         tag_mac=tag_mac,
-                        battery_level=metadata['battery'],
+                        battery_level=battery_pct,
                         last_successful_gateway_id=estation_id,
                         store=gateway.store,
                         sync_state='IDLE',
@@ -441,29 +459,36 @@ class ESLMqttClient:
 
     def publish_tag_update(self, gateway_id, tag_mac, image_bytes, token):
         """
-        COMMAND: UPDATE TAG IMAGE
-        -------------------------
-        The most important function in the system. Sends a BMP image
-        to a physical tag via a specific Gateway.
+        COMMAND: UPDATE TAG IMAGE (taskESL)
+        ----------------------------------
+        Sends a BMP image to a physical tag via a specific Gateway.
+        Uses the base64-encoded taskESL topic confirmed to work with hardware.
         """
         try:
-            # Task Parameters: [TagId, OffsetX, OffsetY, IsWait, IsFast, IsInvert, Color, Token, RFU, RFU]
-            task_params = [tag_mac, 0, 0, True, False, False, 0, token, "", ""]
+            import base64
+            # 1. Base64 encode the BMP image
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
 
-            # Pack parameters and image bytes into a single msgpack binary payload
-            payload = msgpack.packb([task_params, image_bytes])
+            # 2. taskESL Parameters: [TagId, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, ImageB64]
+            # Pattern=0, PageIndex=0, R=True (Red), G=False, B=False, Times=0
+            task_params = [tag_mac, 0, 0, True, False, False, 0, token, "", "", image_b64]
 
-            # The topic the physical gateway is listening on
-            topic = f"/estation/{gateway_id}/taskESL2"
+            # 3. Wrap in a list as expected by hardware: [[params]]
+            payload = msgpack.packb([task_params])
 
-            # QoS 2: 'Exactly Once' delivery. Ensures the command isn't lost or duplicated.
+            # 4. Use confirmed topic: /estation/{id}/taskESL
+            topic = f"/estation/{gateway_id}/taskESL"
+
+            # QoS 2: 'Exactly Once' delivery.
             result = self.client.publish(topic, payload, qos=2)
 
-            # Log the outgoing message (sanitizing binary data for the logs)
-            self._log_mqtt_message("sent", gateway_id, topic, {"params": task_params, "image_len": len(image_bytes)})
+            # Log the outgoing message (sanitizing Base64 for the database logs)
+            log_data = task_params.copy()
+            log_data[10] = f"<base64:{len(image_b64)} chars>"
+            self._log_mqtt_message("sent", gateway_id, topic, log_data)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published update for {tag_mac} to gateway {gateway_id}")
+                logger.debug(f"Published taskESL update for {tag_mac} to gateway {gateway_id}")
                 return True
             else:
                 logger.error(f"Failed to publish MQTT message for {tag_mac}: RC {result.rc}")
