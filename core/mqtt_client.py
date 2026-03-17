@@ -496,10 +496,9 @@ class ESLMqttClient:
             # QoS 2: 'Exactly Once' delivery.
             result = self.client.publish(topic, payload, qos=2)
 
-            # Log the outgoing message (sanitizing Base64 for the database logs)
-            log_data = task_params.copy()
-            log_data[10] = f"<base64:{len(image_b64)} chars>"
-            self._log_mqtt_message("sent", gateway_id, topic, log_data)
+            # Log the outgoing message
+            # The user requested to see the full Base64 payload in the monitoring tab for debugging.
+            self._log_mqtt_message("sent", gateway_id, topic, task_params)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 logger.debug(f"Published taskESL update for {tag_mac} to gateway {gateway_id}")
