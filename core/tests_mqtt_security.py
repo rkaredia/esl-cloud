@@ -126,6 +126,7 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         self.gw_b = Gateway.objects.create(estation_id="GW02", gateway_mac="MAC02", store=self.store_b)
 
         # Common Tag MAC
+        # Note: the system now normalizes for matching but uses original for creation
         self.shared_mac = "DEADBEEF0001"
 
         self.hw = TagHardware.objects.create(

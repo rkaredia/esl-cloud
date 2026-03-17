@@ -153,7 +153,8 @@ def dispatch_tag_image_task(tag_id):
 
         # Generate a unique 'Token' for this specific hardware transaction.
         # The gateway will send this back in the result so we know WHICH update finished.
-        token = random.randint(1, 255)
+        # Range 1-100 matches hardware working sandbox
+        token = random.randint(1, 100)
 
         # DELIVERY LOOP: Try each gateway until one accepts the message.
         for gateway_id in gateways_to_try:

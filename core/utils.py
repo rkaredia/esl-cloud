@@ -257,24 +257,20 @@ def generate_esl_image(tag_id, tag_instance=None):
         width, height = int(spec.width_px or 250), int(spec.height_px or 122)
         color_scheme = (spec.color_scheme or "BW").upper()
 
-        # HI-RES RENDERING PIPELINE
-        # To improve quality after resampling, we draw at 2x resolution
-        render_w, render_h = width * 2, height * 2
-
-        # 1. Create canvas
-        image = Image.new('RGBA', (render_w, render_h), color=(255, 255, 255, 255))
+        # HARDWARE-ALIGNED RENDERING (as per working sandbox code)
+        # 1. Create canvas with exact dimensions in RGB mode initially
+        image = Image.new('RGB', (width, height), color=(255, 255, 255))
         draw = ImageDraw.Draw(image)
 
-        # 2. Apply template (passing high-res dimensions)
+        # 2. Apply template
         tid = getattr(tag, 'template_id', 1)
-        if tid == 3: template_v3(image, draw, product, render_w, render_h, color_scheme)
-        elif tid == 2: template_v2(image, draw, product, render_w, render_h, color_scheme)
-        else: template_v1(image, draw, product, render_w, render_h, color_scheme)
+        if tid == 3: template_v3(image, draw, product, width, height, color_scheme)
+        elif tid == 2: template_v2(image, draw, product, width, height, color_scheme)
+        else: template_v1(image, draw, product, width, height, color_scheme)
 
-        # 3. FINAL HARDWARE OPTIMIZATION (as per working sandbox code)
-        # Explicit conversion to RGBA
+        # 3. Final alignment and resampling
+        # Match user test code sequence exactly: convert("RGBA") THEN resize(..., LANCZOS)
         image = image.convert("RGBA")
-        # Resize to EXACT hardware dimensions using LANCZOS for maximum clarity
         image = image.resize((width, height), Image.Resampling.LANCZOS)
 
         return image
