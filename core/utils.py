@@ -257,8 +257,8 @@ def generate_esl_image(tag_id, tag_instance=None):
         width, height = int(spec.width_px or 296), int(spec.height_px or 128)
         color_scheme = (spec.color_scheme or "BW").upper()
 
-        # Start with a blank white BMP canvas
-        image = Image.new('RGB', (width, height), color=(255, 255, 255))
+        # Match hardware sandbox: use RGBA for BMP generation
+        image = Image.new('RGBA', (width, height), color=(255, 255, 255, 255))
         draw = ImageDraw.Draw(image)
 
         # Apply the selected template

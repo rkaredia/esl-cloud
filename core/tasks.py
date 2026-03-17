@@ -72,7 +72,8 @@ def update_tag_image_task(self, tag_id):
         # CALL UTILS: Render the actual BMP image using Pillow (PIL)
         try:
             pil_img = generate_esl_image(tag_id, tag_instance=tag)
-            if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
+            # Match hardware sandbox: use RGBA for BMP generation
+            if pil_img.mode != 'RGBA': pil_img = pil_img.convert('RGBA')
         except Exception as e:
             logger.exception(f"Image gen failed for {tag.tag_mac}")
             ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')

@@ -480,12 +480,15 @@ class ESLMqttClient:
         """
         try:
             import base64
+            # 0. Clean Tag MAC (Remove colons and lowercase to match hardware expectation)
+            clean_mac = tag_mac.replace(':', '').lower()
+
             # 1. Base64 encode the BMP image
             image_b64 = base64.b64encode(image_bytes).decode('utf-8')
 
             # 2. taskESL Parameters: [TagId, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, ImageB64]
             # Pattern=0, PageIndex=0, R=True (Red), G=False, B=False, Times=0
-            task_params = [tag_mac, 0, 0, True, False, False, 0, token, "", "", image_b64]
+            task_params = [clean_mac, 0, 0, True, False, False, 0, token, "", "", image_b64]
 
             # 3. Wrap in a list as expected by hardware: [[params]]
             payload = msgpack.packb([task_params])
@@ -501,7 +504,7 @@ class ESLMqttClient:
             self._log_mqtt_message("sent", gateway_id, topic, task_params)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published taskESL update for {tag_mac} to gateway {gateway_id}")
+                logger.debug(f"Published taskESL update for {clean_mac} to gateway {gateway_id}. B64: {image_b64[:50]}...")
                 return True
             else:
                 logger.error(f"Failed to publish MQTT message for {tag_mac}: RC {result.rc}")
