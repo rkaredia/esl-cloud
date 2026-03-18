@@ -60,7 +60,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     exchange with the physical hardware.
     """
     list_display = (
-        'timestamp', 'direction_indicator', 'estation_id',
+        'timestamp', 'direction_indicator', 'estation_id', 'tag_id_column',
         'topic', 'data_preview', 'status_indicator'
     )
     list_filter = ('direction', 'is_success', 'estation_id', 'topic')
@@ -92,6 +92,48 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         text = "SUCCESS" if obj.is_success else "FAILURE"
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
+
+    def tag_id_column(self, obj):
+        """
+        Extracts and displays the ESL Tag ID from the payload.
+        Handles both Hardware List (MsgPack origin) and Dictionary formats.
+        """
+        try:
+            # Note: MQTTMessage.data already stores the decoded/stringified version
+            # of the MessagePack or JSON payload.
+            data = json.loads(obj.data)
+            tag_id = None
+
+            # Case 1: taskESL payload (Sent) - [ [TagID, Pattern, ...] ] or [ [ [TagID, ...], ... ] ]
+            if isinstance(data, list) and len(data) > 0:
+                inner = data[0]
+                if isinstance(inner, list) and len(inner) > 0:
+                    # Check for nested hardware list [ [TagID, ...] ]
+                    if isinstance(inner[0], (str, bytes)):
+                        tag_id = inner[0]
+                    # Check for taskESL double-wrapper [ [ [TagID, ... ] ] ]
+                    elif isinstance(inner[0], list) and len(inner[0]) > 0:
+                        tag_id = inner[0][0]
+
+            # Case 2: Result/Heartbeat (Received) - [TagID, RfPower, ...]
+            elif isinstance(data, list) and len(data) >= 1:
+                tag_id = data[0]
+
+            # Case 3: Dictionary format (Demo/Simulator)
+            elif isinstance(data, dict):
+                tag_id = data.get('TagId') or data.get('tag_id') or data.get('Tags', [{}])[0].get('TagId')
+
+            if tag_id:
+                # Handle bytes if somehow not already stringified
+                if isinstance(tag_id, bytes):
+                    tag_id = tag_id.decode('utf-8', errors='ignore')
+                # Ensure it looks like a MAC (UPPERCASE)
+                clean_id = tag_id.replace(':', '').upper()
+                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', clean_id)
+            return "-"
+        except:
+            return "-"
+    tag_id_column.short_description = "ESL Tag ID"
 
     def data_preview(self, obj):
         """Short snippet of the payload for the main table."""

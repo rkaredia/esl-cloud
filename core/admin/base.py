@@ -277,24 +277,50 @@ class SAISAdminSite(admin.AdminSite):
             # --- DEFINE CUSTOM GROUPS ---
 
             # Group 1: Daily Store Operations
+            inventory_models = []
+            m = find_model('ESLTag');
+            if m: m['name'] = '🏷️ ESL Tags'; inventory_models.append(m)
+            m = find_model('Product');
+            if m: m['name'] = '📦 Products'; inventory_models.append(m)
+            m = find_model('Supplier');
+            if m: m['name'] = '🏭 Suppliers'; inventory_models.append(m)
+
             inventory = {
                 'name': '📦 Inventory',
                 'app_label': 'inventory',
-                'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]
+                'models': inventory_models
             }
 
             # Group 2: Base Stations & Hardware setup
+            hardware_models = []
+            m = find_model('Gateway');
+            if m: m['name'] = '📡 Gateways'; hardware_models.append(m)
+            m = find_model('TagHardware');
+            if m: m['name'] = '📐 Tag Hardwares'; hardware_models.append(m)
+            m = find_model('GlobalSetting');
+            if m: m['name'] = '⚙️ Global Settings'; hardware_models.append(m)
+
             hardware = {
                 'name': '📡 Hardware',
                 'app_label': 'hardware',
-                'models': [m for m in [find_model('Gateway'), find_model('TagHardware'), find_model('GlobalSetting')] if m]
+                'models': hardware_models
             }
 
             # Group 3: Multi-tenant management (Admin only)
+            org_models = []
+            m = find_model('Company');
+            if m: m['name'] = '🏢 Companies'; org_models.append(m)
+            m = find_model('Store');
+            if m: m['name'] = '🏬 Stores'; org_models.append(m)
+            m = find_model('User');
+            if m: m['name'] = '👤 Users'; org_models.append(m)
+            m = find_model('Group');
+            if m: m['name'] = '👥 Groups'; org_models.append(m)
+
             org = {
                 'name': '🏢 Organisation',
                 'app_label': 'organisation',
-                'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]
+                'models': org_models
             }
 
             # Group 4: Logs & Monitoring

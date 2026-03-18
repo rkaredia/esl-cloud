@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleBtn = document.createElement('a');
                 toggleBtn.id = 'filter-toggle-btn';
                 toggleBtn.href = 'javascript:void(0);';
-                toggleBtn.className = 'addlink';
+                toggleBtn.className = 'addlink filter-toggle'; // Added explicit class for CSS styling
                 toggleBtn.style.background = '#64748b';
                 toggleBtn.setAttribute('aria-controls', 'changelist-filter');
                 toggleItem.appendChild(toggleBtn);
@@ -113,12 +113,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (toggleBtn) {
             updateToggleButton(toggleBtn, isInitiallyVisible);
-            toggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                changelistWrapper.classList.toggle('filter-hidden');
-                const isVisible = !changelistWrapper.classList.contains('filter-hidden');
-                localStorage.setItem('sais-admin-filter-visible', isVisible);
-                updateToggleButton(toggleBtn, isVisible);
+
+            // SECURITY: Use event delegation to ensure the click listener is robust
+            document.addEventListener('click', function(e) {
+                if (e.target && (e.target.id === 'filter-toggle-btn' || e.target.id === 'toggle-filters' || e.target.closest('#filter-toggle-btn'))) {
+                    const btn = e.target.id === 'filter-toggle-btn' ? e.target : (e.target.id === 'toggle-filters' ? e.target : e.target.closest('#filter-toggle-btn'));
+                    e.preventDefault();
+                    changelistWrapper.classList.toggle('filter-hidden');
+                    const isVisible = !changelistWrapper.classList.contains('filter-hidden');
+                    localStorage.setItem('sais-admin-filter-visible', isVisible);
+                    updateToggleButton(btn, isVisible);
+                }
             });
         }
     }

@@ -81,9 +81,10 @@
     top: 0;
     height: 100%;
     width: 5px;
-    background: rgba(0,0,0,0.05);
+    background: transparent;
     cursor: col-resize;
     user-select: none;
+    z-index: 10;
 }
 
 .resizer:hover {
@@ -111,13 +112,44 @@
 /* 6. SIDEBAR CUSTOMIZATION
    Changes the look of the sidebar section headers.
 */
+#nav-sidebar {
+    background: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+
 #nav-sidebar .section {
-    color: var(--white) !important;
-    background: #417690 !important;
-    padding: 10px 15px !important;
-    font-weight: 600 !important;
+    color: #334155 !important;
+    background: #f1f5f9 !important;
+    padding: 12px 15px !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    margin-bottom: 5px !important;
+    font-size: 11px !important;
+}
+
+#nav-sidebar .app-inventory .section { border-left: 4px solid #3b82f6; }
+#nav-sidebar .app-hardware .section { border-left: 4px solid #10b981; }
+#nav-sidebar .app-organisation .section { border-left: 4px solid #f59e0b; }
+#nav-sidebar .app-monitoring .section { border-left: 4px solid #6366f1; }
+
+#nav-sidebar th {
+    padding: 8px 15px !important;
+}
+
+#nav-sidebar a {
+    color: #475569 !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+}
+
+#nav-sidebar a:hover {
+    color: var(--primary-blue) !important;
+}
+
+#nav-sidebar tr:hover td, #nav-sidebar tr:hover th {
+    background: #eff6ff !important;
 }
 
 /* 7. PILL BUTTONS
@@ -137,4 +169,45 @@
 
 .object-tools a:hover, .addlink:hover {
     background-color: #00A8E8 !important;
+}
+
+/* 8. FILTER TOGGLE
+   Hides the filter sidebar when the .filter-hidden class is present.
+*/
+.filter-hidden #changelist-filter {
+    display: none !important;
+}
+
+#changelist-wrapper.filter-hidden #changelist {
+    margin-right: 0 !important;
+    border-right: none !important;
+}
+
+/* 9. HIDE REDUNDANT WIDGETS
+   Removes the "Add", "Edit", and "Delete" icons next to foreign key dropdowns.
+*/
+.related-widget-wrapper > a {
+    display: none !important;
+}
+
+/* 10. REMOVE PLUS SYMBOL
+   Overrides standard Django 'addlink' plus icons and dashboard circular buttons.
+*/
+.addlink::before, .object-tools a::before {
+    display: none !important;
+}
+
+.addlink, .object-tools a {
+    padding-left: 20px !important; /* Restore padding if icon was removed */
+    background-image: none !important; /* Remove any CSS-based background icons */
+}
+
+/* Specifically target the dashboard 'ADD' buttons and similar circular icons */
+.addlink, .object-tools a, [class*="add"] {
+    background-image: none !important;
+}
+
+/* Ensure the text is centered now that the icon is gone */
+.object-tools a, .addlink {
+    justify-content: center;
 }

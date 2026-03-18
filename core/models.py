@@ -402,6 +402,7 @@ class ESLTag(AuditModel):
     # Background Task Tracking (for Celery)
     last_image_task_id = models.CharField(max_length=255, null=True, blank=True)
     last_image_task_token = models.IntegerField(null=True, blank=True)
+    last_pushed_at = models.DateTimeField(null=True, blank=True, verbose_name="Last Pushed to Gateway")
 
     # Hardware Status (Telemetery)
     battery_level = models.IntegerField(default=100)
