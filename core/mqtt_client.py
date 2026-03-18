@@ -222,6 +222,16 @@ class ESLMqttClient:
         except Exception:
             logger.exception("Error handling MQTT result message")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        WRAPPER FOR TEST COMPATIBILITY
+        ------------------------------
+        Maintains backward compatibility with legacy tests that call
+        this method directly. Routes to centralized tag processing.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
+
     def handle_heartbeat(self, estation_id, data):
         """
         GATEWAY TELEMETRY (Heartbeat)
