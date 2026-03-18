@@ -293,7 +293,7 @@ class ESLMqttClient:
                 update_data['password'] = conn_param[1]
 
             # Trigger the update (case-insensitive lookup)
-            Gateway.objects.filter(estation_id__iexact=estation_id).update(**update_data)
+            Gateway.objects.filter(estation_id__iexact=estation_id.strip()).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
 
@@ -303,18 +303,11 @@ class ESLMqttClient:
         -------------------------
         """
         try:
-            # AUTO-CONNECT
-            if not self.client.is_connected():
-                self.connect()
-                import time
-                time.sleep(0.5)
-
-            if not self.client.is_connected():
-                logger.error("MQTT client not connected — cannot publish config")
-                return False
+            # Normalize ID for robust lookup
+            clean_id = estation_id.strip()
 
             update_data = {
-                'estation_id': estation_id,
+                'estation_id': clean_id,
                 'is_online': True,
                 'last_heartbeat': timezone.now(),
                 'last_seen': timezone.now()
@@ -352,18 +345,32 @@ class ESLMqttClient:
                     'heartbeat_interval': data.get('Heartbeat'),
                 })
 
-            gateway = Gateway.objects.filter(gateway_mac=mac).first()
+            # Register or Get existing
+            # We check both MAC and ID (case-insensitive) to prevent IntegrityErrors
+            from django.db.models import Q
+
+            # Look for any record that might conflict with this hardware's MAC or reported ID
+            conflicts = Gateway.objects.filter(Q(gateway_mac=mac) | Q(estation_id__iexact=clean_id))
+            gateway = conflicts.first()
+
             if not gateway:
                 store = Store.objects.filter(name='Admin Store').first() or Store.objects.first()
                 if not store:
                     logger.error("No store found for auto-discovery")
                     return
-                # 'mac' is already inside 'update_data' as 'gateway_mac', so we pass it only once
+
+                # Double-check for ID collision before create (paranoia against race conditions)
+                Gateway.objects.filter(estation_id__iexact=clean_id).update(estation_id=None)
                 Gateway.objects.create(store=store, **update_data)
             else:
-                Gateway.objects.filter(gateway_mac=mac).update(**update_data)
+                # If we have multiple conflicting records, resolve by clearing the ID on non-primary ones
+                if conflicts.count() > 1:
+                    Gateway.objects.filter(estation_id__iexact=clean_id).exclude(pk=gateway.pk).update(estation_id=None)
 
-            logger.info(f"Gateway {mac} (ID:{estation_id}) updated via /infor")
+                # Update the primary record
+                Gateway.objects.filter(pk=gateway.pk).update(**update_data)
+
+            logger.info(f"Gateway {mac} (ID:{clean_id}) updated via /infor")
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
@@ -375,7 +382,7 @@ class ESLMqttClient:
         try:
             if not tags_list: return
 
-            gateway = Gateway.objects.filter(estation_id__iexact=estation_id).select_related('store').first()
+            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).select_related('store').first()
             if not gateway: return
 
             normalized_macs = []
@@ -482,7 +489,8 @@ class ESLMqttClient:
             task_params = [clean_mac, 0, 0, True, False, False, 0, token, "", "", image_b64]
 
             # 3. Wrap in a list as expected by hardware: [[params]]
-            payload = msgpack.packb([task_params])
+            # use_bin_type=True is required for the hardware to process the Base64 image payload correctly
+            payload = msgpack.packb([task_params], use_bin_type=True)
 
             # 4. Use confirmed topic: /estation/{id}/taskESL (Ensuring uppercase ID)
             topic = f"/estation/{gateway_id.upper()}/taskESL"
@@ -521,7 +529,7 @@ class ESLMqttClient:
                 'Heartbeat': heartbeat
             }
 
-            payload = msgpack.packb(config_data)
+            payload = msgpack.packb(config_data, use_bin_type=True)
             topic = f"/estation/{gateway_id.upper()}/configure"
 
             result = self.client.publish(topic, payload, qos=2)
