@@ -154,6 +154,12 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
 
+    def get_queryset(self, request):
+        """Optimize performance by prefetching related objects."""
+        return super().get_queryset(request).select_related(
+            'paired_product', 'gateway', 'hardware_spec', 'store'
+        )
+
     def image_status(self, obj):
         """Visual status indicator for image generation."""
         try:
@@ -211,7 +217,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     def image_preview_large(self, obj):
         """Shows the actual BMP image that is currently on the tag."""
         try:
-            if not obj.paired_product: return mark_safe('<i style="color: #94a3b8;">No product paired.</i>')
+            if not obj.paired_product: return format_html('<i style="color: #94a3b8;">No product paired.</i>')
             if obj.tag_image:
                 return format_html('<img src="{}?v={}" style="max-width: 400px; border: 2px solid #eee; border-radius: 12px;"/>', obj.tag_image.url, int(time.time()))
             return "Waiting for background generation..."

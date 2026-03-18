@@ -75,7 +75,8 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         try:
             parsed = json.loads(obj.data)
             formatted = json.dumps(parsed, indent=2)
-            return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 400px; overflow: auto;">{}</pre>', formatted)
+            # Increased max-height and improved readability for large payloads (like Base64 images)
+            return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 600px; overflow: auto; white-space: pre-wrap; word-break: break-all;">{}</pre>', formatted)
         except:
             return obj.data
     data_json.short_description = "Formatted Payload"
