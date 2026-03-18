@@ -205,7 +205,8 @@ class ESLMqttClient:
 
             # 3. Verify Token: We only update if the token matches the last task we sent
             if tag.last_image_task_token == token:
-                is_success = (status_code == 0) # 0 = Success in eStation protocol
+                # 0 = Success in eStation protocol. Any other value (like 4) is a failure.
+                is_success = (status_code == 0)
                 tag.sync_state = 'SUCCESS' if is_success else 'FAILED'
                 tag.battery_level = self._calculate_battery_percentage(battery_raw)
 
@@ -302,6 +303,16 @@ class ESLMqttClient:
         -------------------------
         """
         try:
+            # AUTO-CONNECT
+            if not self.client.is_connected():
+                self.connect()
+                import time
+                time.sleep(0.5)
+
+            if not self.client.is_connected():
+                logger.error("MQTT client not connected — cannot publish config")
+                return False
+
             update_data = {
                 'estation_id': estation_id,
                 'is_online': True,
@@ -347,7 +358,8 @@ class ESLMqttClient:
                 if not store:
                     logger.error("No store found for auto-discovery")
                     return
-                Gateway.objects.create(gateway_mac=mac, store=store, **update_data)
+                # 'mac' is already inside 'update_data' as 'gateway_mac', so we pass it only once
+                Gateway.objects.create(store=store, **update_data)
             else:
                 Gateway.objects.filter(gateway_mac=mac).update(**update_data)
 
@@ -445,6 +457,19 @@ class ESLMqttClient:
         Sends a BMP image to a physical tag. Matches user sandbox script.
         """
         try:
+            # AUTO-CONNECT: Ensure we are connected before publishing
+            # (Crucial for web/Celery processes that don't run the worker loop)
+            if not self.client.is_connected():
+                logger.info("MQTT client not connected - attempting to connect before publish")
+                self.connect()
+                # Brief wait for connection to establish
+                import time
+                time.sleep(0.5)
+
+            if not self.client.is_connected():
+                logger.error("MQTT client not connected — cannot publish")
+                return False
+
             import base64
             # 0. Clean Tag MAC (Remove colons and UPPERCASE to match hardware expectation)
             clean_mac = tag_mac.replace(':', '').upper()
@@ -528,11 +553,18 @@ class ESLMqttClient:
             else:
                 is_success = True
                 if direction == "received" and topic.endswith("/result"):
+                    status_val = None
                     if isinstance(data, list):
                         if len(data) == 1 and isinstance(data[0], list): data = data[0]
-                        if len(data) >= 5: is_success = (data[4] == 0)
+                        if len(data) >= 5: status_val = data[4]
                     elif isinstance(data, dict):
-                        is_success = (data.get('Status') == 0)
+                        status_val = data.get('Status')
+
+                    if status_val is not None:
+                        is_success = (status_val == 0)
+                        # If failed, include the error code in the log for visibility
+                        if not is_success:
+                            topic = f"{topic} (ERR:{status_val})"
 
             MQTTMessage.objects.create(
                 direction=direction,
