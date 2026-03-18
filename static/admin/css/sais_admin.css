@@ -110,32 +110,31 @@
 }
 
 /* 6. SIDEBAR CUSTOMIZATION
-   Polished Dark Sidebar with consistent iconography and spacing.
+   Polished Light Sidebar with consistent iconography and spacing.
 */
 #nav-sidebar {
-    background: #0f172a !important; /* Slate 900 */
-    border-right: 1px solid #1e293b !important;
+    background: #f8fafc !important; /* Slate 50 */
+    border-right: 1px solid #e2e8f0 !important;
     width: 260px !important;
 }
 
 #nav-sidebar .section {
-    color: #94a3b8 !important; /* Slate 400 */
-    background: transparent !important;
-    padding: 1.5rem 1rem 0.5rem !important;
-    font-weight: 600 !important;
+    color: #475569 !important; /* Slate 600 */
+    background: #f1f5f9 !important; /* Slate 100 */
+    padding: 12px 16px !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    font-size: 10px !important;
-    border: none !important;
+    letter-spacing: 0.05em !important;
+    font-size: 11px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin-bottom: 4px !important;
 }
-
-#nav-sidebar .app-inventory .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
-#nav-sidebar .app-hardware .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
-#nav-sidebar .app-organisation .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
-#nav-sidebar .app-monitoring .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
 
 #nav-sidebar table {
     width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 2px !important;
 }
 
 #nav-sidebar th {
@@ -148,23 +147,20 @@
 }
 
 #nav-sidebar a {
-    color: #cbd5e1 !important; /* Slate 300 */
+    color: #334155 !important; /* Slate 800 */
     font-weight: 500 !important;
     font-size: 13px !important;
     display: block !important;
-    padding: 8px 16px !important;
+    padding: 10px 20px !important;
     transition: all 0.2s ease;
-    border-radius: 6px;
-    margin: 2px 8px;
+    border-radius: 0 20px 20px 0;
+    margin-right: 12px;
 }
 
 #nav-sidebar a:hover {
-    color: #ffffff !important;
-    background: #1e293b !important; /* Slate 800 */
-}
-
-#nav-sidebar tr.model-esltag a, #nav-sidebar tr.model-product a, #nav-sidebar tr.model-supplier a {
-    /* Optional model-specific styling */
+    color: #2563eb !important;
+    background: #eff6ff !important; /* Blue 50 */
+    padding-left: 24px !important;
 }
 
 #nav-sidebar .current-model a {
@@ -180,13 +176,13 @@
     overflow-y: auto;
 }
 
-/* 7. PILL BUTTONS & ADD BUTTONS
-   Polished buttons with consistent sizing and subtle "+" icon restoration.
+/* 7. RECTANGULAR BUTTONS
+   Polished buttons with rectangular edges and subtle "+" icon restoration.
 */
 .object-tools a, .addlink {
     background-color: var(--navy) !important;
     color: var(--white) !important;
-    border-radius: 6px !important;
+    border-radius: 2px !important;
     padding: 8px 16px !important;
     text-transform: none !important;
     font-size: 13px !important;

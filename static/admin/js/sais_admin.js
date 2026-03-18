@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
 
-        // Load preference: Default to 'hidden' (filter-hidden class)
+        // Load preference: Standard behavior is 'hidden' unless explicitly set to 'true'
         const filterState = localStorage.getItem('sais-admin-filter-visible');
         const isInitiallyVisible = filterState === 'true';
 
-        if (!isInitiallyVisible) {
-            changelistWrapper.classList.add('filter-hidden');
+        if (isInitiallyVisible) {
+            changelistWrapper.classList.remove('filter-hidden');
         }
 
         let toggleBtn = document.getElementById('filter-toggle-btn') || document.getElementById('toggle-filters');

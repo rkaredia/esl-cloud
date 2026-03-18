@@ -26,8 +26,8 @@ class Command(BaseCommand):
         ))
         
         try:
-            # Connect to the broker (Configuration is pulled from settings.py)
-            mqtt_service.connect()
+            # Connect to the broker and subscribe to topics
+            mqtt_service.connect(subscribe=True)
 
             # KEEP-ALIVE LOOP
             # The MQTT client (Paho) runs in its own background thread.
