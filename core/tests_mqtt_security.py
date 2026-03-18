@@ -126,6 +126,7 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         self.gw_b = Gateway.objects.create(estation_id="GW02", gateway_mac="MAC02", store=self.store_b)
 
         # Common Tag MAC
+        # Note: the system now normalizes for matching but uses original for creation
         self.shared_mac = "DEADBEEF0001"
 
         self.hw = TagHardware.objects.create(
@@ -160,9 +161,11 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         ONLY updates tags in Store A, even if the same MAC exists in Store B.
         """
         # Payload from Gateway A (Store A)
+        # Note: 50 in our new conversion logic means 100% (since 30+ is 100%)
+        # Let's use 26 which should result in 50% ((26-22)*12.5)
         data = {
             'Tags': [
-                {'TagId': self.shared_mac, 'Battery': 50}
+                {'TagId': self.shared_mac, 'Battery': 26}
             ]
         }
 
@@ -172,12 +175,6 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         # Refresh from DB
         self.tag_a.refresh_from_db()
         self.tag_b.refresh_from_db()
-
-        # Store A tag SHOULD be updated
-        # Store B tag SHOULD NOT be updated
-
-        # In the current VULNERABLE state, one might be updated and the other not,
-        # or the wrong one might be updated.
 
         # Store A tag SHOULD be updated
         self.assertEqual(self.tag_a.battery_level, 50)

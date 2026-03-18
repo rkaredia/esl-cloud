@@ -72,7 +72,6 @@ def update_tag_image_task(self, tag_id):
         # CALL UTILS: Render the actual BMP image using Pillow (PIL)
         try:
             pil_img = generate_esl_image(tag_id, tag_instance=tag)
-            if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
         except Exception as e:
             logger.exception(f"Image gen failed for {tag.tag_mac}")
             ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
@@ -154,7 +153,8 @@ def dispatch_tag_image_task(tag_id):
 
         # Generate a unique 'Token' for this specific hardware transaction.
         # The gateway will send this back in the result so we know WHICH update finished.
-        token = random.randint(1, 255)
+        # Range 1-100 matches hardware working sandbox
+        token = random.randint(1, 100)
 
         # DELIVERY LOOP: Try each gateway until one accepts the message.
         for gateway_id in gateways_to_try:
