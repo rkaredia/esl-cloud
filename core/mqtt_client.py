@@ -16,18 +16,10 @@ MQTT COMMUNICATION ENGINE: THE SYSTEM BACKBONE
 This module handles all communication between the SAIS Cloud and the
 physical ESL Gateways (eStations).
 
-HOW IT WORKS (The Lifecycle of a Message):
-1. TRIGGER: A product price changes in Django.
-2. TASK: Celery generates a BMP image and calls `mqtt_service.publish_tag_update`.
-3. PUBLISH: This client sends a binary message (msgpack) to the MQTT Broker.
-4. GATEWAY: The physical Gateway (eStation) receives the message and updates the tag.
-5. RESULT: The Gateway sends a '/result' message back to this client.
-6. UPDATE: This client processes the result and marks the ESLTag as 'SUCCESS' in the DB.
-
 PROTOCOL DETAILS:
 - Port: 9081 (standard for D21 eStations)
-- Serialization: MessagePack (msgpack) for binary efficiency, JSON for some heartbeats.
-- Security: TLS 1.2 with Certificate-based encryption.
+- Serialization: MessagePack (msgpack).
+- Format: Supports both legacy Dictionary and new Hardware List formats.
 """
 
 logger = logging.getLogger(__name__)
@@ -36,16 +28,18 @@ class ESLMqttClient:
     """
     SAIS MQTT CLIENT MANAGER
     ------------------------
-    A wrapper around the Paho MQTT library. It manages the connection,
-    subscription to topics, and routing of incoming messages to handlers.
+    A wrapper around the Paho MQTT library.
     """
     def __init__(self):
         try:
-            # We use MQTTv5 for modern features and improved error reporting
-            self.client = mqtt.Client(protocol=mqtt.MQTTv5)
+            # Explicitly use Paho MQTT v2 API for compatibility with the latest library
+            # Use default protocol (v3.1.1) for maximum hardware compatibility
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
             # Register callbacks (Event Handlers)
             self.client.on_connect = self.on_connect
+            self.client.on_publish = self.on_publish
+            self.client.on_subscribe = self.on_subscribe
             self.client.on_message = self.on_message
         except Exception:
             logger.exception("Failed to initialize MQTT client")
@@ -54,8 +48,7 @@ class ESLMqttClient:
         """
         INITIALIZE CONNECTION
         ---------------------
-        Configures authentication, encryption (TLS), and starts the
-        background listening loop.
+        Configures authentication and starts the background listening loop.
         """
         try:
             host = getattr(settings, 'MQTT_SERVER', 'localhost')
@@ -66,22 +59,13 @@ class ESLMqttClient:
             # Authentication credentials for the MQTT Broker
             self.client.username_pw_set(user, pw)
 
-            # TLS (SSL) CONFIGURATION
-            # D21 Gateways require TLS 1.2 for secure communication.
-            # We point to the CA (Certificate Authority) file stored in the repo.
+            # TLS is currently disabled as server.key is missing
             # ca_path = os.path.join(settings.BASE_DIR, 'mosquitto', 'certs', 'ca.crt')
-            # if os.path.exists(ca_path):
-            #     import ssl
-            #     self.client.tls_set(ca_certs=ca_path, tls_version=ssl.PROTOCOL_TLSv1_2)
-            #     # tls_insecure_set(True) allows us to use self-signed certificates
-            #     # (common in local hardware setups).
-            #     self.client.tls_insecure_set(True)
 
             # Connect to the broker (timeout after 60 seconds)
             self.client.connect(host, port, 60)
 
             # loop_start() runs the client in a separate background thread
-            # so it doesn't block the main Django/Celery process.
             self.client.loop_start()
             logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled)")
         except Exception:
@@ -92,47 +76,44 @@ class ESLMqttClient:
         EVENT: CONNECTED
         ----------------
         Triggered when the client successfully handshakes with the broker.
-        Once connected, we 'Subscribe' to the topics we care about.
-        The '+' in the topic is a WILDCARD (e.g., /estation/ANY_ID/result).
         """
         try:
             logger.info(f"Connected to MQTT Broker with result code {rc}")
 
-            # /result: Outcome of a tag update (Success/Fail)
-            self.client.subscribe("/estation/+/result", qos=2)
-
-            # /heartbeat: Gateway status (Online, IP, etc.) sent every few mins
+            # Subscribe to all eStation topics with QoS 0 for maximum hardware compatibility
+            self.client.subscribe("/estation/+/result", qos=0)
             self.client.subscribe("/estation/+/heartbeat", qos=0)
-
-            # /tagheartbeat: List of all tags currently seen by a gateway
             self.client.subscribe("/estation/+/tagheartbeat", qos=0)
-
-            # /infor: Detailed hardware/firmware info sent on gateway boot
             self.client.subscribe("/estation/+/infor", qos=0)
-
-            # /message: General system logs/error messages from hardware
             self.client.subscribe("/estation/+/message", qos=0)
         except Exception:
             logger.exception("Error in MQTT on_connect callback")
+
+    def on_publish(self, client, userdata, mid, reason_code=None, properties=None):
+        logger.debug(f"MQTT Message {mid} published")
+
+    def on_subscribe(self, client, userdata, mid, reason_code_list, properties=None):
+        logger.debug(f"MQTT Subscription {mid} confirmed")
 
     def on_message(self, client, userdata, msg):
         """
         EVENT: MESSAGE RECEIVED
         -----------------------
         The central traffic controller for all incoming MQTT data.
-        It identifies the gateway ID and routes the data to the correct handler.
         """
         try:
+            # Diagnostic log for tracking all incoming data
+            logger.debug(f"MQTT Data received on {msg.topic}: {msg.payload[:100]!r}...")
+
             # Topic format is usually: /estation/<estation_id>/<command>
             topic_parts = msg.topic.split('/')
             if len(topic_parts) < 3: return
             estation_id = topic_parts[2]
 
             # DATA UNPACKING (De-serialization)
-            # The eStation protocol primarily uses 'msgpack' (binary).
-            # Some messages might be standard JSON.
             try:
-                data = msgpack.unpackb(msg.payload)
+                # Use raw=False to ensure strings are correctly decoded from bytes
+                data = msgpack.unpackb(msg.payload, raw=False)
             except Exception:
                 try:
                     data = json.loads(msg.payload.decode())
@@ -147,7 +128,6 @@ class ESLMqttClient:
             if msg.topic.endswith("/result"):
                 self.handle_result(estation_id, data)
             elif msg.topic.endswith("/heartbeat"):
-                # Hardware can send a list of tags inside the heartbeat
                 self.handle_heartbeat(estation_id, data)
 
                 # Check if this heartbeat contains a tag list (List format at index 8 or 'Tags' key)
@@ -168,16 +148,35 @@ class ESLMqttClient:
         except Exception:
             logger.exception(f"Error processing MQTT message on topic {msg.topic}")
 
+    def _calculate_battery_percentage(self, voltage_raw):
+        """
+        CONVERT VOLTAGE TO PERCENTAGE
+        -----------------------------
+        ESL tags report raw voltage (e.g. 30 = 3.0V).
+        Mapping: 3.0V (30) = 100%, 2.2V (22) = 0%.
+        """
+        try:
+            val = int(voltage_raw)
+            if val >= 30: return 100
+            if val <= 22: return 0
+            # Linear interpolation: (val - 22) / (30 - 22) * 100
+            return int((val - 22) * 12.5)
+        except (ValueError, TypeError):
+            return 100
+
     def handle_result(self, estation_id, data):
         """
         PROCESS UPDATE RESULTS
         ----------------------
         Triggered when a Gateway reports back after trying to update a tag.
-        Updates the 'sync_state' in the database.
         """
         try:
             # Protocol definition: [TagID, RfPower, Battery, Version, Status, Token, Temp, Channel]
             if isinstance(data, list):
+                # Handle nested list wrapper if present (common in taskESL response)
+                if len(data) == 1 and isinstance(data[0], list):
+                    data = data[0]
+
                 if len(data) < 6: return
                 tag_mac, battery_raw, status_code, token = data[0], data[2], data[4], data[5]
             else:
@@ -186,29 +185,40 @@ class ESLMqttClient:
                 status_code = data.get('Status')
                 token = data.get('Token')
 
-            # 1. Identify which gateway sent this
-            gateway = Gateway.objects.filter(estation_id=estation_id).first()
+            # 1. Identify which gateway sent this (case-insensitive)
+            gateway = Gateway.objects.filter(estation_id__iexact=estation_id).first()
             if not gateway:
                 logger.error(f"Received result from unknown gateway {estation_id}")
                 return
 
             # 2. Find the tag being updated (Isolated by the gateway's store)
-            tag = ESLTag.objects.filter(tag_mac=tag_mac, store=gateway.store).first()
+            # Use flexible matching to handle MACs with/without colons and case differences
+            from django.db.models.functions import Upper, Replace
+            from django.db.models import Value
+
+            clean_mac = tag_mac.replace(':', '').upper()
+            tag = ESLTag.objects.filter(store=gateway.store).annotate(
+                clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
+            ).filter(clean_db_mac=clean_mac).first()
+
+            if not tag:
+                logger.warning(f"Result for unknown tag {tag_mac} in store {gateway.store}")
+                return
 
             # 3. Verify Token: We only update if the token matches the last task we sent
-            # This prevents old/duplicate results from overwriting new states.
-            if tag and tag.last_image_task_token == token:
-                is_success = (status_code == 0) # 0 = Success in eStation protocol
+            if tag.last_image_task_token == token:
+                # 0 = Success in eStation protocol. Any other value (like 4) is a failure.
+                is_success = (status_code == 0)
                 tag.sync_state = 'SUCCESS' if is_success else 'FAILED'
-                tag.battery_level = battery_raw
+                tag.battery_level = self._calculate_battery_percentage(battery_raw)
 
                 if is_success:
-                    # Update 'last_successful_gateway_id' for future routing optimization
                     tag.last_successful_gateway_id = estation_id
 
-                # update_fields improves performance by only saving specific columns
                 tag.save(update_fields=['sync_state', 'battery_level', 'last_successful_gateway_id'])
-                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'}")
+                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {tag.battery_level}%)")
+            else:
+                logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {token}")
         except Exception:
             logger.exception("Error handling MQTT result message")
 
@@ -216,8 +226,7 @@ class ESLMqttClient:
         """
         GATEWAY TELEMETRY (Heartbeat)
         -----------------------------
-        Updates the Gateway record in Django with its current IP,
-        firmware version, and online status.
+        Updates the Gateway record with its current status.
         """
         try:
             update_data = {
@@ -228,7 +237,7 @@ class ESLMqttClient:
             }
 
             if isinstance(data, list):
-                # New Hardware List Format: ["ID", "Alias", "IP", "MAC", ApType, "ApVer", "ModVer", Disk, Free, "Server", [...], Encrypt, AutoIP, "LocalIP", "Subnet", "Gateway", Heartbeat]
+                # Hardware List Format: index 1=Alias, 2=IP, 3=MAC, 4=ApType, 5=ApVer, 6=ModVer, 7=Disk, 8=Free, 9=Server, 10=ConnParam, 16=Heartbeat
                 if len(data) >= 17:
                     update_data.update({
                         'alias': data[1],
@@ -248,12 +257,8 @@ class ESLMqttClient:
                     update_data['local_ip'] = data[13]
                     update_data['netmask'] = data[14]
                     update_data['network_gateway'] = data[15]
-                else:
-                    # Short Heartbeat format (from user log: ["", 0, "0.0.0", "", 3, "", 0, 0, []])
-                    # We rely on the topic ID (estation_id) since the payload ID is empty
-                    pass
             else:
-                # Demo Dictionary Format: {"ID": "...", "MAC": "...", ...}
+                # Dictionary Format
                 update_data.update({
                     'alias': data.get('Alias'),
                     'gateway_ip': data.get('IP'),
@@ -284,13 +289,13 @@ class ESLMqttClient:
                 else:
                     update_data['app_server_ip'] = server
 
-            # Update login credentials if provided
+            # Update login credentials
             if 'conn_param' in locals() and len(conn_param) >= 2:
                 update_data['username'] = conn_param[0]
                 update_data['password'] = conn_param[1]
 
-            # Trigger the update using the unique ID from the topic
-            Gateway.objects.filter(estation_id=estation_id).update(**update_data)
+            # Trigger the update (case-insensitive lookup)
+            Gateway.objects.filter(estation_id__iexact=estation_id.strip()).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
 
@@ -298,19 +303,19 @@ class ESLMqttClient:
         """
         GATEWAY AUTO-REGISTRATION
         -------------------------
-        Triggered when a new gateway boots up. Automatically creates
-        a record in the DB if it doesn't exist.
         """
         try:
+            # Normalize ID for robust lookup
+            clean_id = estation_id.strip()
+
             update_data = {
-                'estation_id': estation_id, # Always use the topic ID as primary
+                'estation_id': clean_id,
                 'is_online': True,
                 'last_heartbeat': timezone.now(),
                 'last_seen': timezone.now()
             }
 
             if isinstance(data, list):
-                # Hardware List format for /infor
                 if len(data) >= 7:
                     mac = data[3]
                     update_data.update({
@@ -328,7 +333,6 @@ class ESLMqttClient:
                         })
                 else: return
             else:
-                # Dictionary format for /infor
                 mac = data.get('MAC')
                 if not mac: return
                 update_data.update({
@@ -344,19 +348,31 @@ class ESLMqttClient:
                 })
 
             # Register or Get existing
-            # We first try to find by MAC to prevent duplicates if ID changed
-            gateway = Gateway.objects.filter(gateway_mac=mac).first()
+            # We check both MAC and ID (case-insensitive) to prevent IntegrityErrors
+            from django.db.models import Q
+
+            # Look for any record that might conflict with this hardware's MAC or reported ID
+            conflicts = Gateway.objects.filter(Q(gateway_mac=mac) | Q(estation_id__iexact=clean_id))
+            gateway = conflicts.first()
+
             if not gateway:
-                # DEFAULT STORE: New gateways are assigned to the 'Admin Store' by default.
                 store = Store.objects.filter(name='Admin Store').first() or Store.objects.first()
                 if not store:
                     logger.error("No store found for auto-discovery")
                     return
-                gateway = Gateway.objects.create(gateway_mac=mac, store=store, **update_data)
-            else:
-                Gateway.objects.filter(gateway_mac=mac).update(**update_data)
 
-            logger.info(f"Gateway {mac} (ID:{estation_id}) updated via /infor")
+                # Double-check for ID collision before create (paranoia against race conditions)
+                Gateway.objects.filter(estation_id__iexact=clean_id).update(estation_id=None)
+                Gateway.objects.create(store=store, **update_data)
+            else:
+                # If we have multiple conflicting records, resolve by clearing the ID on non-primary ones
+                if conflicts.count() > 1:
+                    Gateway.objects.filter(estation_id__iexact=clean_id).exclude(pk=gateway.pk).update(estation_id=None)
+
+                # Update the primary record
+                Gateway.objects.filter(pk=gateway.pk).update(**update_data)
+
+            logger.info(f"Gateway {mac} (ID:{clean_id}) updated via /infor")
         except Exception:
             logger.exception(f"Error handling infor for gateway {estation_id}")
 
@@ -364,38 +380,38 @@ class ESLMqttClient:
         """
         TAG AUTO-DISCOVERY & TELEMETRY ENGINE
         -------------------------------------
-        Centralized logic for processing tag lists found in /heartbeat
-        or /tagheartbeat messages.
         """
         try:
             if not tags_list: return
 
-            gateway = Gateway.objects.filter(estation_id=estation_id).select_related('store').first()
+            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).select_related('store').first()
             if not gateway: return
 
-            # Extract MACs based on format
-            incoming_macs = []
+            normalized_macs = []
             tag_data_map = {}
 
             for tag_entry in tags_list:
                 if isinstance(tag_entry, list):
-                    # List format: ["TagId", RfPower, Battery, Version, Status, Color, ...]
-                    mac = tag_entry[0]
+                    raw_mac = tag_entry[0]
                     battery = tag_entry[2]
                 else:
-                    # Dictionary format: {"TagId": "...", "Battery": ...}
-                    mac = tag_entry.get('TagId')
+                    raw_mac = tag_entry.get('TagId')
                     battery = tag_entry.get('Battery')
 
-                if mac:
-                    incoming_macs.append(mac)
-                    tag_data_map[mac] = {'battery': battery}
+                if raw_mac:
+                    clean_mac = raw_mac.replace(':', '').upper()
+                    normalized_macs.append(clean_mac)
+                    tag_data_map[clean_mac] = {'battery': battery, 'original_mac': raw_mac}
 
-            # SECURITY & BULK OPTIMIZATION
-            existing_tags = {t.tag_mac: t for t in ESLTag.objects.filter(
-                tag_mac__in=incoming_macs,
-                store=gateway.store
-            )}
+            # Flexible database matching
+            from django.db.models.functions import Upper, Replace
+            from django.db.models import Value
+
+            existing_tags_list = ESLTag.objects.filter(store=gateway.store).annotate(
+                clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
+            ).filter(clean_db_mac__in=normalized_macs)
+
+            existing_tags = {t.clean_db_mac: t for t in existing_tags_list}
 
             from .models import TagHardware
             default_hw = None
@@ -404,22 +420,24 @@ class ESLMqttClient:
             now = timezone.now()
             default_hw_queried = False
 
-            for tag_mac, metadata in tag_data_map.items():
-                tag = existing_tags.get(tag_mac)
+            for clean_mac, metadata in tag_data_map.items():
+                tag = existing_tags.get(clean_mac)
+                battery_pct = self._calculate_battery_percentage(metadata['battery'])
+
                 if tag:
                     tag.last_successful_gateway_id = estation_id
-                    tag.battery_level = metadata['battery']
+                    tag.battery_level = battery_pct
                     tag.updated_at = now
                     if not tag.store: tag.store = gateway.store
-                    tags_to_update[tag_mac] = tag
+                    tags_to_update[clean_mac] = tag
                 else:
                     if default_hw is None and not default_hw_queried:
                         default_hw = TagHardware.objects.first()
                         default_hw_queried = True
 
-                    tags_to_create[tag_mac] = ESLTag(
-                        tag_mac=tag_mac,
-                        battery_level=metadata['battery'],
+                    tags_to_create[clean_mac] = ESLTag(
+                        tag_mac=metadata['original_mac'],
+                        battery_level=battery_pct,
                         last_successful_gateway_id=estation_id,
                         store=gateway.store,
                         sync_state='IDLE',
@@ -443,56 +461,50 @@ class ESLMqttClient:
 
     def publish_tag_update(self, gateway_id, tag_mac, image_bytes, token):
         """
-        COMMAND: UPDATE TAG IMAGE (eStation Protocol 2.0)
-        ------------------------------------------------
-        Sends a BMP image to a physical tag via a specific Gateway.
-        Uses the 'PayloadSegment' format: An array of ESLEntity2 objects.
+        COMMAND: UPDATE TAG IMAGE (taskESL)
+        ----------------------------------
+        Sends a BMP image to a physical tag. Matches user sandbox script.
         """
         try:
-            # 1. Prepare Compressed Image
-            # eStation requires GZIP compression (LZSS internally, but GZIP over wire).
-            buf = io.BytesIO()
-            with gzip.GzipFile(fileobj=buf, mode='wb', mtime=0) as f:
-                f.write(image_bytes)
-            gzipped_image = buf.getvalue()
+            # AUTO-CONNECT: Ensure we are connected before publishing
+            # (Crucial for web/Celery processes that don't run the worker loop)
+            if not self.client.is_connected():
+                logger.info("MQTT client not connected - attempting to connect before publish")
+                self.connect()
+                # Brief wait for connection to establish
+                import time
+                time.sleep(0.5)
 
-            # 2. Format TagID (Remove colons and ensure Uppercase)
-            clean_tag_mac = tag_mac.replace(':', '').upper()
+            if not self.client.is_connected():
+                logger.error("MQTT client not connected — cannot publish")
+                return False
 
-            # 3. Construct ESLEntity2 (Positional Array format)
-            # [TagID, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, Bytes, Compress]
-            esl_entity = [
-                clean_tag_mac,  # 0: TagID (String)
-                0,              # 1: Pattern (0 = UpdateDisplay)
-                0,              # 2: PageIndex (0 = P0)
-                False,          # 3: R (Red LED)
-                True,           # 4: G (Green LED)
-                False,          # 5: B (Blue LED)
-                60,             # 6: Times (2 byte LED freq)
-                token,          # 7: Token (2 byte)
-                "",             # 8: OldKey (8 byte)
-                "",             # 9: NewKey (8 byte)
-                gzipped_image,  # 10: Bytes (Byte Array)
-                True            # 11: Compress (Bool)
-            ]
+            import base64
+            # 0. Clean Tag MAC (Remove colons and UPPERCASE to match hardware expectation)
+            clean_mac = tag_mac.replace(':', '').upper()
 
-            # 4. Encode ESLEntity2 array directly with MessagePack
-            payload = msgpack.packb(esl_entity)
+            # 1. Base64 encode the BMP image
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
 
-            # The topic the physical gateway is listening on
-            topic = f"/estation/{gateway_id}/taskESL2"
+            # 2. taskESL Parameters: [TagId, Pattern, PageIndex, R, G, B, Times, Token, OldKey, NewKey, ImageB64]
+            # Pattern=0, PageIndex=0, R=True, G=False, B=False, Times=0
+            task_params = [clean_mac, 0, 0, True, False, False, 0, token, "", "", image_b64]
 
-            # QoS 2: 'Exactly Once' delivery.
-            result = self.client.publish(topic, payload, qos=2)
+            # 3. Wrap in a list as expected by hardware: [[params]]
+            # use_bin_type=True is required for the hardware to process the Base64 image payload correctly
+            payload = msgpack.packb([task_params], use_bin_type=True)
 
-            # Log the outgoing message (sanitizing binary data for the logs)
-            log_data = esl_entity.copy()
-            log_data[10] = f"<binary:{len(gzipped_image)} bytes>"
-            # Record the single array format
-            self._log_mqtt_message("sent", gateway_id, topic, log_data)
+            # 4. Use confirmed topic: /estation/{id}/taskESL (Ensuring uppercase ID)
+            topic = f"/estation/{gateway_id.upper()}/taskESL"
+
+            # Use QoS 0 for maximum compatibility
+            result = self.client.publish(topic, payload, qos=0)
+
+            # Log the full payload for debugging
+            self._log_mqtt_message("sent", gateway_id, topic, task_params)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published v2 update for {tag_mac} to gateway {gateway_id}")
+                logger.debug(f"Published taskESL update for {clean_mac} to gateway {gateway_id}. B64: {image_b64[:50]}...")
                 return True
             else:
                 logger.error(f"Failed to publish MQTT message for {tag_mac}: RC {result.rc}")
@@ -505,8 +517,6 @@ class ESLMqttClient:
         """
         COMMAND: CONFIGURE GATEWAY
         -------------------------
-        Sends a remote configuration command to a gateway to change its
-        IP, Server link, or authentication credentials.
         """
         try:
             config_data = {
@@ -521,8 +531,8 @@ class ESLMqttClient:
                 'Heartbeat': heartbeat
             }
 
-            payload = msgpack.packb(config_data)
-            topic = f"/estation/{gateway_id}/configure"
+            payload = msgpack.packb(config_data, use_bin_type=True)
+            topic = f"/estation/{gateway_id.upper()}/configure"
 
             result = self.client.publish(topic, payload, qos=2)
             is_success = (result.rc == mqtt.MQTT_ERR_SUCCESS)
@@ -538,11 +548,8 @@ class ESLMqttClient:
         """
         AUDIT LOGGING
         -------------
-        Writes a copy of every MQTT message to both the Database
-        (for Admin view) and a daily Log File (for deep debugging).
         """
         try:
-            # Helper to handle binary/bytes in JSON logs
             class BytesEncoder(json.JSONEncoder):
                 def default(self, obj):
                     if isinstance(obj, bytes):
@@ -551,17 +558,23 @@ class ESLMqttClient:
 
             json_data = json.dumps(data, cls=BytesEncoder)
 
-            # 1. Database Logging (MQTTMessage model)
             if force_success is not None:
                 is_success = force_success
             else:
                 is_success = True
                 if direction == "received" and topic.endswith("/result"):
-                    # Detect status from payload: 0 is Success
-                    if isinstance(data, list) and len(data) >= 5:
-                        is_success = (data[4] == 0)
+                    status_val = None
+                    if isinstance(data, list):
+                        if len(data) == 1 and isinstance(data[0], list): data = data[0]
+                        if len(data) >= 5: status_val = data[4]
                     elif isinstance(data, dict):
-                        is_success = (data.get('Status') == 0)
+                        status_val = data.get('Status')
+
+                    if status_val is not None:
+                        is_success = (status_val == 0)
+                        # If failed, include the error code in the log for visibility
+                        if not is_success:
+                            topic = f"{topic} (ERR:{status_val})"
 
             MQTTMessage.objects.create(
                 direction=direction,
@@ -571,7 +584,6 @@ class ESLMqttClient:
                 is_success=is_success
             )
 
-            # 2. File Logging (Daily rotating logs)
             log_dir = os.path.join(settings.BASE_DIR, 'logs', 'mqtt', direction)
             os.makedirs(log_dir, exist_ok=True)
 
