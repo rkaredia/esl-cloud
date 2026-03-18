@@ -103,8 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleBtn = document.createElement('a');
                 toggleBtn.id = 'filter-toggle-btn';
                 toggleBtn.href = 'javascript:void(0);';
-                toggleBtn.className = 'addlink filter-toggle'; // Added explicit class for CSS styling
-                toggleBtn.style.background = '#64748b';
+                toggleBtn.className = 'addlink filter-toggle';
                 toggleBtn.setAttribute('aria-controls', 'changelist-filter');
                 toggleItem.appendChild(toggleBtn);
                 objectTools.insertBefore(toggleItem, objectTools.firstChild);

@@ -96,40 +96,36 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     def tag_id_column(self, obj):
         """
         Extracts and displays the ESL Tag ID from the payload.
-        Handles both Hardware List (MsgPack origin) and Dictionary formats.
+        Handles complex nested hardware lists and dictionary formats.
         """
+        def find_tag_id(item):
+            """Recursive search for the first 12-char hex string (MAC address)."""
+            if isinstance(item, (str, bytes)):
+                val = item.decode('utf-8', errors='ignore') if isinstance(item, bytes) else item
+                # ESL Tags use 12-character hex MACs (e.g., '390000F41F5F')
+                clean = val.replace(':', '').upper()
+                if len(clean) == 12 and all(c in '0123456789ABCDEF' for c in clean):
+                    return clean
+            elif isinstance(item, list):
+                for sub in item:
+                    found = find_tag_id(sub)
+                    if found: return found
+            elif isinstance(item, dict):
+                # Check common keys first
+                for key in ['TagId', 'tag_id', 'Tags']:
+                    found = find_tag_id(item.get(key))
+                    if found: return found
+                # Then check all values
+                for val in item.values():
+                    found = find_tag_id(val)
+                    if found: return found
+            return None
+
         try:
-            # Note: MQTTMessage.data already stores the decoded/stringified version
-            # of the MessagePack or JSON payload.
             data = json.loads(obj.data)
-            tag_id = None
-
-            # Case 1: taskESL payload (Sent) - [ [TagID, Pattern, ...] ] or [ [ [TagID, ...], ... ] ]
-            if isinstance(data, list) and len(data) > 0:
-                inner = data[0]
-                if isinstance(inner, list) and len(inner) > 0:
-                    # Check for nested hardware list [ [TagID, ...] ]
-                    if isinstance(inner[0], (str, bytes)):
-                        tag_id = inner[0]
-                    # Check for taskESL double-wrapper [ [ [TagID, ... ] ] ]
-                    elif isinstance(inner[0], list) and len(inner[0]) > 0:
-                        tag_id = inner[0][0]
-
-            # Case 2: Result/Heartbeat (Received) - [TagID, RfPower, ...]
-            elif isinstance(data, list) and len(data) >= 1:
-                tag_id = data[0]
-
-            # Case 3: Dictionary format (Demo/Simulator)
-            elif isinstance(data, dict):
-                tag_id = data.get('TagId') or data.get('tag_id') or data.get('Tags', [{}])[0].get('TagId')
-
+            tag_id = find_tag_id(data)
             if tag_id:
-                # Handle bytes if somehow not already stringified
-                if isinstance(tag_id, bytes):
-                    tag_id = tag_id.decode('utf-8', errors='ignore')
-                # Ensure it looks like a MAC (UPPERCASE)
-                clean_id = tag_id.replace(':', '').upper()
-                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', clean_id)
+                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', tag_id)
             return "-"
         except:
             return "-"

@@ -110,70 +110,112 @@
 }
 
 /* 6. SIDEBAR CUSTOMIZATION
-   Changes the look of the sidebar section headers.
+   Polished Dark Sidebar with consistent iconography and spacing.
 */
 #nav-sidebar {
-    background: #f8fafc !important;
-    border-right: 1px solid #e2e8f0 !important;
+    background: #0f172a !important; /* Slate 900 */
+    border-right: 1px solid #1e293b !important;
+    width: 260px !important;
 }
 
 #nav-sidebar .section {
-    color: #334155 !important;
-    background: #f1f5f9 !important;
-    padding: 12px 15px !important;
-    font-weight: 700 !important;
+    color: #94a3b8 !important; /* Slate 400 */
+    background: transparent !important;
+    padding: 1.5rem 1rem 0.5rem !important;
+    font-weight: 600 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    margin-bottom: 5px !important;
-    font-size: 11px !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    border: none !important;
 }
 
-#nav-sidebar .app-inventory .section { border-left: 4px solid #3b82f6; }
-#nav-sidebar .app-hardware .section { border-left: 4px solid #10b981; }
-#nav-sidebar .app-organisation .section { border-left: 4px solid #f59e0b; }
-#nav-sidebar .app-monitoring .section { border-left: 4px solid #6366f1; }
+#nav-sidebar .app-inventory .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
+#nav-sidebar .app-hardware .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
+#nav-sidebar .app-organisation .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
+#nav-sidebar .app-monitoring .section { border-top: 1px solid #1e293b; margin-top: 0.5rem; }
+
+#nav-sidebar table {
+    width: 100% !important;
+}
 
 #nav-sidebar th {
-    padding: 8px 15px !important;
+    padding: 0 !important;
+}
+
+#nav-sidebar td, #nav-sidebar th {
+    border: none !important;
+    background: transparent !important;
 }
 
 #nav-sidebar a {
-    color: #475569 !important;
+    color: #cbd5e1 !important; /* Slate 300 */
     font-weight: 500 !important;
     font-size: 13px !important;
+    display: block !important;
+    padding: 8px 16px !important;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    margin: 2px 8px;
 }
 
 #nav-sidebar a:hover {
-    color: var(--primary-blue) !important;
+    color: #ffffff !important;
+    background: #1e293b !important; /* Slate 800 */
 }
 
-#nav-sidebar tr:hover td, #nav-sidebar tr:hover th {
-    background: #eff6ff !important;
+#nav-sidebar tr.model-esltag a, #nav-sidebar tr.model-product a, #nav-sidebar tr.model-supplier a {
+    /* Optional model-specific styling */
 }
 
-/* 7. PILL BUTTONS
-   Gives standard Django 'Add' buttons a modern, rounded look.
+#nav-sidebar .current-model a {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* Fix for Sidebar not appearing in some Django versions/themes */
+.main > #nav-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* 7. PILL BUTTONS & ADD BUTTONS
+   Polished buttons with consistent sizing and subtle "+" icon restoration.
 */
 .object-tools a, .addlink {
     background-color: var(--navy) !important;
     color: var(--white) !important;
-    border-radius: 50px !important;
-    padding: 8px 20px !important;
-    text-transform: uppercase;
-    font-size: 11px;
-    font-weight: bold;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    text-transform: none !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
     text-decoration: none;
     display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    transition: all 0.2s ease;
 }
 
 .object-tools a:hover, .addlink:hover {
-    background-color: #00A8E8 !important;
+    background-color: #004e82 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* 8. FILTER TOGGLE
-   Hides the filter sidebar when the .filter-hidden class is present.
+   Consistent style for the filter toggle button.
 */
+#filter-toggle-btn {
+    background: #475569 !important; /* Slate 600 */
+}
+
+#filter-toggle-btn:hover {
+    background: #334155 !important;
+}
+
 .filter-hidden #changelist-filter {
     display: none !important;
 }
@@ -190,24 +232,14 @@
     display: none !important;
 }
 
-/* 10. REMOVE PLUS SYMBOL
-   Overrides standard Django 'addlink' plus icons and dashboard circular buttons.
+/* 10. CLEAN BUTTONS
+   Hiding the default "+" icon for a more modern, minimal look as requested.
 */
-.addlink::before, .object-tools a::before {
+.addlink::before, .object-tools .addlink::before {
     display: none !important;
 }
 
+/* Remove default Django icons */
 .addlink, .object-tools a {
-    padding-left: 20px !important; /* Restore padding if icon was removed */
-    background-image: none !important; /* Remove any CSS-based background icons */
-}
-
-/* Specifically target the dashboard 'ADD' buttons and similar circular icons */
-.addlink, .object-tools a, [class*="add"] {
     background-image: none !important;
-}
-
-/* Ensure the text is centered now that the icon is gone */
-.object-tools a, .addlink {
-    justify-content: center;
 }

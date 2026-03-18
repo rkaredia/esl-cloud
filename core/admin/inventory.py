@@ -55,6 +55,9 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     # Search functionality
     search_fields = ('sku', 'name')
 
+    # Filters on the right sidebar
+    list_filter = ('store', 'preferred_supplier', 'is_on_special', 'created_at')
+
     # Non-editable fields for security/audit integrity
     readonly_fields = ('updated_at', 'updated_by', 'image_status', 'store', 'created_at')
 
