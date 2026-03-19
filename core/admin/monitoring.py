@@ -48,8 +48,16 @@ class CustomGroupResultAdmin(GroupResultAdmin):
             return format_html("<b>{}%</b> (✅ {} | ❌ {} | Total {})", percent, completed, failed, total)
         except: return "Pending"
 
-# Standard Task monitoring for individual Celery tasks
-admin_site.register(TaskResult, TaskResultAdmin)
+class CustomTaskResultAdmin(TaskResultAdmin):
+    """
+    CELERY TASK MONITORING
+    ----------------------
+    Restricted to read-only access to prevent manual task creation.
+    """
+    def has_add_permission(self, request): return False
+
+# Register custom task monitoring
+admin_site.register(TaskResult, CustomTaskResultAdmin)
 
 @admin.register(MQTTMessage, site=admin_site)
 class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):

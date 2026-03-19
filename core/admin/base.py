@@ -279,14 +279,14 @@ class SAISAdminSite(admin.AdminSite):
             # Group 1: Daily Store Operations
             inventory_models = []
             m = find_model('ESLTag')
-            if m: m['name'] = '🏷️ ESL Tags'; inventory_models.append(m)
+            if m: m['name'] = 'ESL Tags'; inventory_models.append(m)
             m = find_model('Product')
-            if m: m['name'] = '📦 Products'; inventory_models.append(m)
+            if m: m['name'] = 'Products'; inventory_models.append(m)
             m = find_model('Supplier')
-            if m: m['name'] = '🏭 Suppliers'; inventory_models.append(m)
+            if m: m['name'] = 'Suppliers'; inventory_models.append(m)
 
             inventory = {
-                'name': 'Inventory',
+                'name': '📦 INVENTORY',
                 'app_label': 'inventory',
                 'models': inventory_models
             }
@@ -294,14 +294,14 @@ class SAISAdminSite(admin.AdminSite):
             # Group 2: Base Stations & Hardware setup
             hardware_models = []
             m = find_model('Gateway')
-            if m: m['name'] = '📡 Gateways'; hardware_models.append(m)
+            if m: m['name'] = 'Gateways'; hardware_models.append(m)
             m = find_model('TagHardware')
-            if m: m['name'] = '📐 Tag Hardwares'; hardware_models.append(m)
+            if m: m['name'] = 'Tag hardwares'; hardware_models.append(m)
             m = find_model('GlobalSetting')
-            if m: m['name'] = '⚙️ Global Settings'; hardware_models.append(m)
+            if m: m['name'] = 'Global Settings'; hardware_models.append(m)
 
             hardware = {
-                'name': 'Hardware',
+                'name': '📡 HARDWARE',
                 'app_label': 'hardware',
                 'models': hardware_models
             }
@@ -309,23 +309,23 @@ class SAISAdminSite(admin.AdminSite):
             # Group 3: Multi-tenant management (Admin only)
             org_models = []
             m = find_model('Company')
-            if m: m['name'] = '🏢 Companies'; org_models.append(m)
+            if m: m['name'] = 'Companies'; org_models.append(m)
             m = find_model('Store')
-            if m: m['name'] = '🏬 Stores'; org_models.append(m)
+            if m: m['name'] = 'Stores'; org_models.append(m)
             m = find_model('User')
-            if m: m['name'] = '👤 Users'; org_models.append(m)
+            if m: m['name'] = 'Users'; org_models.append(m)
             m = find_model('Group')
-            if m: m['name'] = '👥 Groups'; org_models.append(m)
+            if m: m['name'] = 'Groups'; org_models.append(m)
 
             org = {
-                'name': 'Organisation',
+                'name': '🏢 ORGANISATION',
                 'app_label': 'organisation',
                 'models': org_models
             }
 
             # Group 4: Logs & Monitoring
             monitoring = {
-                'name': 'System Monitoring',
+                'name': '⚙️ SYSTEM MONITORING',
                 'app_label': 'monitoring',
                 'models': []
             }
@@ -340,7 +340,7 @@ class SAISAdminSite(admin.AdminSite):
 
             if request.user.is_superuser or request.user.role in ['owner', 'manager']:
                 monitoring['models'].append({
-                    'name': '🎨 Template Design Lab',
+                    'name': 'Template Design Lab',
                     'object_name': 'design-lab',
                     'admin_url': reverse('sais_admin:template-gallery'),
                     'view_only': True,
@@ -349,13 +349,13 @@ class SAISAdminSite(admin.AdminSite):
                 # Background Task logs
                 celery_res = find_model('TaskResult')
                 if celery_res:
-                    celery_res['name'] = '📋 Background Tasks'
+                    celery_res['name'] = 'Task results'
                     monitoring['models'].append(celery_res)
 
                 # Raw MQTT Packet logs
                 mqtt_logs = find_model('MQTTMessage')
                 if mqtt_logs:
-                    mqtt_logs['name'] = '📡 eStation Communication'
+                    mqtt_logs['name'] = 'eStation Communication'
                     monitoring['models'].append(mqtt_logs)
 
             groups = [inventory, hardware, org]
