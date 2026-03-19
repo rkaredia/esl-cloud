@@ -277,29 +277,55 @@ class SAISAdminSite(admin.AdminSite):
             # --- DEFINE CUSTOM GROUPS ---
 
             # Group 1: Daily Store Operations
+            inventory_models = []
+            m = find_model('ESLTag')
+            if m: m['name'] = 'ESL Tags'; inventory_models.append(m)
+            m = find_model('Product')
+            if m: m['name'] = 'Products'; inventory_models.append(m)
+            m = find_model('Supplier')
+            if m: m['name'] = 'Suppliers'; inventory_models.append(m)
+
             inventory = {
-                'name': '📦 Inventory',
+                'name': '📦 INVENTORY',
                 'app_label': 'inventory',
-                'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]
+                'models': inventory_models
             }
 
             # Group 2: Base Stations & Hardware setup
+            hardware_models = []
+            m = find_model('Gateway')
+            if m: m['name'] = 'Gateways'; hardware_models.append(m)
+            m = find_model('TagHardware')
+            if m: m['name'] = 'Tag hardwares'; hardware_models.append(m)
+            m = find_model('GlobalSetting')
+            if m: m['name'] = 'Global Settings'; hardware_models.append(m)
+
             hardware = {
-                'name': '📡 Hardware',
+                'name': '📡 HARDWARE',
                 'app_label': 'hardware',
-                'models': [m for m in [find_model('Gateway'), find_model('TagHardware'), find_model('GlobalSetting')] if m]
+                'models': hardware_models
             }
 
             # Group 3: Multi-tenant management (Admin only)
+            org_models = []
+            m = find_model('Company')
+            if m: m['name'] = 'Companies'; org_models.append(m)
+            m = find_model('Store')
+            if m: m['name'] = 'Stores'; org_models.append(m)
+            m = find_model('User')
+            if m: m['name'] = 'Users'; org_models.append(m)
+            m = find_model('Group')
+            if m: m['name'] = 'Groups'; org_models.append(m)
+
             org = {
-                'name': '🏢 Organisation',
+                'name': '🏢 ORGANISATION',
                 'app_label': 'organisation',
-                'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]
+                'models': org_models
             }
 
             # Group 4: Logs & Monitoring
             monitoring = {
-                'name': '⚙️ System Monitoring',
+                'name': '⚙️ SYSTEM MONITORING',
                 'app_label': 'monitoring',
                 'models': []
             }
@@ -322,12 +348,14 @@ class SAISAdminSite(admin.AdminSite):
 
                 # Background Task logs
                 celery_res = find_model('TaskResult')
-                if celery_res: monitoring['models'].append(celery_res)
+                if celery_res:
+                    celery_res['name'] = 'Task results'
+                    monitoring['models'].append(celery_res)
 
                 # Raw MQTT Packet logs
                 mqtt_logs = find_model('MQTTMessage')
                 if mqtt_logs:
-                    mqtt_logs['name'] = '📡 eStation Communication'
+                    mqtt_logs['name'] = 'eStation Communication'
                     monitoring['models'].append(mqtt_logs)
 
             groups = [inventory, hardware, org]
@@ -469,13 +497,13 @@ class UIHelperMixin:
     Contains methods that generate HTML 'Snippets' for the admin list view.
     """
     def sync_button(self, obj):
-        """Generates a Blue 'Sync' button to manually trigger a tag refresh."""
+        """Generates a Navy 'Sync' button to manually trigger a tag refresh."""
         try:
             try:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;" title="Manually trigger tag update" aria-label="Sync tag"><span aria-hidden="true">🔄</span> Sync</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

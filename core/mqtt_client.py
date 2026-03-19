@@ -35,6 +35,7 @@ class ESLMqttClient:
             # Explicitly use Paho MQTT v2 API for compatibility with the latest library
             # Use default protocol (v3.1.1) for maximum hardware compatibility
             self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            self.should_subscribe = False
 
             # Register callbacks (Event Handlers)
             self.client.on_connect = self.on_connect
@@ -44,13 +45,14 @@ class ESLMqttClient:
         except Exception:
             logger.exception("Failed to initialize MQTT client")
 
-    def connect(self):
+    def connect(self, subscribe=False):
         """
         INITIALIZE CONNECTION
         ---------------------
         Configures authentication and starts the background listening loop.
         """
         try:
+            self.should_subscribe = subscribe
             host = getattr(settings, 'MQTT_SERVER', 'localhost')
             port = getattr(settings, 'MQTT_PORT', 1883)
             user = getattr(settings, 'MQTT_USER', 'test')
@@ -67,7 +69,7 @@ class ESLMqttClient:
 
             # loop_start() runs the client in a separate background thread
             self.client.loop_start()
-            logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled)")
+            logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled, Subscribe={subscribe})")
         except Exception:
             logger.exception("MQTT Connection Failed")
 
@@ -80,12 +82,14 @@ class ESLMqttClient:
         try:
             logger.info(f"Connected to MQTT Broker with result code {rc}")
 
-            # Subscribe to all eStation topics with QoS 0 for maximum hardware compatibility
-            self.client.subscribe("/estation/+/result", qos=0)
-            self.client.subscribe("/estation/+/heartbeat", qos=0)
-            self.client.subscribe("/estation/+/tagheartbeat", qos=0)
-            self.client.subscribe("/estation/+/infor", qos=0)
-            self.client.subscribe("/estation/+/message", qos=0)
+            if self.should_subscribe:
+                # Subscribe to all eStation topics with QoS 0 for maximum hardware compatibility
+                self.client.subscribe("/estation/+/result", qos=0)
+                self.client.subscribe("/estation/+/heartbeat", qos=0)
+                self.client.subscribe("/estation/+/tagheartbeat", qos=0)
+                self.client.subscribe("/estation/+/infor", qos=0)
+                self.client.subscribe("/estation/+/message", qos=0)
+                logger.info("MQTT Client subscribed to topics")
         except Exception:
             logger.exception("Error in MQTT on_connect callback")
 
@@ -573,7 +577,10 @@ class ESLMqttClient:
             class BytesEncoder(json.JSONEncoder):
                 def default(self, obj):
                     if isinstance(obj, bytes):
-                        return f"<binary:{len(obj)} bytes>"
+                        try:
+                            return obj.decode('utf-8')
+                        except:
+                            return f"<binary:{len(obj)} bytes>"
                     return super().default(obj)
 
             json_data = json.dumps(data, cls=BytesEncoder)
@@ -595,6 +602,9 @@ class ESLMqttClient:
                         # If failed, include the error code in the log for visibility
                         if not is_success:
                             topic = f"{topic} (ERR:{status_val})"
+                            # To avoid topic corruption with large lists, only keep the first 20 chars of status_val if it's a string/list
+                            if len(topic) > 100:
+                                topic = topic[:97] + "..."
 
             MQTTMessage.objects.create(
                 direction=direction,

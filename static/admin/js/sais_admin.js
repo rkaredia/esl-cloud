@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
 
-        // Load preference: Default to 'hidden' (filter-hidden class)
+        // Load preference: Standard behavior is 'hidden' unless explicitly set to 'true'
         const filterState = localStorage.getItem('sais-admin-filter-visible');
         const isInitiallyVisible = filterState === 'true';
 
-        if (!isInitiallyVisible) {
-            changelistWrapper.classList.add('filter-hidden');
+        if (isInitiallyVisible) {
+            changelistWrapper.classList.remove('filter-hidden');
         }
 
         let toggleBtn = document.getElementById('filter-toggle-btn') || document.getElementById('toggle-filters');
@@ -103,8 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleBtn = document.createElement('a');
                 toggleBtn.id = 'filter-toggle-btn';
                 toggleBtn.href = 'javascript:void(0);';
-                toggleBtn.className = 'addlink';
-                toggleBtn.style.background = '#64748b';
+                toggleBtn.className = 'addlink filter-toggle';
                 toggleBtn.setAttribute('aria-controls', 'changelist-filter');
                 toggleItem.appendChild(toggleBtn);
                 objectTools.insertBefore(toggleItem, objectTools.firstChild);
@@ -113,12 +112,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (toggleBtn) {
             updateToggleButton(toggleBtn, isInitiallyVisible);
-            toggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                changelistWrapper.classList.toggle('filter-hidden');
-                const isVisible = !changelistWrapper.classList.contains('filter-hidden');
-                localStorage.setItem('sais-admin-filter-visible', isVisible);
-                updateToggleButton(toggleBtn, isVisible);
+
+            // SECURITY: Use event delegation to ensure the click listener is robust
+            document.addEventListener('click', function(e) {
+                if (e.target && (e.target.id === 'filter-toggle-btn' || e.target.id === 'toggle-filters' || e.target.closest('#filter-toggle-btn'))) {
+                    const btn = e.target.id === 'filter-toggle-btn' ? e.target : (e.target.id === 'toggle-filters' ? e.target : e.target.closest('#filter-toggle-btn'));
+                    e.preventDefault();
+                    changelistWrapper.classList.toggle('filter-hidden');
+                    const isVisible = !changelistWrapper.classList.contains('filter-hidden');
+                    localStorage.setItem('sais-admin-filter-visible', isVisible);
+                    updateToggleButton(btn, isVisible);
+                }
             });
         }
     }

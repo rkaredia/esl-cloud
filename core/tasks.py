@@ -163,7 +163,11 @@ def dispatch_tag_image_task(tag_id):
 
             if success:
                 # MARK AS PUSHED: We now wait for the '/result' MQTT message to mark it SUCCESS.
-                ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
+                ESLTag.objects.filter(pk=tag_id).update(
+                    sync_state='PUSHED',
+                    last_image_task_token=token,
+                    last_pushed_at=timezone.now()
+                )
                 cache.delete(lock_id)
                 return f"MQTT Pushed via {gateway_id}"
             else:
@@ -231,7 +235,19 @@ def check_gateways_status_task():
                 count_offline += 1
                 logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
 
-        return f"Checked status. Marked {count_offline} gateways offline."
+        # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
+        # If a tag has been in 'PUSHED' state for more than 60 seconds, mark as 'PUSH_FAILED'
+        timeout_cutoff = now - timezone.timedelta(seconds=60)
+        timed_out_tags = ESLTag.objects.filter(
+            sync_state='PUSHED',
+            last_pushed_at__lt=timeout_cutoff
+        )
+        count_tag_timeouts = timed_out_tags.count()
+        if count_tag_timeouts > 0:
+            timed_out_tags.update(sync_state='PUSH_FAILED')
+            logger.info(f"Marked {count_tag_timeouts} tags as PUSH_FAILED due to 60s timeout.")
+
+        return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."
     except Exception:
         logger.exception("Error in check_gateways_status_task")
         return "Status check failed"
