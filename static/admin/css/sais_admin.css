@@ -186,12 +186,20 @@
 
 /* Highlight for active model in sidebar */
 #nav-sidebar .current-model {
-    background: #fef9c3 !important; /* Light yellow background */
+    background: #e0f2fe !important; /* Light azure background */
+    border-left: 4px solid #003459 !important;
 }
 
 #nav-sidebar .current-model a {
-    color: #1e293b !important;
+    color: #0369a1 !important; /* Deep blue for active link text */
     font-weight: 700 !important;
+}
+
+/* Ensure 'ADD' pill has high contrast on the active background */
+#nav-sidebar .current-model .addlink {
+    background: #003459 !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* Fix for Sidebar not appearing in some Django versions/themes */
@@ -227,15 +235,31 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* 8. FILTER TOGGLE
-   Consistent style for the filter toggle button.
+/* 8. FILTER TOGGLE & SYNC BUTTONS
+   Consistent style for action buttons.
 */
-#filter-toggle-btn {
+#filter-toggle-btn, .btn-sync {
     background: #475569 !important; /* Slate 600 */
+    color: #ffffff !important;
+    border-radius: 2px !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
-#filter-toggle-btn:hover {
+#filter-toggle-btn:hover, .btn-sync:hover {
     background: #334155 !important;
+    transform: translateY(-1px);
+}
+
+.btn-sync {
+    background: var(--navy) !important; /* Use Navy for Sync to match 'Add' buttons */
 }
 
 .filter-hidden #changelist-filter {

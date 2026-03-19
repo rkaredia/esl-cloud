@@ -497,13 +497,13 @@ class UIHelperMixin:
     Contains methods that generate HTML 'Snippets' for the admin list view.
     """
     def sync_button(self, obj):
-        """Generates a Blue 'Sync' button to manually trigger a tag refresh."""
+        """Generates a Navy 'Sync' button to manually trigger a tag refresh."""
         try:
             try:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;" title="Manually trigger tag update" aria-label="Sync tag"><span aria-hidden="true">🔄</span> Sync</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag"><span aria-hidden="true">🔄</span> Sync</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"
