@@ -1,0 +1,10 @@
+Performing system checks...
+
+System check identified no issues (0 silenced).
+
+You have 70 unapplied migration(s). Your project may not work properly until you apply the migrations for app(s): admin, auth, contenttypes, core, django_celery_results, sessions.
+Run 'python manage.py migrate' to apply them.
+March 19, 2026 - 08:19:55
+Django version 5.1.5, using settings 'esl_cloud.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
