@@ -503,7 +503,7 @@ class UIHelperMixin:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag"><span aria-hidden="true">🔄</span> Sync</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

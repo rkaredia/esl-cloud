@@ -216,7 +216,7 @@
 .object-tools a, .addlink {
     background-color: var(--navy) !important;
     color: var(--white) !important;
-    border-radius: 2px !important;
+    border-radius: 4px !important;
     padding: 8px 16px !important;
     text-transform: none !important;
     font-size: 13px !important;
@@ -241,7 +241,7 @@
 #filter-toggle-btn, .btn-sync {
     background: #475569 !important; /* Slate 600 */
     color: #ffffff !important;
-    border-radius: 2px !important;
+    border-radius: 4px !important;
     padding: 6px 12px !important;
     font-size: 12px !important;
     font-weight: 600 !important;
@@ -272,9 +272,10 @@
 }
 
 /* 9. HIDE REDUNDANT WIDGETS
-   Removes the "Add", "Edit", and "Delete" icons next to foreign key dropdowns.
+   Removes the "Add", "Edit", and "Delete" icons next to foreign key dropdowns
+   in list views (change-list) while keeping them on edit pages.
 */
-.related-widget-wrapper > a {
+.change-list .related-widget-wrapper > a {
     display: none !important;
 }
 
