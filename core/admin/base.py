@@ -249,6 +249,12 @@ class SAISAdminSite(admin.AdminSite):
         """
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
+        context['enable_nav_sidebar'] = True
+        context['is_nav_sidebar_enabled'] = True
+
+        # Populate available_apps for the custom sidebar on every page
+        if 'available_apps' not in context:
+            context['available_apps'] = self.get_app_list(request)
 
         # Inject custom styles and scripts using 'format_html' for security
         context['custom_admin_css'] = format_html('<link rel="stylesheet" type="text/css" href="{}{}admin/css/sais_admin.css">', settings.STATIC_URL, "")
@@ -272,69 +278,79 @@ class SAISAdminSite(admin.AdminSite):
             for app in app_dict.values():
                 all_models.extend(app['models'])
 
-            def find_model(name): return next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
+            def find_model(name):
+                m = next((m for m in all_models if m['object_name'].lower() == name.lower()), None)
+                if m:
+                    # Return a copy to avoid mutating the original in case it's used elsewhere
+                    return m.copy()
+                return None
 
             # --- DEFINE CUSTOM GROUPS ---
 
             # Group 1: Daily Store Operations
             inventory_models = []
             m = find_model('ESLTag')
-            if m: m['name'] = 'ESL Tags'; inventory_models.append(m)
+            if m: m['name'] = 'ESL Tags'; m['fa_icon'] = 'fa-tag'; inventory_models.append(m)
             m = find_model('Product')
-            if m: m['name'] = 'Products'; inventory_models.append(m)
+            if m: m['name'] = 'Products'; m['fa_icon'] = 'fa-cart-shopping'; inventory_models.append(m)
             m = find_model('Supplier')
-            if m: m['name'] = 'Suppliers'; inventory_models.append(m)
+            if m: m['name'] = 'Suppliers'; m['fa_icon'] = 'fa-truck-field'; inventory_models.append(m)
 
             inventory = {
-                'name': '📦 INVENTORY',
+                'name': 'Inventory',
                 'app_label': 'inventory',
+                'fa_icon': 'fa-boxes-stacked',
                 'models': inventory_models
             }
 
             # Group 2: Base Stations & Hardware setup
             hardware_models = []
             m = find_model('Gateway')
-            if m: m['name'] = 'Gateways'; hardware_models.append(m)
+            if m: m['name'] = 'Gateways'; m['fa_icon'] = 'fa-tower-broadcast'; hardware_models.append(m)
             m = find_model('TagHardware')
-            if m: m['name'] = 'Tag hardwares'; hardware_models.append(m)
+            if m: m['name'] = 'Tag hardwares'; m['fa_icon'] = 'fa-hard-drive'; hardware_models.append(m)
             m = find_model('GlobalSetting')
-            if m: m['name'] = 'Global Settings'; hardware_models.append(m)
+            if m: m['name'] = 'Global Settings'; m['fa_icon'] = 'fa-gears'; hardware_models.append(m)
 
             hardware = {
-                'name': '📡 HARDWARE',
+                'name': 'Hardware',
                 'app_label': 'hardware',
+                'fa_icon': 'fa-microchip',
                 'models': hardware_models
             }
 
             # Group 3: Multi-tenant management (Admin only)
             org_models = []
             m = find_model('Company')
-            if m: m['name'] = 'Companies'; org_models.append(m)
+            if m: m['name'] = 'Companies'; m['fa_icon'] = 'fa-city'; org_models.append(m)
             m = find_model('Store')
-            if m: m['name'] = 'Stores'; org_models.append(m)
+            if m: m['name'] = 'Stores'; m['fa_icon'] = 'fa-shop'; org_models.append(m)
             m = find_model('User')
-            if m: m['name'] = 'Users'; org_models.append(m)
+            if m: m['name'] = 'Users'; m['fa_icon'] = 'fa-users'; org_models.append(m)
             m = find_model('Group')
-            if m: m['name'] = 'Groups'; org_models.append(m)
+            if m: m['name'] = 'Groups'; m['fa_icon'] = 'fa-user-group'; org_models.append(m)
 
             org = {
-                'name': '🏢 ORGANISATION',
+                'name': 'Organisation',
                 'app_label': 'organisation',
+                'fa_icon': 'fa-building',
                 'models': org_models
             }
 
             # Group 4: Logs & Monitoring
             monitoring = {
-                'name': '⚙️ SYSTEM MONITORING',
+                'name': 'Monitoring',
                 'app_label': 'monitoring',
+                'fa_icon': 'fa-gauge-high',
                 'models': []
             }
 
             # Add 'Virtual' models (links to our custom views) to the sidebar
             monitoring['models'].append({
-                'name': '📊 Analytics Dashboard',
+                'name': 'Analytics Dashboard',
                 'object_name': 'dashboard',
                 'admin_url': reverse('sais_admin:dashboard'),
+                'fa_icon': 'fa-chart-line',
                 'view_only': True,
             })
 
@@ -343,6 +359,7 @@ class SAISAdminSite(admin.AdminSite):
                     'name': 'Template Design Lab',
                     'object_name': 'design-lab',
                     'admin_url': reverse('sais_admin:template-gallery'),
+                    'fa_icon': 'fa-pen-ruler',
                     'view_only': True,
                 })
 
@@ -350,12 +367,14 @@ class SAISAdminSite(admin.AdminSite):
                 celery_res = find_model('TaskResult')
                 if celery_res:
                     celery_res['name'] = 'Task results'
+                    celery_res['fa_icon'] = 'fa-list-check'
                     monitoring['models'].append(celery_res)
 
                 # Raw MQTT Packet logs
                 mqtt_logs = find_model('MQTTMessage')
                 if mqtt_logs:
                     mqtt_logs['name'] = 'eStation Communication'
+                    mqtt_logs['fa_icon'] = 'fa-terminal'
                     monitoring['models'].append(mqtt_logs)
 
             groups = [inventory, hardware, org]

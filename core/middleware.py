@@ -110,12 +110,13 @@ class SecurityHeadersMiddleware:
         
         # CSP (Content Security Policy): Tells the browser which scripts/styles are safe to run.
         # This prevents hackers from injecting malicious scripts into our pages.
+        # We allow Tailwind and Font Awesome CDNs for the custom "Switch" theme.
         csp_directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'", # 'unsafe-inline' is needed for some Django Admin features
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.tailwindcss.com",
+            "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com",
             "img-src 'self' data: blob:",
-            "font-src 'self'",
+            "font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com",
             "connect-src 'self'",
             "frame-ancestors 'none'", # Prevents the site from being put in an <iframe> (Anti-Clickjacking)
             "form-action 'self'",

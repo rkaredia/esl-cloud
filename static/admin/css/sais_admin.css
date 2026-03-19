@@ -1,292 +1,144 @@
 /*
-   SAIS GLOBAL DESIGN SYSTEM
-   -------------------------
-   This stylesheet defines the visual identity of the SAIS platform.
-   It uses CSS Variables (:root) for consistent colors across the UI.
-*/
+ * SAIS PLATFORM: "SWITCH" THEME
+ * ----------------------------
+ * A high-density, modern admin theme inspired by the "Switch" aesthetic.
+ * Utilizes Slate 900 for the sidebar and Slate 50 for the main content.
+ */
 
 :root {
-    /* PRIMARY PALETTE */
-    --navy: #003459;        /* Main brand color (Headers, buttons) */
-    --dark-navy: #00171F;   /* Deep accents */
-    --azure: #C7EFFF;       /* Highlight background (Badges) */
-    --primary-blue: #2563eb;/* Functional blue (Links, sync buttons) */
-    --primary-hover: #1d4ed8;
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 64px;
+    --header-height: 56px;
 
-    /* UI NEUTRALS */
-    --bg-sidebar: #f1f5f9;
-    --white: #ffffff;
-    --light-gray: #f1f5f9;
+    /* Switch Color Palette */
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --blue-600: #2563eb;
+    --blue-700: #1d4ed8;
 }
 
-/* 1. BRANDED HEADER
-   Overrides the standard gray Django header with SAIS Navy.
-*/
+/* 1. LAYOUT RESET */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--slate-50);
+    overflow-x: hidden;
+}
+
+#container {
+    display: flex;
+    width: 100%;
+}
+
+/* 2. HEADER: Fixed Top */
 #header {
-    background: var(--navy);
-    border-bottom: 3px solid var(--light-gray);
-}
-
-#branding h1 a {
-    color: var(--white) !important;
-}
-
-/* 2. RESPONSIVE DATA TABLES
-   Ensures large product tables can scroll horizontally without
-   breaking the page layout.
-*/
-.results {
-    overflow-x: auto !important;
-    width: 100% !important;
-    position: relative;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-#result_list {
-    width: max-content !important;
-    min-width: 100%;
-    table-layout: fixed; /* Fixed layout is required for JS column resizing */
-}
-
-/* 3. TABLE CELL STYLING
-   Enforces clean alignment and prevents text wrapping for a "spreadsheet" feel.
-*/
-#result_list th, #result_list td {
-    overflow: hidden;
-    text-overflow: ellipsis; /* Adds '...' if text is too long */
-    white-space: nowrap;
-    padding: 4px 10px;
-    border-bottom: 1px solid #eee;
-    vertical-align: middle;
-}
-
-#result_list th {
-    background: #f8fafc;
-    color: #475569;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.025em;
-    height: 36px;
-}
-
-/* 4. COLUMN RESIZER HANDLES
-   These invisible bars sit on the edge of every table header.
-   The JS in sais_admin.js uses these for dragging.
-*/
-.resizer {
-    position: absolute;
+    position: fixed !important;
+    top: 0;
+    left: var(--sidebar-width);
     right: 0;
-    top: 0;
-    height: 100%;
-    width: 5px;
-    background: transparent;
-    cursor: col-resize;
-    user-select: none;
-    z-index: 10;
-}
-
-.resizer:hover {
-    background: var(--primary-blue);
-}
-
-/* 5. DASHBOARD GRID & CARDS
-   Layout rules for the Analytics Dashboard widgets.
-*/
-.dashboard-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-    gap: 1.5rem !important;
-    padding: 1.5rem !important;
-}
-
-.stat-card {
-    background: white !important;
-    padding: 1.5rem !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-    border: 1px solid #e2e8f0 !important;
-}
-
-/* 6. SIDEBAR CUSTOMIZATION
-   Polished Sidebar with dark headers and blue pill "Add" buttons.
-*/
-#nav-sidebar {
-    background: #f8fafc !important; /* Slate 50 */
-    border-right: 1px solid #e2e8f0 !important;
-    width: 280px !important;
-}
-
-#nav-sidebar .section {
-    color: #ffffff !important;
-    background: #5c8196 !important; /* Steel blue from screenshot */
-    padding: 10px 16px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    font-size: 11px !important;
-    margin-bottom: 0 !important;
-    border-bottom: none !important;
-    border-top: none !important;
-}
-
-#nav-sidebar table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    margin-bottom: 15px !important;
-}
-
-#nav-sidebar th {
-    padding: 0 !important;
-    vertical-align: middle !important;
-}
-
-#nav-sidebar td {
-    padding: 0 !important;
-    vertical-align: middle !important;
-    border: none !important;
-}
-
-#nav-sidebar a {
-    color: #4b6a7a !important; /* Muted blue-gray text */
-    font-weight: 500 !important;
-    font-size: 12px !important;
-    display: block !important;
-    padding: 12px 16px !important;
-    transition: all 0.2s ease;
-}
-
-/* Sidebar "Add" button styling as a dark blue pill */
-#nav-sidebar .addlink {
-    background: #003459 !important; /* Navy blue */
-    color: #ffffff !important;
-    border-radius: 20px !important;
-    padding: 2px 12px !important;
-    font-size: 9px !important;
-    font-weight: 800 !important;
-    text-transform: uppercase !important;
-    margin-right: 12px !important;
-    height: 22px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    float: right;
-    margin-top: 8px;
-}
-
-#nav-sidebar .addlink:hover {
-    background: #004e82 !important;
-}
-
-#nav-sidebar a:hover {
-    color: #2563eb !important;
-    background: #eff6ff !important;
-}
-
-/* Highlight for active model in sidebar */
-#nav-sidebar .current-model {
-    background: #e0f2fe !important; /* Light azure background */
-    border-left: 4px solid #003459 !important;
-}
-
-#nav-sidebar .current-model a {
-    color: #0369a1 !important; /* Deep blue for active link text */
-    font-weight: 700 !important;
-}
-
-/* Ensure 'ADD' pill has high contrast on the active background */
-#nav-sidebar .current-model .addlink {
-    background: #003459 !important;
-    color: #ffffff !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-/* Fix for Sidebar not appearing in some Django versions/themes */
-.main > #nav-sidebar {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-}
-
-/* 7. RECTANGULAR BUTTONS
-   Polished buttons with rectangular edges and subtle "+" icon restoration.
-*/
-.object-tools a, .addlink {
-    background-color: var(--navy) !important;
-    color: var(--white) !important;
-    border-radius: 4px !important;
-    padding: 8px 16px !important;
-    text-transform: none !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    text-decoration: none;
-    display: inline-flex;
+    height: var(--header-height);
+    background: var(--slate-900) !important;
+    color: white !important;
+    z-index: 40;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    transition: all 0.2s ease;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--slate-800);
+    transition: left 0.3s ease;
 }
 
-.object-tools a:hover, .addlink:hover {
-    background-color: #004e82 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+body.sidebar-collapsed #header {
+    left: var(--sidebar-collapsed-width);
 }
 
-/* 8. FILTER TOGGLE & SYNC BUTTONS
-   Consistent style for action buttons.
-*/
-#filter-toggle-btn, .btn-sync {
-    background: #475569 !important; /* Slate 600 */
-    color: #ffffff !important;
-    border-radius: 4px !important;
+#header a { color: #94a3b8 !important; text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+#header a:hover { color: white !important; }
+#branding h1 { margin: 0; font-size: 18px; font-weight: 700; color: white !important; display: flex; align-items: center; gap: 12px; }
+
+/* 3. MAIN CONTENT: Offsets for Header & Sidebar */
+#main-content {
+    margin-left: var(--sidebar-width);
+    margin-top: var(--header-height);
+    padding: 1.5rem;
+    flex-grow: 1;
+    min-width: 0;
+    transition: margin-left 0.3s ease;
+}
+
+body.sidebar-collapsed #main-content {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+/* 4. SIDEBAR REFINEMENTS */
+#nav-sidebar {
+    width: var(--sidebar-width);
+    transition: width 0.3s ease;
+}
+
+body.sidebar-collapsed #nav-sidebar {
+    width: var(--sidebar-collapsed-width) !important;
+}
+
+body.sidebar-collapsed #nav-sidebar .sidebar-text {
+    display: none !important;
+}
+
+body.sidebar-collapsed #nav-sidebar #sidebar-toggle-inner i {
+    transform: rotate(180deg);
+}
+
+/* 5. HIGH-DENSITY LIST VIEW (Switch Spreadsheet Mode) */
+.results table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; border: 1px solid var(--slate-200); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.results thead th { background: var(--slate-100) !important; color: var(--slate-700) !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; font-weight: 700 !important; padding: 10px 12px !important; border-bottom: 1px solid var(--slate-200) !important; }
+.results tbody td, .results tbody th { padding: 4px 12px !important; font-size: 13px !important; border-bottom: 1px solid var(--slate-100) !important; vertical-align: middle !important; height: 32px !important; }
+.results tbody tr:hover td { background: var(--slate-50) !important; }
+
+/* Ultra-condensed mode */
+.results table.condensed td { padding: 2px 12px !important; }
+
+/* 6. BUTTONS & UI ELEMENTS */
+.addlink, .btn-sync, .button, input[type=submit] {
+    background: var(--slate-900) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
     padding: 6px 12px !important;
     font-size: 12px !important;
     font-weight: 600 !important;
-    text-decoration: none !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    transition: all 0.2s ease;
-    border: 1px solid rgba(0,0,0,0.1) !important;
+    text-transform: none !important;
+    transition: all 0.2s !important;
+    cursor: pointer;
 }
 
-#filter-toggle-btn:hover, .btn-sync:hover {
-    background: #334155 !important;
-    transform: translateY(-1px);
+.addlink:hover, .btn-sync:hover, input[type=submit]:hover {
+    background: var(--blue-600) !important;
 }
 
-.btn-sync {
-    background: var(--navy) !important; /* Use Navy for Sync to match 'Add' buttons */
+/* 7. BREADCRUMBS */
+.breadcrumbs {
+    background: transparent !important;
+    padding: 0 0 1rem 0 !important;
+    font-size: 12px !important;
+    color: var(--slate-700) !important;
+    border: none !important;
 }
+.breadcrumbs a { color: var(--blue-600) !important; font-weight: 600; }
 
-.filter-hidden #changelist-filter {
-    display: none !important;
-}
+/* 8. SEARCH & FILTERS */
+#changelist-search { background: white !important; border: 1px solid var(--slate-200) !important; border-radius: 8px !important; padding: 12px !important; margin-bottom: 1rem !important; }
+#changelist-filter { background: white !important; border: 1px solid var(--slate-200) !important; border-radius: 8px !important; margin-left: 1rem !important; width: 240px !important; }
 
-#changelist-wrapper.filter-hidden #changelist {
-    margin-right: 0 !important;
-    border-right: none !important;
-}
+/* 9. FALLBACK ICONS */
+.fa-fallback::before { content: "•"; font-weight: bold; }
 
-/* 9. HIDE REDUNDANT WIDGETS
-   Removes the "Add", "Edit", and "Delete" icons next to foreign key dropdowns
-   in list views (change-list) while keeping them on edit pages.
-*/
-.change-list .related-widget-wrapper > a {
-    display: none !important;
-}
-
-/* 10. CLEAN BUTTONS
-   Hiding the default "+" icon for a more modern, minimal look as requested.
-*/
-.addlink::before, .object-tools .addlink::before {
-    display: none !important;
-}
-
-/* Remove default Django icons */
-.addlink, .object-tools a {
-    background-image: none !important;
-}
+/* 10. SCROLLBARS */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--slate-100); }
+::-webkit-scrollbar-thumb { background: var(--slate-200); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--slate-700); }

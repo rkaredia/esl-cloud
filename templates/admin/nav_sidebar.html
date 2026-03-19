@@ -1,0 +1,70 @@
+{% load i18n static %}
+<nav id="nav-sidebar" class="bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out border-r border-slate-800 h-screen sticky top-0 z-50 overflow-y-auto overflow-x-hidden"
+     style="width: var(--sidebar-width, 260px);">
+
+    <!-- Sidebar Header: Active Store -->
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between min-h-[64px]">
+        <div class="sidebar-text flex items-center space-x-3 overflow-hidden">
+            <div class="w-8 h-8 rounded bg-blue-600 flex-shrink-0 flex items-center justify-center text-white">
+                <i class="fa-solid fa-store text-sm"></i>
+            </div>
+            <div class="truncate">
+                <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold leading-none">Active Store</p>
+                <p class="text-sm font-semibold text-white truncate" title="{{ active_store_name }}">{{ active_store_name }}</p>
+            </div>
+        </div>
+        <button id="sidebar-toggle-inner" class="text-slate-500 hover:text-white transition-colors p-1" title="Toggle Sidebar [F]">
+            <i class="fa-solid fa-angles-left"></i>
+        </button>
+    </div>
+
+    <!-- Navigation Groups -->
+    <div class="flex-grow py-4 space-y-6">
+        {% for app in available_apps %}
+        <div class="px-3">
+            <div class="sidebar-text px-3 mb-2 flex items-center space-x-2">
+                {% if app.fa_icon %}
+                    <i class="fa-solid {{ app.fa_icon }} text-xs text-slate-500"></i>
+                {% endif %}
+                <h3 class="text-[11px] uppercase tracking-widest text-slate-500 font-bold">{{ app.name }}</h3>
+            </div>
+            <ul class="space-y-1">
+                {% for model in app.models %}
+                <li>
+                    {% if model.admin_url %}
+                        <a href="{{ model.admin_url }}"
+                           class="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-slate-800 hover:text-white transition-all group {% if request.path == model.admin_url %}bg-slate-800 text-blue-400{% endif %}"
+                           title="{{ model.name }}">
+                            <div class="w-5 flex justify-center flex-shrink-0">
+                                <i class="fa-solid {{ model.fa_icon|default:'fa-circle-dot' }} text-sm group-hover:scale-110 transition-transform"></i>
+                            </div>
+                            <span class="sidebar-text text-sm truncate">{{ model.name }}</span>
+                        </a>
+                    {% else %}
+                        <span class="flex items-center space-x-3 px-3 py-2 text-slate-600 cursor-not-allowed">
+                            <div class="w-5 flex justify-center flex-shrink-0">
+                                <i class="fa-solid {{ model.fa_icon|default:'fa-circle-dot' }} text-sm"></i>
+                            </div>
+                            <span class="sidebar-text text-sm truncate">{{ model.name }}</span>
+                        </span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="p-4 border-t border-slate-800 bg-slate-900/50 sidebar-text">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                {{ user.get_initials|default:"SA" }}
+            </div>
+            <div class="truncate">
+                <p class="text-xs font-medium text-white truncate">{{ user.username }}</p>
+                <p class="text-[10px] text-slate-500 uppercase">{{ user.role|default:"Administrator" }}</p>
+            </div>
+        </div>
+    </div>
+</nav>

@@ -1,117 +1,85 @@
 {% extends "admin/base.html" %}
+{% load i18n static %}
 
-{% comment %}
-   DJANGO TEMPLATE LANGUAGE (DTL) - THE BASICS
-   ------------------------------------------
-   - {% tag %}: Logic tags (if, for, block, extends).
-   - {{ variable }}: Prints data passed from the View.
-   - {# comment #}: Template comments (not visible in HTML source).
-
-   INHERITANCE:
-   This file 'extends' the default Django admin base. By overriding
-   'blocks', we can inject our own SAIS branding and the Store Selector
-   into every page of the system.
-{% endcomment %}
+{% block title %}{{ title }} | {{ site_title|default:_('SAIS Control Panel') }}{% block extra_title %}{% endblock %}{% endblock %}
 
 {% block extrahead %}
     {{ block.super }}
+    <!-- 1. TAILWIND CSS (CORE ENGINE) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'switch-sidebar': '#0f172a', /* Slate 900 */
+              'switch-active': '#1e293b',  /* Slate 800 */
+              'switch-accent': '#2563eb',  /* Blue 600 */
+              'switch-bg': '#f8fafc',      /* Slate 50 */
+            }
+          }
+        }
+      }
+    </script>
 
-    {% comment %}
-       These variables are injected globally by 'core/context_processors.py'.
-       They load our custom CSS and JS themes.
-    {% endcomment %}
+    <!-- 2. FONT AWESOME 6 (ICONOGRAPHY) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 3. SAIS CUSTOM STYLES -->
     {{ custom_admin_css }}
-    {{ custom_admin_js }}
-{% endblock %}
-
-
-{% load static %}
-
-{% block title %}{{ title }} | SAIS Platform{% endblock %}
-
-{% block extrastyle %}
-{{ block.super }}
-<style>
-    /*
-       INLINE STYLING for the Header Bar components.
-       This is specific to the top navigation of the Admin.
-    */
-    #branding-container {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-    }
-    .header-store-selector {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 4px 12px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-    .selector-label {
-        font-weight: bold;
-        font-size: 11px;
-        margin-right: 8px;
-        color: #ffffff;
-    }
-    .header-store-selector select {
-        background: #fff;
-        color: #333;
-        border: none;
-        padding: 2px 5px;
-        border-radius: 3px;
-        font-size: 13px;
-        cursor: pointer;
-    }
-</style>
 {% endblock %}
 
 {% block branding %}
-<div id="branding-container">
+<div id="branding" class="flex items-center">
+    <!-- Header Sidebar Toggle -->
+    <button id="sidebar-toggle" class="text-slate-400 hover:text-white transition-colors mr-4" title="Toggle Sidebar [F]">
+        <i class="fa-solid fa-bars text-lg"></i>
+    </button>
+
     <h1 id="site-name">
-        <a href="{% url 'admin:index' %}">SAIS ESL Management</a>
+        <a href="{% url 'admin:index' %}" class="flex items-center space-x-2">
+            <span class="text-blue-500 font-black">SAIS</span>
+            <span class="text-white font-light tracking-widest uppercase">ESL</span>
+        </a>
     </h1>
+</div>
+{% endblock %}
 
-    {# Only show the store selector if the user is logged in #}
-    {% if request.user.is_authenticated %}
-        <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
-            {# Dashboard Link #}
-            <a href="{{ dashboard_url }}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Analytics Dashboard"><span aria-hidden="true">📊</span> Dashboard</a>
+{% block nav-global %}
+<div class="flex items-center space-x-6 ml-10">
+    <a href="{% url 'sais_admin:dashboard' %}" class="flex items-center space-x-1 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-chart-line text-xs"></i>
+        <span class="uppercase text-[11px] font-bold tracking-wider">Dashboard</span>
+    </a>
+    <a href="{% url 'help_module:index' %}" class="flex items-center space-x-1 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-book-open text-xs"></i>
+        <span class="uppercase text-[11px] font-bold tracking-wider">Help</span>
+    </a>
 
-            {# Help Module Link #}
-            <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation"><span aria-hidden="true">📖</span> Help</a>
-
-            {% comment %}
-               THE GLOBAL STORE SELECTOR
-               -------------------------
-               Allows users to switch which store they are managing.
-               When changed, a JavaScript listener in 'sais_admin.js'
-               redirects to the 'set_active_store' view.
-            {% endcomment %}
-            <div class="header-store-selector">
-            <label for="header-store-select" class="selector-label">🏪 ACTIVE STORE:</label>
-            <select id="header-store-select" aria-label="Select active store">
-                {% if not active_store %}
-                    <option value="" selected disabled>Choose a Store...</option>
-                {% endif %}
-                
-                {# Loop through the stores assigned to this user #}
-                {% for store in user_stores %}
-                    <option value="{{ store.id }}" {% if store.id == active_store.id %}selected{% endif %}>
-                        {{ store.name }}
-                    </option>
-                {% empty %}
-                    <option disabled>No stores assigned</option>
-                {% endfor %}
-            </select>
-            </div>
-        </div>
-    {% endif %}
+    <!-- ACTIVE STORE INDICATOR -->
+    <div class="ml-4 px-3 py-1 bg-slate-800 rounded-md border border-slate-700 flex items-center space-x-2">
+        <i class="fa-solid fa-shop text-xs text-blue-400"></i>
+        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Active Store:</span>
+        <span class="text-xs font-semibold text-white">{{ active_store_name }}</span>
+    </div>
 </div>
 {% endblock %}
 
 {% block userlinks %}
+    {% if user.is_active and user.is_staff %}
+        <div class="flex items-center space-x-4 text-slate-400 text-xs">
+            <span class="text-slate-500">Welcome, <span class="text-white font-bold">{{ user.username|upper }}</span></span>
+            <a href="{% url 'admin:password_change' %}" class="hover:text-white transition-colors uppercase font-bold tracking-tighter">Password</a>
+            <a href="{% url 'admin:logout' %}" class="hover:text-white transition-colors uppercase font-bold tracking-tighter">Log out</a>
+
+            <button id="theme-toggle" class="p-1 hover:bg-slate-800 rounded transition-colors" title="Toggle Dark Mode">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block footer %}
     {{ block.super }}
+    {{ custom_admin_js }}
 {% endblock %}
