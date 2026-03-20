@@ -598,10 +598,10 @@ class ESLMqttClient:
                         status_val = data.get('Status')
 
                     if status_val is not None:
-                        is_success = (status_val == 0)
+                        is_success = (status_val == 128 or status_val == 0)
                         # If failed, include the error code in the log for visibility
                         if not is_success:
-                            topic = f"{topic} (ERR:{status_val})"
+                            topic = f"{topic}"# (OUTPUT:{status_val})"
                             # To avoid topic corruption with large lists, only keep the first 20 chars of status_val if it's a string/list
                             if len(topic) > 100:
                                 topic = topic[:97] + "..."
