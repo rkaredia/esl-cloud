@@ -332,7 +332,7 @@ class SAISAdminSite(admin.AdminSite):
 
             # Add 'Virtual' models (links to our custom views) to the sidebar
             monitoring['models'].append({
-                'name': '📊 Analytics Dashboard',
+                'name': 'Analytics Dashboard',
                 'object_name': 'dashboard',
                 'admin_url': reverse('sais_admin:dashboard'),
                 'view_only': True,
