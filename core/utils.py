@@ -116,9 +116,13 @@ def template_v1(image, draw, product, width, height, color_scheme):
     lines = wrapper.wrap(text=name_text)[:4] # Max 4 lines
 
     if lines:
+        # Start with a larger font size and let it scale down to fit the zone
+        initial_font_size = 30
         longest_line = max(lines, key=len)
-        max_h_per_line = (height * 0.45) / len(lines)
-        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 20, "condensed")
+        max_h_total = height * 0.45
+        max_h_per_line = max_h_total / len(lines)
+
+        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "condensed")
 
         bbox = draw.textbbox((0, 0), "Ay", font=n_font)
         line_height = bbox[3] - bbox[1] + 2
@@ -155,8 +159,8 @@ def template_v1(image, draw, product, width, height, color_scheme):
     y_center = height // 2
 
     # Supplier Abbreviation (Always visible at bottom)
-    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "N/A"
-    supp_font = get_dynamic_font_size(supp_abbr, p_box_w, 20, 16, "bold")
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
+    supp_font = get_dynamic_font_size(supp_abbr, p_box_w, 20, 20, "bold")
     draw.text((split_x + (width - split_x)//2, height - 8), supp_abbr, fill=price_txt_col, font=supp_font, anchor="mb")
 
     if is_promo:
@@ -209,8 +213,9 @@ def template_v2(image, draw, product, width, height, color_scheme):
     p_color = (255, 0, 0) if ('R' in color_scheme) else (0,0,0)
     draw.text((width//2, height//2 + 5), price_str, fill=p_color, font=price_font, anchor="mm")
 
-    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
-    draw.text((width - 5, height - 5), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=get_font_by_type(12, "condensed"), anchor="rb")
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
+    sku_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
+    draw.text((width - 5, height - 5), sku_text, fill=(0,0,0), font=get_font_by_type(12, "condensed"), anchor="rb")
     if is_promo: draw.text((5, height - 5), "SPECIAL", fill=(0,0,0), font=get_font_by_type(20, "bold"), anchor="lb")
 
 def template_v3(image, draw, product, width, height, color_scheme):
@@ -227,8 +232,9 @@ def template_v3(image, draw, product, width, height, color_scheme):
     if not product: return
 
     safe_pad = 8
-    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
-    draw.text((safe_pad, safe_pad), f"{supp_abbr}: {product.sku}", fill=(0,0,0), font=get_font_by_type(10, "bold"))
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
+    sku_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
+    draw.text((safe_pad, safe_pad), sku_text, fill=(0,0,0), font=get_font_by_type(10, "bold"))
 
     name_font = get_font_by_type(16, "bold")
     lines = textwrap.wrap(text=product.name.upper(), width=12)[:4]

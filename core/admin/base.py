@@ -70,6 +70,15 @@ class SAISAdminSite(admin.AdminSite):
         ]
         return custom_urls + urls
 
+    def index(self, request, extra_context=None):
+        """
+        LANDING PAGE OVERRIDE
+        ---------------------
+        Instead of showing the standard app list, we send users straight
+        to the Analytics Dashboard.
+        """
+        return redirect('sais_admin:dashboard')
+
     def dashboard_view(self, request):
         """
         ANALYTICS DASHBOARD LOGIC

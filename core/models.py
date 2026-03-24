@@ -452,6 +452,12 @@ class ESLTag(AuditModel):
                 self._original_data['template_id'] != self.template_id or
                 self._original_data['hardware_spec_id'] != self.hardware_spec_id):
                 trigger_refresh = True
+
+            # Reset image and status if product is removed
+            if self._original_data['paired_product_id'] and not self.paired_product_id:
+                self.tag_image = None
+                self.sync_state = 'IDLE'
+                self.last_image_gen_success = None
         else:
             if self.paired_product_id:
                 trigger_refresh = True
