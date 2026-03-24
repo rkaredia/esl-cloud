@@ -51,6 +51,8 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     )
 
     # Organized layout for the detailed edit page
+    ordering = ('-last_heartbeat',)
+
     fieldsets = (
         ('General', {'fields': ('estation_id', 'name', 'alias', 'store')}),
         ('Technical', {'fields': (
@@ -135,6 +137,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     # UI Enhancement: Search-as-you-type for product pairing
     autocomplete_fields = ['paired_product']
 
+    ordering = ('image_sort_val', '-updated_at')
+
     readonly_fields = (
         'get_paired_info', 'image_preview_large', 'sync_state',
         'last_image_gen_success', 'last_image_task_id', 'audit_log_link',
@@ -155,10 +159,21 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
 
     def get_queryset(self, request):
-        """Optimize performance by prefetching related objects."""
-        return super().get_queryset(request).select_related(
+        """Optimize performance by prefetching related objects and adding custom sorting."""
+        from django.db.models import Case, When, Value, IntegerField
+        qs = super().get_queryset(request).select_related(
             'paired_product', 'gateway', 'hardware_spec', 'store'
         )
+        # Custom sorting: 0: Generated (Green), 1: Pending (Orange), 2: No Product (Gray)
+        qs = qs.annotate(
+            image_sort_val=Case(
+                When(paired_product__isnull=True, then=Value(2)),
+                When(tag_image__isnull=False, tag_image__gt='', then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        return qs
 
     def image_status(self, obj):
         """Visual status indicator for image generation."""
@@ -170,7 +185,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             return format_html('<span style="color:{}; font-weight:bold;"><span aria-hidden="true">●</span> {}</span>', color, status_text)
         except: return "Error"
     image_status.short_description = "Image"
-    image_status.admin_order_field = 'tag_image'
+    image_status.admin_order_field = 'image_sort_val'
 
     def get_paired_info(self, obj):
         """Formatted product info for read-only displays."""
