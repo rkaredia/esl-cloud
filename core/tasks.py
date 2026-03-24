@@ -220,20 +220,24 @@ def check_gateways_status_task():
         default_interval = int(GlobalSetting.objects.filter(key='DEFAULT_HEARTBEAT_INTERVAL').values_list('value', flat=True).first() or 300)
         multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
 
-        gateways = Gateway.objects.filter(is_online=True)
-        count_offline = 0
+        # PERFORMANCE: Use values() to avoid full model instantiation and reduce memory overhead
+        gateways = Gateway.objects.filter(is_online=True).values('id', 'heartbeat_interval', 'last_heartbeat', 'created_at', 'estation_id')
+        offline_ids = []
         now = timezone.now()
 
         for gw in gateways:
-            interval = gw.heartbeat_interval or default_interval
+            interval = gw['heartbeat_interval'] or default_interval
             timeout_seconds = interval * multiplier
 
-            last_signal = gw.last_heartbeat or gw.created_at
+            last_signal = gw['last_heartbeat'] or gw['created_at']
             if (now - last_signal).total_seconds() > timeout_seconds:
-                gw.is_online = False
-                gw.save(update_fields=['is_online'])
-                count_offline += 1
-                logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
+                offline_ids.append(gw['id'])
+                logger.info(f"Gateway {gw['estation_id']} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
+
+        # PERFORMANCE: Use a single bulk update to reduce database round-trips from O(N) to O(1)
+        count_offline = 0
+        if offline_ids:
+            count_offline = Gateway.objects.filter(id__in=offline_ids).update(is_online=False)
 
         # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
         # If a tag has been in 'PUSHED' state for more than 60 seconds, mark as 'PUSH_FAILED'
@@ -242,9 +246,10 @@ def check_gateways_status_task():
             sync_state='PUSHED',
             last_pushed_at__lt=timeout_cutoff
         )
-        count_tag_timeouts = timed_out_tags.count()
+
+        # PERFORMANCE: Use the return value of update() to avoid an extra .count() query
+        count_tag_timeouts = timed_out_tags.update(sync_state='PUSH_FAILED')
         if count_tag_timeouts > 0:
-            timed_out_tags.update(sync_state='PUSH_FAILED')
             logger.info(f"Marked {count_tag_timeouts} tags as PUSH_FAILED due to 60s timeout.")
 
         return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."

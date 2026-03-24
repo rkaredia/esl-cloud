@@ -29,3 +29,7 @@
 ## 2026-03-12 - [State Timeout Consolidation in Periodic Tasks]
 **Learning:** Implementing individual 'timeout' timers for thousands of hardware transactions (like ESL tag updates) creates massive task queue overhead. Consolidating these checks into an existing 60-second periodic "Gateway Heartbeat" task allows for efficient batch-processing of stale states (`PUSHED` -> `PUSH_FAILED`) with a single database query.
 **Action:** Avoid per-transaction timeout tasks. Instead, add a `last_pushed_at` timestamp and use a single periodic "cleaner" task to bulk-update records that have exceeded the timeout threshold, reducing Celery/Redis load.
+
+## 2026-03-24 - [Bulk Update and Query Consolidation in Health Checks]
+**Learning:** Performing individual `.save()` calls in a loop for hardware status updates creates an O(N) database bottleneck. Consolidating these into a single `.update()` call reduces this to O(1). Additionally, using `.values()` for large loops avoids the overhead of full model instantiation. Finally, `QuerySet.update()` returns the count of updated rows, making a preceding `.count()` query redundant.
+**Action:** Always use bulk `.update()` for status transitions in periodic tasks. Use `.values()` to minimize memory footprint when iterating over querysets for calculation, and utilize the return value of `.update()` for logging to avoid extra DB round-trips.
