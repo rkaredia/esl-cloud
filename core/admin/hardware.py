@@ -137,7 +137,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     # UI Enhancement: Search-as-you-type for product pairing
     autocomplete_fields = ['paired_product']
 
-    ordering = ('image_sort_val', '-updated_at')
+    ordering = ('-updated_at',)
 
     readonly_fields = (
         'get_paired_info', 'image_preview_large', 'sync_state',
