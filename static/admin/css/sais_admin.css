@@ -123,7 +123,7 @@
 #nav-sidebar .section {
     color: #ffffff !important;
     background: #5c8196 !important; /* Steel blue from screenshot */
-    padding: 5px 12px !important; /* Balanced padding */
+    padding: 8px 16px !important; /* Increased padding */
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
@@ -177,7 +177,7 @@
     font-weight: 500 !important;
     font-size: 12px !important;
     display: block !important;
-    padding: 6px 12px !important; /* Improved padding for readability */
+    padding: 10px 16px !important; /* Increased padding for readability */
     transition: all 0.2s ease;
     margin: 0 !important;
 }

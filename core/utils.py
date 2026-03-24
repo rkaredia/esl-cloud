@@ -113,12 +113,12 @@ def template_v1(image, draw, product, width, height, color_scheme):
     # 3. DRAW PRODUCT NAME (Left Top)
     name_text = product.name.upper()
     wrapper = textwrap.TextWrapper(width=16) # Wrap text to prevent overflow
-    lines = wrapper.wrap(text=name_text)[:3] # Max 3 lines
+    lines = wrapper.wrap(text=name_text)[:4] # Max 4 lines
 
     if lines:
         longest_line = max(lines, key=len)
-        max_h_per_line = (height * 0.40) / len(lines)
-        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 18, "condensed")
+        max_h_per_line = (height * 0.45) / len(lines)
+        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, 20, "condensed")
 
         bbox = draw.textbbox((0, 0), "Ay", font=n_font)
         line_height = bbox[3] - bbox[1] + 2
@@ -128,7 +128,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
             draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
             curr_y += line_height
 
-    # 4. DRAW PRICE (Right Box)
+    # 4. DRAW PRICE & SUPPLIER (Right Box)
     try:
         price_val = float(product.price)
         p_parts = f"{price_val:.2f}".split('.')
@@ -137,7 +137,10 @@ def template_v1(image, draw, product, width, height, color_scheme):
         dollars, cents = "$0", "00"
 
     p_box_w = (width - split_x) - (safe_pad * 1)
-    d_font = get_dynamic_font_size(dollars + "0", p_box_w, height * 0.75, int(height * 0.70), "bold")
+
+    # Calculate available height for price
+    price_h_limit = height * 0.60
+    d_font = get_dynamic_font_size(dollars + "0", p_box_w, price_h_limit, int(height * 0.65), "bold")
 
     d_bbox = draw.textbbox((0,0), dollars, font=d_font)
     d_w = d_bbox[2] - d_bbox[0]
@@ -150,15 +153,19 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     p_x = split_x + ((width - split_x) - total_p_w) // 2
     y_center = height // 2
-    y_offset = int(height * 0.1) if is_promo else 0
+
+    # Supplier Abbreviation (Always visible at bottom)
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "N/A"
+    supp_font = get_dynamic_font_size(supp_abbr, p_box_w, 20, 16, "bold")
+    draw.text((split_x + (width - split_x)//2, height - 8), supp_abbr, fill=price_txt_col, font=supp_font, anchor="mb")
 
     if is_promo:
         promo_font = get_dynamic_font_size("SPECIAL", p_box_w, 20, 20, "bold")
         draw.text((split_x + (width - split_x)//2, 8), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
 
     # Draw dollars and then draw cents slightly higher
-    draw.text((p_x, y_center + y_offset), dollars, fill=price_txt_col, font=d_font, anchor="lm")
-    draw.text((p_x + d_w + 2, (y_center + y_offset) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
+    draw.text((p_x, y_center), dollars, fill=price_txt_col, font=d_font, anchor="lm")
+    draw.text((p_x + d_w + 2, (y_center) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
 
     # 5. DRAW BARCODE (Left Bottom)
     try:
@@ -173,8 +180,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
         barcode_y = height - barcode_h - 15
         image.paste(b_img, (safe_pad, barcode_y), b_img)
 
-        supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else "SKU"
-        display_text = f"{supp_abbr}:{product.sku}"
+        display_text = f"{product.sku}"
 
         s_font = get_dynamic_font_size(display_text, left_zone_w, 16, 14,  "condensed")
         draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
