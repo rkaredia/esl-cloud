@@ -84,6 +84,46 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     # horizontal filter provides a 'Double List Box' for picking multiple stores
     filter_horizontal = ('managed_stores',)
 
+    def get_fieldsets(self, request, obj=None):
+        """
+        SECURITY: HIDE SENSITIVE FIELDS
+        ------------------------------
+        Removes administrative permission fields from the form for non-superusers.
+        """
+        fieldsets = super().get_fieldsets(request, obj)
+        if not request.user.is_superuser:
+            sensitive_fields = ['is_superuser', 'is_staff', 'groups', 'user_permissions']
+            new_fieldsets = []
+            for name, opts in fieldsets:
+                fields = list(opts.get('fields', []))
+                # Filter out sensitive fields from every fieldset
+                filtered_fields = [f for f in fields if f not in sensitive_fields]
+                if filtered_fields:
+                    # Create a copy of opts and update fields to preserve other keys (like classes)
+                    new_opts = opts.copy()
+                    new_opts['fields'] = filtered_fields
+                    new_fieldsets.append((name, new_opts))
+            return tuple(new_fieldsets)
+        return fieldsets
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        """Security: Prevent non-superusers from creating 'Global Admin' roles."""
+        if db_field.name == "role" and not request.user.is_superuser:
+            kwargs["choices"] = [c for c in User.ROLE_CHOICES if c[0] != 'admin']
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Security: Restrict company selection to the user's own tenant."""
+        if db_field.name == "company" and not request.user.is_superuser:
+            kwargs["queryset"] = Company.objects.filter(id=request.user.company_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        """Security: Restrict store selection to the user's company."""
+        if db_field.name == "managed_stores" and not request.user.is_superuser:
+            kwargs["queryset"] = Store.objects.filter(company_id=request.user.company_id)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
     def get_queryset(self, request):
         """
         SECURITY: USER ISOLATION
