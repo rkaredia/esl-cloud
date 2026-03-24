@@ -249,6 +249,8 @@ class SAISAdminSite(admin.AdminSite):
         """
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
+        context['is_nav_sidebar_enabled'] = True
+        context['available_apps'] = self.get_app_list(request)
 
         # Inject custom styles and scripts using 'format_html' for security
         context['custom_admin_css'] = format_html('<link rel="stylesheet" type="text/css" href="{}{}admin/css/sais_admin.css">', settings.STATIC_URL, "")

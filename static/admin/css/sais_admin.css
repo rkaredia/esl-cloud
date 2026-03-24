@@ -132,15 +132,29 @@
     display: block !important;
 }
 
+#nav-sidebar .module {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
 #nav-sidebar table {
     width: 100% !important;
     border-collapse: collapse !important;
-    margin-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+#nav-sidebar caption {
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 #nav-sidebar th {
     padding: 0 !important;
     vertical-align: middle !important;
+    border: none !important;
 }
 
 #nav-sidebar td {
@@ -149,13 +163,20 @@
     border: none !important;
 }
 
+#nav-sidebar tr {
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 #nav-sidebar a {
     color: #4b6a7a !important; /* Muted blue-gray text */
     font-weight: 500 !important;
     font-size: 12px !important;
     display: block !important;
-    padding: 6px 16px !important;
+    padding: 2px 16px !important; /* Condensed padding */
     transition: all 0.2s ease;
+    margin: 0 !important;
 }
 
 /* Sidebar "Add" button styling as a dark blue pill */
