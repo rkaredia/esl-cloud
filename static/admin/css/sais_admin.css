@@ -115,21 +115,24 @@
 #nav-sidebar {
     background: #f8fafc !important; /* Slate 50 */
     border-right: 1px solid #e2e8f0 !important;
-    width: 280px !important;
+    width: 220px !important; /* Optimized width */
+    flex-basis: 220px !important;
+    box-sizing: border-box !important;
 }
 
 #nav-sidebar .section {
     color: #ffffff !important;
     background: #5c8196 !important; /* Steel blue from screenshot */
-    padding: 4px 16px !important;
+    padding: 5px 12px !important; /* Balanced padding */
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     margin-bottom: 0 !important;
     border-bottom: none !important;
     border-top: none !important;
-    display: block !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 #nav-sidebar .module {
@@ -174,7 +177,7 @@
     font-weight: 500 !important;
     font-size: 12px !important;
     display: block !important;
-    padding: 2px 16px !important; /* Condensed padding */
+    padding: 6px 12px !important; /* Improved padding for readability */
     transition: all 0.2s ease;
     margin: 0 !important;
 }
@@ -230,6 +233,10 @@
     top: 0;
     height: 100vh;
     overflow-y: auto;
+}
+
+.main.shifted > #nav-sidebar + .content {
+    max-width: calc(100% - 244px) !important; /* 220px + 23px toggle + 1px border */
 }
 
 /* 7. RECTANGULAR BUTTONS
