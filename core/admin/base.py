@@ -130,12 +130,14 @@ class SAISAdminSite(admin.AdminSite):
 
             gateway_loads = []
             for gw in gateways:
-                is_online = gw.is_currently_online()
+                status_code, status_label, status_color = gw.get_real_time_status()
                 count = gw.tag_count_ann
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
-                    'is_active': is_online,
+                    'is_active': status_code != 'OFFLINE',
+                    'status_label': status_label,
+                    'status_color': status_color,
                     'tag_count': count,
                     'load_percent': min(int((count / 500) * 100), 100) # Max 500 tags per gateway
                 })

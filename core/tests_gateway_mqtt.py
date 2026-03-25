@@ -32,7 +32,7 @@ class GatewayMqttTest(TestCase):
         self.assertEqual(gateway.heartbeat_interval, 15)
         self.assertIsNone(gateway.netmask)
         self.assertIsNone(gateway.network_gateway)
-        self.assertTrue(gateway.is_online)
+        self.assertEqual(gateway.is_online, 'ONLINE')
         self.assertTrue(gateway.is_currently_online())
         self.assertEqual(gateway.store, self.store)
 
@@ -52,7 +52,7 @@ class GatewayMqttTest(TestCase):
         self.assertEqual(gateway.tags_queued_count, 10)
         self.assertEqual(gateway.tags_comm_count, 5)
         self.assertIsNone(gateway.last_error_message)
-        self.assertTrue(gateway.is_online)
+        self.assertEqual(gateway.is_online, 'ONLINE')
 
     def test_handle_heartbeat_error_code(self):
         Gateway.objects.create(estation_id="0CGV", store=self.store, gateway_mac="90:A9:F7:32:0B:45")
@@ -67,7 +67,7 @@ class GatewayMqttTest(TestCase):
         self.assertEqual(gateway.last_error_message, "ModError: Abnormality of the communication module")
         self.assertEqual(gateway.last_error_code, 5)
         self.assertIsNotNone(gateway.last_error_timestamp)
-        self.assertTrue(gateway.is_online) # Still online since it's communicating
+        self.assertEqual(gateway.is_online, 'ERROR')
 
     def test_handle_heartbeat_clears_error(self):
         # Setup gateway with an existing error
@@ -85,7 +85,7 @@ class GatewayMqttTest(TestCase):
 
         gw.refresh_from_db()
         self.assertIsNone(gw.last_error_message)
-        self.assertEqual(gw.last_error_code, 99) # Persistent history
+        self.assertEqual(gw.last_error_code, 4)
 
     def test_gateway_offline_timeout(self):
         from core.tasks import check_gateways_status_task
@@ -97,7 +97,7 @@ class GatewayMqttTest(TestCase):
             estation_id="OFFLINE_TEST",
             store=self.store,
             gateway_mac="ABC",
-            is_online=True,
+            is_online='ONLINE',
             heartbeat_interval=30,
             last_heartbeat=timezone.now() - datetime.timedelta(seconds=121) # 4x 30s = 120s
         )
@@ -106,5 +106,5 @@ class GatewayMqttTest(TestCase):
         check_gateways_status_task()
 
         gw.refresh_from_db()
-        self.assertFalse(gw.is_online)
+        self.assertEqual(gw.is_online, 'OFFLINE')
         self.assertIn("Offline: No heartbeat received", gw.last_error_message)

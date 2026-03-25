@@ -134,8 +134,9 @@ def dispatch_tag_image_task(tag_id):
             gateways_to_try.append(tag.gateway.estation_id)
 
         online_gateways = list(Gateway.objects.filter(
-            store=tag.store,
-            is_online=True
+            store=tag.store
+        ).exclude(
+            is_online='OFFLINE'
         ).exclude(
             estation_id__in=gateways_to_try
         ).values_list('estation_id', flat=True))
@@ -224,7 +225,7 @@ def check_gateways_status_task():
 
         # LIGHTWEIGHT BATCH PROCESSING:
         # We group gateways by their heartbeat_interval to run minimal SQL updates.
-        intervals = Gateway.objects.filter(is_online=True).values_list('heartbeat_interval', flat=True).distinct()
+        intervals = Gateway.objects.exclude(is_online='OFFLINE').values_list('heartbeat_interval', flat=True).distinct()
 
         count_offline = 0
         for interval_val in intervals:
@@ -233,14 +234,15 @@ def check_gateways_status_task():
             timeout_seconds = interval * multiplier
             cutoff = now - timezone.timedelta(seconds=timeout_seconds)
 
-            # Update all online gateways with THIS interval that haven't been seen since the cutoff.
+            # Update all online/error gateways with THIS interval that haven't been seen since the cutoff.
             # update() runs a single SQL query: UPDATE ... WHERE ...
-            updated = Gateway.objects.filter(
-                is_online=True,
+            updated = Gateway.objects.exclude(
+                is_online='OFFLINE'
+            ).filter(
                 heartbeat_interval=interval_val,
                 last_heartbeat__lt=cutoff
             ).update(
-                is_online=False,
+                is_online='OFFLINE',
                 last_error_message=f"Offline: No heartbeat received for {timeout_seconds}s (Checked at {now.strftime('%H:%M:%S')})"
             )
             count_offline += updated
@@ -248,12 +250,13 @@ def check_gateways_status_task():
         # Handle edge case: Gateways that never sent a heartbeat (last_heartbeat is null)
         # but have been created longer than 4x 15s ago.
         orphaned_cutoff = now - timezone.timedelta(seconds=15 * multiplier)
-        updated_orphans = Gateway.objects.filter(
-            is_online=True,
+        updated_orphans = Gateway.objects.exclude(
+            is_online='OFFLINE'
+        ).filter(
             last_heartbeat__isnull=True,
             created_at__lt=orphaned_cutoff
         ).update(
-            is_online=False,
+            is_online='OFFLINE',
             last_error_message="Offline: Never received initial heartbeat"
         )
         count_offline += updated_orphans

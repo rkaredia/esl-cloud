@@ -261,7 +261,7 @@ class ESLMqttClient:
             update_data = {
                 'last_heartbeat': timezone.now(),
                 'last_successful_heartbeat': timezone.now(),
-                'is_online': True,
+                'is_online': 'ONLINE',
                 'last_seen': timezone.now()
             }
 
@@ -278,13 +278,15 @@ class ESLMqttClient:
                         'module_version': data[3],
                         'tags_queued_count': data[6],
                         'tags_comm_count': data[7],
+                        'last_error_code': msg_code,
                     })
 
                     if msg_code in ERROR_CODES:
+                        update_data['is_online'] = 'ERROR'
                         update_data['last_error_message'] = ERROR_CODES[msg_code]
-                        update_data['last_error_code'] = msg_code
                         update_data['last_error_timestamp'] = timezone.now()
                     elif msg_code in [1, 2, 3, 4]:
+                        update_data['is_online'] = 'ONLINE'
                         update_data['last_error_message'] = None
                 else:
                     logger.warning(f"Heartbeat for {estation_id} has unexpected length: {len(data)}")
@@ -325,7 +327,7 @@ class ESLMqttClient:
 
             update_data = {
                 'estation_id': clean_id,
-                'is_online': True,
+                'is_online': 'ONLINE',
                 'last_heartbeat': timezone.now(),
                 'last_seen': timezone.now(),
                 'last_error_message': None

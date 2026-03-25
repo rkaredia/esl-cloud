@@ -25,7 +25,7 @@ class LogicalBindingTest(TestCase):
             alias="01"
         )
         self.assertEqual(gateway.estation_id, "0CGV")
-        self.assertFalse(gateway.is_online)
+        self.assertEqual(gateway.is_online, 'OFFLINE')
 
     def test_heartbeat_parsing(self):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
@@ -41,7 +41,7 @@ class LogicalBindingTest(TestCase):
         self.assertEqual(gateway.module_version, "1.0.0.1")
         self.assertEqual(gateway.tags_queued_count, 10)
         self.assertEqual(gateway.tags_comm_count, 5)
-        self.assertTrue(gateway.is_online)
+        self.assertEqual(gateway.is_online, 'ONLINE')
 
     def test_tag_heartbeat_updates_binding(self):
         from core.models import TagHardware

@@ -72,10 +72,8 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     )
 
     def status_indicator(self, obj):
-        """Visual Dot showing online status."""
-        is_online = obj.is_currently_online()
-        color = "#059669" if is_online else "#dc2626"
-        text = "Online" if is_online else "Offline"
+        """Visual Dot showing online status with descriptive labels."""
+        status_code, text, color = obj.get_real_time_status()
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
 

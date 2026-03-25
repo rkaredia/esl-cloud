@@ -117,8 +117,8 @@
                         <div style="font-size: 14px; font-weight: 800; color: #1e293b;">{{ gw.estation_id }}</div>
                         <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">{{ gw.gateway_mac }}</div>
                     </div>
-                    <span style="font-size: 9px; padding: 2px 8px; border-radius: 20px; background: {% if gw.is_active %}#dcfce7{% else %}#fee2e2{% endif %}; color: {% if gw.is_active %}#15803d{% else %}#991b1b{% endif %}; font-weight: 800;">
-                        {{ gw.is_active|yesno:"ONLINE,OFFLINE" }}
+                    <span style="font-size: 9px; padding: 2px 8px; border-radius: 20px; background: {{ gw.status_color }}22; color: {{ gw.status_color }}; font-weight: 800;">
+                        {{ gw.status_label|upper }}
                     </span>
                 </div>
                 {% comment %} Progress bar showing how many tags are assigned to this gateway {% endcomment %}
