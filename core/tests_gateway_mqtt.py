@@ -63,3 +63,25 @@ class GatewayMqttTest(TestCase):
         gateway = Gateway.objects.get(estation_id="0CGV")
         self.assertEqual(gateway.last_error_message, "ModError: Abnormality of the communication module")
         self.assertTrue(gateway.is_online) # Still online since it's communicating
+
+    def test_gateway_offline_timeout(self):
+        from core.tasks import check_gateways_status_task
+        from django.utils import timezone
+        import datetime
+
+        # Create a gateway with 30s interval
+        gw = Gateway.objects.create(
+            estation_id="OFFLINE_TEST",
+            store=self.store,
+            gateway_mac="ABC",
+            is_online=True,
+            heartbeat_interval=30,
+            last_heartbeat=timezone.now() - datetime.timedelta(seconds=121) # 4x 30s = 120s
+        )
+
+        # Run the background task
+        check_gateways_status_task()
+
+        gw.refresh_from_db()
+        self.assertFalse(gw.is_online)
+        self.assertIn("Offline: No heartbeat received", gw.last_error_message)

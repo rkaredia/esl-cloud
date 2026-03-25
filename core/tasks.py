@@ -212,31 +212,54 @@ def check_gateways_status_task():
     """
     HEALTH MONITORING (Heartbeat Check)
     -----------------------------------
-    Runs every minute via Celery Beat (Scheduled Task).
-    If a gateway hasn't sent a heartbeat in X minutes, mark it 'Offline'.
+    Runs every minute. Marks gateways as offline if they miss 4 heartbeats.
+    Uses a lightweight bulk-query approach to avoid 'hammering' the system.
     """
     try:
-        # Load timeout thresholds from Global Settings
-        default_interval = int(GlobalSetting.objects.filter(key='DEFAULT_HEARTBEAT_INTERVAL').values_list('value', flat=True).first() or 300)
-        multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
+        from django.db.models import F, ExpressionWrapper, DurationField, Q
 
-        gateways = Gateway.objects.filter(is_online=True)
-        count_offline = 0
+        # Load multiplier from Global Settings (Default: 4x)
+        multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
         now = timezone.now()
 
-        for gw in gateways:
-            # User specified 4x timeout. Default to 15s interval if not known.
-            interval = gw.heartbeat_interval or 15
-            timeout_seconds = interval * multiplier
+        # LIGHTWEIGHT BATCH PROCESSING:
+        # We group gateways by their heartbeat_interval to run minimal SQL updates.
+        intervals = Gateway.objects.filter(is_online=True).values_list('heartbeat_interval', flat=True).distinct()
 
-            last_signal = gw.last_heartbeat or gw.created_at
-            if (now - last_signal).total_seconds() > timeout_seconds:
-                gw.is_online = False
-                # Optionally clear the error message or set a specific 'Offline' error
-                gw.last_error_message = f"Offline: No heartbeat received for {timeout_seconds}s"
-                gw.save(update_fields=['is_online', 'last_error_message'])
-                count_offline += 1
-                logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
+        count_offline = 0
+        for interval_val in intervals:
+            # Safe default for hardware is 15 seconds if unknown
+            interval = interval_val or 15
+            timeout_seconds = interval * multiplier
+            cutoff = now - timezone.timedelta(seconds=timeout_seconds)
+
+            # Update all online gateways with THIS interval that haven't been seen since the cutoff.
+            # update() runs a single SQL query: UPDATE ... WHERE ...
+            updated = Gateway.objects.filter(
+                is_online=True,
+                heartbeat_interval=interval_val,
+                last_heartbeat__lt=cutoff
+            ).update(
+                is_online=False,
+                last_error_message=f"Offline: No heartbeat received for {timeout_seconds}s (Checked at {now.strftime('%H:%M:%S')})"
+            )
+            count_offline += updated
+
+        # Handle edge case: Gateways that never sent a heartbeat (last_heartbeat is null)
+        # but have been created longer than 4x 15s ago.
+        orphaned_cutoff = now - timezone.timedelta(seconds=15 * multiplier)
+        updated_orphans = Gateway.objects.filter(
+            is_online=True,
+            last_heartbeat__isnull=True,
+            created_at__lt=orphaned_cutoff
+        ).update(
+            is_online=False,
+            last_error_message="Offline: Never received initial heartbeat"
+        )
+        count_offline += updated_orphans
+
+        if count_offline > 0:
+            logger.info(f"Gateway Status Check: Marked {count_offline} gateways as OFFLINE.")
 
         # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
         # If a tag has been in 'PUSHED' state for more than 60 seconds, mark as 'PUSH_FAILED'

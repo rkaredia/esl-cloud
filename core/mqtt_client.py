@@ -348,7 +348,7 @@ class ESLMqttClient:
                         'module_version': data[6],
                         'disk_size': data[7],
                         'free_space': data[8],
-                        'heartbeat_interval': data[16],
+                        'heartbeat_interval': int(data[16]) if data[16] else 15,
                         'is_auto_ip': data[11], # Always True per user requirement
                     })
 
