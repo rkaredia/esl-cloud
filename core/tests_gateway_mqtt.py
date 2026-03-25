@@ -30,7 +30,10 @@ class GatewayMqttTest(TestCase):
         self.assertEqual(gateway.username, "test")
         self.assertEqual(gateway.password, "123456")
         self.assertEqual(gateway.heartbeat_interval, 15)
+        self.assertIsNone(gateway.netmask)
+        self.assertIsNone(gateway.network_gateway)
         self.assertTrue(gateway.is_online)
+        self.assertTrue(gateway.is_currently_online())
         self.assertEqual(gateway.store, self.store)
 
     def test_handle_heartbeat_9_element(self):
@@ -62,7 +65,27 @@ class GatewayMqttTest(TestCase):
 
         gateway = Gateway.objects.get(estation_id="0CGV")
         self.assertEqual(gateway.last_error_message, "ModError: Abnormality of the communication module")
+        self.assertEqual(gateway.last_error_code, 5)
+        self.assertIsNotNone(gateway.last_error_timestamp)
         self.assertTrue(gateway.is_online) # Still online since it's communicating
+
+    def test_handle_heartbeat_clears_error(self):
+        # Setup gateway with an existing error
+        gw = Gateway.objects.create(
+            estation_id="0CGV",
+            store=self.store,
+            gateway_mac="90:A9:F7:32:0B:45",
+            last_error_message="Old Error",
+            last_error_code=99
+        )
+
+        # Healthy heartbeat (Code 4)
+        heartbeat_data = ["0CGV", 0, "1.0.28.0", "BT_VER", 4, "", 0, 0, []]
+        mqtt_service.handle_heartbeat("0CGV", heartbeat_data)
+
+        gw.refresh_from_db()
+        self.assertIsNone(gw.last_error_message)
+        self.assertEqual(gw.last_error_code, 99) # Persistent history
 
     def test_gateway_offline_timeout(self):
         from core.tasks import check_gateways_status_task

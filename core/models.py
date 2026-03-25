@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 import os
 from django.utils.text import slugify
@@ -253,6 +254,8 @@ class Gateway(AuditModel):
     tags_queued_count = models.IntegerField(default=0, verbose_name="Tags Queued")
     tags_comm_count = models.IntegerField(default=0, verbose_name="Tags in Communication")
     last_error_message = models.TextField(blank=True, null=True, verbose_name="Last Error Message")
+    last_error_code = models.IntegerField(null=True, blank=True, verbose_name="Last Error Code")
+    last_error_timestamp = models.DateTimeField(null=True, blank=True, verbose_name="Last Error Timestamp")
 
     # Static IP Configuration
     is_auto_ip = models.BooleanField(default=True, verbose_name="Auto IP (DHCP)")
@@ -267,6 +270,23 @@ class Gateway(AuditModel):
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     last_successful_heartbeat = models.DateTimeField(null=True, blank=True)
     last_seen = models.DateTimeField(auto_now=True)
+
+    def is_currently_online(self):
+        """
+        JUST-IN-TIME STATUS CALCULATION
+        -------------------------------
+        Determines if the gateway is online based on its last heartbeat.
+        Threshold: 4x the Heartbeat Interval (Defaults to 60s if unknown).
+        """
+        if not self.last_heartbeat:
+            return False
+
+        interval = self.heartbeat_interval or 15
+        # Multiplier of 4 as per user requirement
+        timeout_seconds = interval * 4
+        cutoff = timezone.now() - timezone.timedelta(seconds=timeout_seconds)
+
+        return self.last_heartbeat >= cutoff
 
     def __str__(self):
         name_str = f" - {self.name}" if self.name else ""

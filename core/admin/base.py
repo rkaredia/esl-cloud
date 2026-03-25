@@ -114,11 +114,11 @@ class SAISAdminSite(admin.AdminSite):
             )
             tag_count = tag_stats['total']
 
-            # PERFORMANCE: Combine gateway counts into one query
-            gateway_stats = gateways_qs.aggregate(
-                total=Count('id'),
-                online=Count('id', filter=Q(is_online=True))
-            )
+            # PERFORMANCE: Use annotate(Count) to avoid N+1 queries when calculating gateway loads.
+            # We fetch the list to perform just-in-time online status calculation in Python.
+            gateways = list(gateways_qs.annotate(tag_count_ann=Count('tags')))
+            gateway_count = len(gateways)
+            active_gateways = sum(1 for gw in gateways if gw.is_currently_online())
 
             # GROUP BY: Count how many of each hardware model exists
             tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
@@ -128,22 +128,22 @@ class SAISAdminSite(admin.AdminSite):
             for item in tag_types:
                 item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
 
-            # PERFORMANCE: Use annotate(Count) to avoid N+1 queries when calculating gateway loads.
             gateway_loads = []
-            for gw in gateways_qs.annotate(tag_count_ann=Count('tags')):
+            for gw in gateways:
+                is_online = gw.is_currently_online()
                 count = gw.tag_count_ann
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
-                    'is_active': gw.is_online,
+                    'is_active': is_online,
                     'tag_count': count,
                     'load_percent': min(int((count / 500) * 100), 100) # Max 500 tags per gateway
                 })
 
             context = {
                 'active_store': active_store,
-                'gateway_count': gateway_stats['total'],
-                'active_gateways': gateway_stats['online'],
+                'gateway_count': gateway_count,
+                'active_gateways': active_gateways,
                 'tag_count': tag_count,
                 'tags_with_products': tag_stats['with_products'],
                 'low_battery_count': tag_stats['low_battery'],

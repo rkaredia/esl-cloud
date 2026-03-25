@@ -262,8 +262,7 @@ class ESLMqttClient:
                 'last_heartbeat': timezone.now(),
                 'last_successful_heartbeat': timezone.now(),
                 'is_online': True,
-                'last_seen': timezone.now(),
-                'last_error_message': None
+                'last_seen': timezone.now()
             }
 
             if isinstance(data, list):
@@ -283,8 +282,10 @@ class ESLMqttClient:
 
                     if msg_code in ERROR_CODES:
                         update_data['last_error_message'] = ERROR_CODES[msg_code]
-                        # Mark as online but with error if it's one of the error codes
-                        # User said: "In case of error we need to capture error message in human readable format."
+                        update_data['last_error_code'] = msg_code
+                        update_data['last_error_timestamp'] = timezone.now()
+                    elif msg_code in [1, 2, 3, 4]:
+                        update_data['last_error_message'] = None
                 else:
                     logger.warning(f"Heartbeat for {estation_id} has unexpected length: {len(data)}")
                     return
@@ -348,6 +349,8 @@ class ESLMqttClient:
                         'module_version': data[6],
                         'disk_size': data[7],
                         'free_space': data[8],
+                        'netmask': data[13],
+                        'network_gateway': data[14],
                         'heartbeat_interval': int(data[16]) if data[16] else 15,
                         'is_auto_ip': data[11], # Always True per user requirement
                     })

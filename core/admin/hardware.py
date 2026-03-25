@@ -48,7 +48,8 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         'last_successful_heartbeat', 'last_seen', 'created_at',
         'updated_at', 'updated_by', 'ap_type', 'ap_version',
         'module_version', 'disk_size', 'free_space', 'heartbeat_interval',
-        'tags_queued_count', 'tags_comm_count', 'last_error_message'
+        'tags_queued_count', 'tags_comm_count', 'last_error_message',
+        'last_error_code', 'last_error_timestamp', 'status_indicator_large'
     )
 
     # Organized layout for the detailed edit page
@@ -60,22 +61,28 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             'gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port',
             'ap_type', 'ap_version', 'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
         )}),
-        ('Monitoring', {'fields': ('tags_queued_count', 'tags_comm_count', 'last_error_message')}),
+        ('Monitoring', {'fields': ('tags_queued_count', 'tags_comm_count', 'last_error_message', 'last_error_code', 'last_error_timestamp')}),
         ('Credentials', {'fields': ('username', 'password')}),
         ('Network Settings', {
             'classes': ('collapse',), # Collapsed by default to hide complexity
             'fields': ('is_auto_ip', 'local_ip', 'netmask', 'network_gateway', 'is_encrypt_enabled')
         }),
-        ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
+        ('Status', {'fields': ('status_indicator_large', 'is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
         ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
     )
 
     def status_indicator(self, obj):
         """Visual Dot showing online status."""
-        color = "#059669" if obj.is_online else "#dc2626"
-        text = "Online" if obj.is_online else "Offline"
+        is_online = obj.is_currently_online()
+        color = "#059669" if is_online else "#dc2626"
+        text = "Online" if is_online else "Offline"
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
+
+    def status_indicator_large(self, obj):
+        """Visual Dot for detail view."""
+        return self.status_indicator(obj)
+    status_indicator_large.short_description = "Real-time Status"
 
     def configure_link(self, obj):
         """Link to the 'Remote Config' page for this gateway."""
