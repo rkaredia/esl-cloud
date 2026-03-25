@@ -68,7 +68,6 @@ class ESLMqttClient:
             self.client.connect(host, port, 60)
 
             # loop_start() runs the client in a separate background thread
-            # so it doesn't block the main Django/Celery process.
             self.client.loop_start()
             logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled, Subscribe={subscribe})")
         except Exception:
@@ -142,8 +141,8 @@ class ESLMqttClient:
                 elif isinstance(data, dict):
                     tags = data.get('Tags', [])
 
-                if tags:
-                    self._process_tags(estation_id, tags)
+                # if tags:
+                #     self._process_tags(estation_id, tags)
 
             elif msg.topic.endswith("/tagheartbeat"):
                 self.handle_tag_heartbeat(estation_id, data)
@@ -230,6 +229,16 @@ class ESLMqttClient:
         except Exception:
             logger.exception("Error handling MQTT result message")
 
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        WRAPPER FOR TEST COMPATIBILITY
+        ------------------------------
+        Maintains backward compatibility with legacy tests that call
+        this method directly. Routes to centralized tag processing.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
+
     def handle_heartbeat(self, estation_id, data):
         """
         GATEWAY TELEMETRY (Heartbeat)
@@ -296,6 +305,16 @@ class ESLMqttClient:
             Gateway.objects.filter(estation_id__iexact=estation_id.strip()).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
+
+    def handle_tag_heartbeat(self, estation_id, data):
+        """
+        WRAPPER FOR TEST COMPATIBILITY
+        -----------------------------
+        Historically, this method handled tag lists. It now delegates
+        to the centralized _process_tags engine.
+        """
+        tags = data if isinstance(data, list) else data.get('Tags', [])
+        self._process_tags(estation_id, tags)
 
     def handle_infor(self, estation_id, data):
         """
