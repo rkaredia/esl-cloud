@@ -44,7 +44,7 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     # These fields are technical telemetry and shouldn't be edited by hand.
     readonly_fields = (
-        'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
+        'is_online_status', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
         'last_successful_heartbeat', 'last_seen', 'created_at',
         'updated_at', 'updated_by', 'ap_type', 'ap_version',
         'module_version', 'disk_size', 'free_space', 'heartbeat_interval',
@@ -67,7 +67,7 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             'classes': ('collapse',), # Collapsed by default to hide complexity
             'fields': ('is_auto_ip', 'local_ip', 'netmask', 'network_gateway', 'is_encrypt_enabled')
         }),
-        ('Status', {'fields': ('status_indicator_large', 'is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
+        ('Status', {'fields': ('status_indicator_large', 'is_online_status', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
         ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
     )
 
@@ -81,6 +81,11 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """Visual Dot for detail view."""
         return self.status_indicator(obj)
     status_indicator_large.short_description = "Real-time Status"
+
+    def is_online_status(self, obj):
+        """Standard display for the is_online status field to avoid boolean icon confusion."""
+        return obj.get_is_online_display()
+    is_online_status.short_description = "Last Reported Status"
 
     def configure_link(self, obj):
         """Link to the 'Remote Config' page for this gateway."""

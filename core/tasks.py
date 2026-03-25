@@ -271,9 +271,10 @@ def check_gateways_status_task():
             sync_state='PUSHED',
             last_pushed_at__lt=timeout_cutoff
         )
-        count_tag_timeouts = timed_out_tags.count()
+
+        # PERFORMANCE: Use the return value of update() to avoid an extra .count() query
+        count_tag_timeouts = timed_out_tags.update(sync_state='PUSH_FAILED')
         if count_tag_timeouts > 0:
-            timed_out_tags.update(sync_state='PUSH_FAILED')
             logger.info(f"Marked {count_tag_timeouts} tags as PUSH_FAILED due to 60s timeout.")
 
         return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."
