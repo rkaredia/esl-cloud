@@ -134,19 +134,21 @@ class ESLMqttClient:
             elif msg.topic.endswith("/heartbeat"):
                 self.handle_heartbeat(estation_id, data)
 
-                # Check if this heartbeat contains a tag list (List format at index 8 or 'Tags' key)
-                tags = []
-                if isinstance(data, list) and len(data) > 8:
-                    tags = data[8]
-                elif isinstance(data, dict):
-                    tags = data.get('Tags', [])
+                # TAG HEARTBEAT DISABLED: We will enhance this in future updates
+                # tags = []
+                # if isinstance(data, list) and len(data) > 8:
+                #     tags = data[8]
+                # elif isinstance(data, dict):
+                #     tags = data.get('Tags', [])
 
-                if tags:
-                    self._process_tags(estation_id, tags)
+                # if tags:
+                #     self._process_tags(estation_id, tags)
 
             elif msg.topic.endswith("/tagheartbeat"):
-                tags = data if isinstance(data, list) else data.get('Tags', [])
-                self._process_tags(estation_id, tags)
+                # TAG HEARTBEAT DISABLED: We will enhance this in future updates
+                # tags = data if isinstance(data, list) else data.get('Tags', [])
+                # self._process_tags(estation_id, tags)
+                pass
             elif msg.topic.endswith("/infor"):
                 self.handle_infor(estation_id, data)
         except Exception:
@@ -245,72 +247,62 @@ class ESLMqttClient:
         GATEWAY TELEMETRY (Heartbeat)
         -----------------------------
         Updates the Gateway record with its current status.
+        Supports 9-element list format.
         """
         try:
+            # Message Code mapping
+            ERROR_CODES = {
+                5: "ModError: Abnormality of the communication module",
+                6: "AppError: Abnormality of the main program",
+                7: "Busy: The device is busy",
+                8: "MaxLimit: Data queue limit reached",
+                9: "InvalidTaskESL: Incorrect ESL task data",
+                10: "InvalidTaskDSL: Incorrect DSL task data",
+                11: "InvalidConfig: Incorrect configuration data",
+                12: "InvalidOTA: Incorrect OTA data"
+            }
+
             update_data = {
                 'last_heartbeat': timezone.now(),
                 'last_successful_heartbeat': timezone.now(),
-                'is_online': True,
+                'is_online': 'ONLINE',
                 'last_seen': timezone.now()
             }
 
             if isinstance(data, list):
-                # Hardware List Format: index 1=Alias, 2=IP, 3=MAC, 4=ApType, 5=ApVer, 6=ModVer, 7=Disk, 8=Free, 9=Server, 10=ConnParam, 16=Heartbeat
-                if len(data) >= 17:
+                # 9-element list format: [AP ID, ConfigVer, BaseVer, BlueVer, MsgCode, MsgExt, Queued, Comm, Tags]
+                if len(data) >= 8:
+                    # If AP ID is provided and not empty, use it as estation_id
+                    if data[0] and str(data[0]).strip():
+                        estation_id = str(data[0]).strip()
+
+                    msg_code = data[4]
                     update_data.update({
-                        'alias': data[1],
-                        'gateway_ip': data[2],
-                        'gateway_mac': data[3],
-                        'ap_type': data[4],
-                        'ap_version': data[5],
-                        'module_version': data[6],
-                        'disk_size': data[7],
-                        'free_space': data[8],
-                        'heartbeat_interval': data[16],
+                        'ap_version': data[2],
+                        'module_version': data[3],
+                        'tags_queued_count': data[6],
+                        'tags_comm_count': data[7],
+                        'last_error_code': msg_code,
                     })
-                    server = data[9]
-                    conn_param = data[10]
-                    update_data['is_encrypt_enabled'] = data[11]
-                    update_data['is_auto_ip'] = data[12]
-                    update_data['local_ip'] = data[13]
-                    update_data['netmask'] = data[14]
-                    update_data['network_gateway'] = data[15]
+
+                    if msg_code in ERROR_CODES:
+                        update_data['is_online'] = 'ERROR'
+                        update_data['last_error_message'] = ERROR_CODES[msg_code]
+                        update_data['last_error_timestamp'] = timezone.now()
+                    elif msg_code in [1, 2, 3, 4]:
+                        update_data['is_online'] = 'ONLINE'
+                        update_data['last_error_message'] = None
+                else:
+                    logger.warning(f"Heartbeat for {estation_id} has unexpected length: {len(data)}")
+                    return
             else:
-                # Dictionary Format
+                # Fallback to dictionary if needed, but primarily expecting list
                 update_data.update({
-                    'alias': data.get('Alias'),
-                    'gateway_ip': data.get('IP'),
-                    'gateway_mac': data.get('MAC'),
-                    'ap_type': data.get('ApType'),
                     'ap_version': data.get('ApVersion'),
                     'module_version': data.get('ModVersion'),
-                    'disk_size': data.get('DiskSize'),
-                    'free_space': data.get('FreeSpace'),
-                    'heartbeat_interval': data.get('Heartbeat'),
+                    'tags_queued_count': data.get('Queued', 0),
+                    'tags_comm_count': data.get('Comm', 0),
                 })
-                server = data.get('Server', '')
-                conn_param = data.get('ConnParam', [])
-                if 'Encrypt' in data: update_data['is_encrypt_enabled'] = data['Encrypt']
-                if 'AutoIP' in data: update_data['is_auto_ip'] = data['AutoIP']
-                if 'LocalIP' in data: update_data['local_ip'] = data['LocalIP']
-                if 'Subnet' in data: update_data['netmask'] = data['Subnet']
-                if 'Gateway' in data: update_data['network_gateway'] = data['Gateway']
-
-            # Parse "Server" string common to both formats
-            if 'server' in locals() and server:
-                if ':' in server:
-                    parts = server.split(':', 1)
-                    update_data['app_server_ip'] = parts[0]
-                    try:
-                        update_data['app_server_port'] = int(parts[1])
-                    except ValueError: pass
-                else:
-                    update_data['app_server_ip'] = server
-
-            # Update login credentials
-            if 'conn_param' in locals() and len(conn_param) >= 2:
-                update_data['username'] = conn_param[0]
-                update_data['password'] = conn_param[1]
 
             # Trigger the update (case-insensitive lookup)
             Gateway.objects.filter(estation_id__iexact=estation_id.strip()).update(**update_data)
@@ -331,6 +323,7 @@ class ESLMqttClient:
         """
         GATEWAY AUTO-REGISTRATION
         -------------------------
+        Supports 17-element list format.
         """
         try:
             # Normalize ID for robust lookup
@@ -338,28 +331,54 @@ class ESLMqttClient:
 
             update_data = {
                 'estation_id': clean_id,
-                'is_online': True,
+                'is_online': 'ONLINE',
                 'last_heartbeat': timezone.now(),
-                'last_seen': timezone.now()
+                'last_seen': timezone.now(),
+                'last_error_message': None
             }
 
             if isinstance(data, list):
-                if len(data) >= 7:
+                # 17-element format: [ID, Nickname, LocalIP, MAC, ApType, MainVer, ModVer, Disk, Available, ServerIP, ConnParam, AutoIP, FixedIP, Mask, Gateway, ??, Heartbeat]
+                if len(data) >= 17:
+                    # Update estation_id if present in index 0
+                    if data[0] and str(data[0]).strip():
+                        clean_id = str(data[0]).strip()
+                        update_data['estation_id'] = clean_id
+
                     mac = data[3]
                     update_data.update({
                         'alias': data[1],
-                        'gateway_ip': data[2],
+                        'gateway_ip': data[2], # Gateway IP assigned by router
                         'gateway_mac': mac,
                         'ap_type': data[4],
                         'ap_version': data[5],
                         'module_version': data[6],
+                        'disk_size': data[7],
+                        'free_space': data[8],
+                        'netmask': data[13],
+                        'network_gateway': data[14],
+                        'heartbeat_interval': int(data[16]) if data[16] else 15,
+                        'is_auto_ip': data[11], # Always True per user requirement
                     })
-                    if len(data) >= 9:
-                        update_data.update({
-                            'disk_size': data[7],
-                            'free_space': data[8],
-                        })
-                else: return
+
+                    server = data[9]
+                    if server:
+                        if ':' in server:
+                            parts = server.split(':', 1)
+                            update_data['app_server_ip'] = parts[0]
+                            try:
+                                update_data['app_server_port'] = int(parts[1])
+                            except (ValueError, TypeError): pass
+                        else:
+                            update_data['app_server_ip'] = server
+
+                    conn_param = data[10]
+                    if isinstance(conn_param, list) and len(conn_param) >= 2:
+                        update_data['username'] = conn_param[0]
+                        update_data['password'] = conn_param[1]
+                else:
+                    logger.warning(f"Infor for {estation_id} has unexpected length: {len(data)}")
+                    return
             else:
                 mac = data.get('MAC')
                 if not mac: return

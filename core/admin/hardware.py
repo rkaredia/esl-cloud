@@ -44,34 +44,48 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     # These fields are technical telemetry and shouldn't be edited by hand.
     readonly_fields = (
-        'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
+        'is_online_status', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
         'last_successful_heartbeat', 'last_seen', 'created_at',
         'updated_at', 'updated_by', 'ap_type', 'ap_version',
-        'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
+        'module_version', 'disk_size', 'free_space', 'heartbeat_interval',
+        'tags_queued_count', 'tags_comm_count', 'last_error_message',
+        'last_error_code', 'last_error_timestamp', 'status_indicator_large'
     )
 
     # Organized layout for the detailed edit page
+    ordering = ('-last_heartbeat',)
+
     fieldsets = (
         ('General', {'fields': ('estation_id', 'name', 'alias', 'store')}),
         ('Technical', {'fields': (
             'gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port',
             'ap_type', 'ap_version', 'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
         )}),
+        ('Monitoring', {'fields': ('tags_queued_count', 'tags_comm_count', 'last_error_message', 'last_error_code', 'last_error_timestamp')}),
         ('Credentials', {'fields': ('username', 'password')}),
         ('Network Settings', {
             'classes': ('collapse',), # Collapsed by default to hide complexity
             'fields': ('is_auto_ip', 'local_ip', 'netmask', 'network_gateway', 'is_encrypt_enabled')
         }),
-        ('Status', {'fields': ('is_online', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
+        ('Status', {'fields': ('status_indicator_large', 'is_online_status', 'last_heartbeat', 'last_successful_heartbeat', 'last_seen')}),
         ('Audit', {'fields': ('created_at', 'updated_at', 'updated_by')}),
     )
 
     def status_indicator(self, obj):
-        """Visual Dot showing online status."""
-        color = "#059669" if obj.is_online else "#dc2626"
-        text = "Online" if obj.is_online else "Offline"
+        """Visual Dot showing online status with descriptive labels."""
+        status_code, text, color = obj.get_real_time_status()
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
+
+    def status_indicator_large(self, obj):
+        """Visual Dot for detail view."""
+        return self.status_indicator(obj)
+    status_indicator_large.short_description = "Real-time Status"
+
+    def is_online_status(self, obj):
+        """Standard display for the is_online status field to avoid boolean icon confusion."""
+        return obj.get_is_online_display()
+    is_online_status.short_description = "Last Reported Status"
 
     def configure_link(self, obj):
         """Link to the 'Remote Config' page for this gateway."""
@@ -135,6 +149,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     # UI Enhancement: Search-as-you-type for product pairing
     autocomplete_fields = ['paired_product']
 
+    ordering = ('-updated_at',)
+
     readonly_fields = (
         'get_paired_info', 'image_preview_large', 'sync_state',
         'last_image_gen_success', 'last_image_task_id', 'audit_log_link',
@@ -155,10 +171,21 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
 
     def get_queryset(self, request):
-        """Optimize performance by prefetching related objects."""
-        return super().get_queryset(request).select_related(
+        """Optimize performance by prefetching related objects and adding custom sorting."""
+        from django.db.models import Case, When, Value, IntegerField
+        qs = super().get_queryset(request).select_related(
             'paired_product', 'gateway', 'hardware_spec', 'store'
         )
+        # Custom sorting: 0: Generated (Green), 1: Pending (Orange), 2: No Product (Gray)
+        qs = qs.annotate(
+            image_sort_val=Case(
+                When(paired_product__isnull=True, then=Value(2)),
+                When(tag_image__isnull=False, tag_image__gt='', then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        return qs
 
     def image_status(self, obj):
         """Visual status indicator for image generation."""
@@ -170,7 +197,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             return format_html('<span style="color:{}; font-weight:bold;"><span aria-hidden="true">●</span> {}</span>', color, status_text)
         except: return "Error"
     image_status.short_description = "Image"
-    image_status.admin_order_field = 'tag_image'
+    image_status.admin_order_field = 'image_sort_val'
 
     def get_paired_info(self, obj):
         """Formatted product info for read-only displays."""
