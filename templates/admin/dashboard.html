@@ -31,6 +31,21 @@
         background: var(--primary-hover, #1d4ed8) !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
     }
+    .kpi-link {
+        text-decoration: none !important;
+        color: inherit !important;
+        display: block;
+        transition: all 0.2s ease;
+        border-radius: 12px;
+    }
+    .kpi-link:hover {
+        background: #f8fafc;
+        transform: scale(1.02);
+    }
+    .kpi-link:focus-visible {
+        outline: 2px solid var(--primary-blue);
+        outline-offset: 2px;
+    }
 </style>
 
 <div class="dashboard-container" style="padding: 24px; font-family: 'Inter', sans-serif;">
@@ -84,14 +99,18 @@
             </h3>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
-                <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2; text-align: center;">
-                    <div style="color: #dc2626; font-weight: 800; font-size: 32px;">{{ critical_battery_count|default:0 }}</div>
-                    <div style="font-size: 11px; color: #dc2626; font-weight: 700; text-transform: uppercase;">Critical (&lt;5%)</div>
-                </div>
-                <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
-                    <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
-                    <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
-                </div>
+                <a href="{% url 'admin:core_esltag_changelist' %}?battery_health=critical" class="kpi-link" title="View critical battery tags">
+                    <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2; text-align: center;">
+                        <div style="color: #dc2626; font-weight: 800; font-size: 32px;">{{ critical_battery_count|default:0 }}</div>
+                        <div style="font-size: 11px; color: #dc2626; font-weight: 700; text-transform: uppercase;">Critical (&lt;5%)</div>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?battery_health=low" class="kpi-link" title="View low battery tags">
+                    <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
+                        <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
+                        <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
+                    </div>
+                </a>
             </div>
             
             <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
@@ -140,42 +159,58 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
             <!-- PHASE 1: PREPARATION -->
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #cbd5e1;">
-                    <span style="font-size: 13px; font-weight: 600; color: #475569;">Tags not paired</span>
-                    <span style="font-weight: 800; color: #1e293b; font-size: 18px;">{{ sync_stats.idle }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fffaf5; border-radius: 10px; border-left: 4px solid #f97316;">
-                    <span style="font-size: 13px; font-weight: 600; color: #9a3412;">Generating tag image</span>
-                    <span style="font-weight: 800; color: #ea580c; font-size: 18px;">{{ sync_stats.processing }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f5f8ff; border-radius: 10px; border-left: 4px solid #6366f1;">
-                    <span style="font-size: 13px; font-weight: 600; color: #3730a3;">Image Generated</span>
-                    <span style="font-weight: 800; color: #4f46e5; font-size: 18px;">{{ sync_stats.ready }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
-                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">Image Generation Failed</span>
-                    <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.gen_failed }}</span>
-                </div>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=IDLE" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #cbd5e1;">
+                        <span style="font-size: 13px; font-weight: 600; color: #475569;">Tags not paired</span>
+                        <span style="font-weight: 800; color: #1e293b; font-size: 18px;">{{ sync_stats.idle }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=PROCESSING" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fffaf5; border-radius: 10px; border-left: 4px solid #f97316;">
+                        <span style="font-size: 13px; font-weight: 600; color: #9a3412;">Generating tag image</span>
+                        <span style="font-weight: 800; color: #ea580c; font-size: 18px;">{{ sync_stats.processing }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=IMAGE_READY" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f5f8ff; border-radius: 10px; border-left: 4px solid #6366f1;">
+                        <span style="font-size: 13px; font-weight: 600; color: #3730a3;">Image Generated</span>
+                        <span style="font-weight: 800; color: #4f46e5; font-size: 18px;">{{ sync_stats.ready }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=GEN_FAILED" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
+                        <span style="font-size: 13px; font-weight: 600; color: #be123c;">Image Generation Failed</span>
+                        <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.gen_failed }}</span>
+                    </div>
+                </a>
             </div>
 
             <!-- PHASE 2: DELIVERY -->
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f0f7ff; border-radius: 10px; border-left: 4px solid #3b82f6;">
-                    <span style="font-size: 13px; font-weight: 600; color: #1e40af;">Image sent to Gateway</span>
-                    <span style="font-weight: 800; color: #2563eb; font-size: 18px;">{{ sync_stats.pushed }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
-                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">Gateway Push Failed</span>
-                    <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.push_failed }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #ecfdf5; border-radius: 10px; border-left: 4px solid #10b981;">
-                    <span style="font-size: 13px; font-weight: 700; color: #065f46;">Update Confirmed (Success)</span>
-                    <span style="font-weight: 800; color: #059669; font-size: 18px;">{{ sync_stats.success }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
-                    <span style="font-size: 13px; font-weight: 600; color: #be123c;">General Failure</span>
-                    <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.failed }}</span>
-                </div>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=PUSHED" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #f0f7ff; border-radius: 10px; border-left: 4px solid #3b82f6;">
+                        <span style="font-size: 13px; font-weight: 600; color: #1e40af;">Image sent to Gateway</span>
+                        <span style="font-weight: 800; color: #2563eb; font-size: 18px;">{{ sync_stats.pushed }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=PUSH_FAILED" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
+                        <span style="font-size: 13px; font-weight: 600; color: #be123c;">Gateway Push Failed</span>
+                        <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.push_failed }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=SUCCESS" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #ecfdf5; border-radius: 10px; border-left: 4px solid #10b981;">
+                        <span style="font-size: 13px; font-weight: 700; color: #065f46;">Update Confirmed (Success)</span>
+                        <span style="font-weight: 800; color: #059669; font-size: 18px;">{{ sync_stats.success }}</span>
+                    </div>
+                </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=FAILED" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
+                        <span style="font-size: 13px; font-weight: 600; color: #be123c;">General Failure</span>
+                        <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.failed }}</span>
+                    </div>
+                </a>
             </div>
         </div>
     </div>

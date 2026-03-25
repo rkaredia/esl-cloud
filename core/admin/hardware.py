@@ -26,6 +26,27 @@ Features:
 
 logger = logging.getLogger(__name__)
 
+class BatteryLevelFilter(admin.SimpleListFilter):
+    """Filter for ESL tags by battery health."""
+    title = 'Battery Health'
+    parameter_name = 'battery_health'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('critical', 'Critical (<5%)'),
+            ('low', 'Low (<20%)'),
+            ('good', 'Good (>20%)'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'critical':
+            return queryset.filter(battery_level__lte=5)
+        if self.value() == 'low':
+            return queryset.filter(battery_level__lte=20)
+        if self.value() == 'good':
+            return queryset.filter(battery_level__gt=20)
+        return queryset
+
 @admin.register(Gateway, site=admin_site)
 class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     """
@@ -144,7 +165,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     list_editable = ('paired_product', 'template_id', 'aisle', 'section', 'shelf_row')
 
     # Filters on the right sidebar
-    list_filter = ('sync_state', 'gateway__store', 'hardware_spec')
+    list_filter = ('sync_state', 'gateway__store', 'hardware_spec', BatteryLevelFilter)
 
     # UI Enhancement: Search-as-you-type for product pairing
     autocomplete_fields = ['paired_product']
