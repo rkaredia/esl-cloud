@@ -242,12 +242,17 @@ class Gateway(AuditModel):
 
     # Hardware Metadata (Updated via MQTT Heartbeats)
     ap_type = models.IntegerField(null=True, blank=True, verbose_name="AP Type")
-    ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
-    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Module Version")
+    ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Base Station Version")
+    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Bluetooth Module Version")
     disk_size = models.IntegerField(null=True, blank=True, verbose_name="Disk Size (MB)")
     free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
+
+    # Status & Error tracking
+    tags_queued_count = models.IntegerField(default=0, verbose_name="Tags Queued")
+    tags_comm_count = models.IntegerField(default=0, verbose_name="Tags in Communication")
+    last_error_message = models.TextField(blank=True, null=True, verbose_name="Last Error Message")
 
     # Static IP Configuration
     is_auto_ip = models.BooleanField(default=True, verbose_name="Auto IP (DHCP)")

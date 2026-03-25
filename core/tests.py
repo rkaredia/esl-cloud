@@ -29,22 +29,18 @@ class LogicalBindingTest(TestCase):
 
     def test_heartbeat_parsing(self):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
-        heartbeat_data = {
-            "ID": "0CGV",
-            "Alias": "01",
-            "IP": "192.168.1.100",
-            "MAC": "90:A9:F7:32:0B:45",
-            "ApType": 6,
-            "ApVersion": "1.0.28.0",
-            "Server": "192.168.1.92:9081",
-            "Heartbeat": 60
-        }
+        # Updated to 9-element list format
+        # [AP ID, ConfigVer, BaseVer, BlueVer, MsgCode, MsgExt, Queued, Comm, Tags]
+        heartbeat_data = [
+            "0CGV", 0, "1.0.28.0", "1.0.0.1", 4, "", 10, 5, []
+        ]
         mqtt_service.handle_heartbeat("0CGV", heartbeat_data)
 
         gateway.refresh_from_db()
-        self.assertEqual(gateway.gateway_ip, "192.168.1.100")
-        self.assertEqual(gateway.gateway_mac, "90:A9:F7:32:0B:45")
-        self.assertEqual(gateway.app_server_ip, "192.168.1.92")
+        self.assertEqual(gateway.ap_version, "1.0.28.0")
+        self.assertEqual(gateway.module_version, "1.0.0.1")
+        self.assertEqual(gateway.tags_queued_count, 10)
+        self.assertEqual(gateway.tags_comm_count, 5)
         self.assertTrue(gateway.is_online)
 
     def test_tag_heartbeat_updates_binding(self):

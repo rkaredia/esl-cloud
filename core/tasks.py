@@ -225,13 +225,16 @@ def check_gateways_status_task():
         now = timezone.now()
 
         for gw in gateways:
-            interval = gw.heartbeat_interval or default_interval
+            # User specified 4x timeout. Default to 15s interval if not known.
+            interval = gw.heartbeat_interval or 15
             timeout_seconds = interval * multiplier
 
             last_signal = gw.last_heartbeat or gw.created_at
             if (now - last_signal).total_seconds() > timeout_seconds:
                 gw.is_online = False
-                gw.save(update_fields=['is_online'])
+                # Optionally clear the error message or set a specific 'Offline' error
+                gw.last_error_message = f"Offline: No heartbeat received for {timeout_seconds}s"
+                gw.save(update_fields=['is_online', 'last_error_message'])
                 count_offline += 1
                 logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
 

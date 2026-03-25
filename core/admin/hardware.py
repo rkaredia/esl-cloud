@@ -47,7 +47,8 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         'is_online', 'gateway_mac', 'gateway_ip', 'last_heartbeat',
         'last_successful_heartbeat', 'last_seen', 'created_at',
         'updated_at', 'updated_by', 'ap_type', 'ap_version',
-        'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
+        'module_version', 'disk_size', 'free_space', 'heartbeat_interval',
+        'tags_queued_count', 'tags_comm_count', 'last_error_message'
     )
 
     # Organized layout for the detailed edit page
@@ -59,6 +60,7 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             'gateway_mac', 'gateway_ip', 'app_server_ip', 'app_server_port',
             'ap_type', 'ap_version', 'module_version', 'disk_size', 'free_space', 'heartbeat_interval'
         )}),
+        ('Monitoring', {'fields': ('tags_queued_count', 'tags_comm_count', 'last_error_message')}),
         ('Credentials', {'fields': ('username', 'password')}),
         ('Network Settings', {
             'classes': ('collapse',), # Collapsed by default to hide complexity
