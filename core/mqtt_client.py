@@ -68,6 +68,7 @@ class ESLMqttClient:
             self.client.connect(host, port, 60)
 
             # loop_start() runs the client in a separate background thread
+            # so it doesn't block the main Django/Celery process.
             self.client.loop_start()
             logger.info(f"MQTT Client loop started for {host}:{port} (TLS Disabled, Subscribe={subscribe})")
         except Exception:
@@ -141,8 +142,8 @@ class ESLMqttClient:
                 elif isinstance(data, dict):
                     tags = data.get('Tags', [])
 
-                # if tags:
-                #     self._process_tags(estation_id, tags)
+                if tags:
+                    self._process_tags(estation_id, tags)
 
             elif msg.topic.endswith("/tagheartbeat"):
                 self.handle_tag_heartbeat(estation_id, data)
@@ -229,16 +230,6 @@ class ESLMqttClient:
         except Exception:
             logger.exception("Error handling MQTT result message")
 
-    def handle_tag_heartbeat(self, estation_id, data):
-        """
-        WRAPPER FOR TEST COMPATIBILITY
-        ------------------------------
-        Maintains backward compatibility with legacy tests that call
-        this method directly. Routes to centralized tag processing.
-        """
-        tags = data if isinstance(data, list) else data.get('Tags', [])
-        self._process_tags(estation_id, tags)
-
     def handle_heartbeat(self, estation_id, data):
         """
         GATEWAY TELEMETRY (Heartbeat)
@@ -305,16 +296,6 @@ class ESLMqttClient:
             Gateway.objects.filter(estation_id__iexact=estation_id.strip()).update(**update_data)
         except Exception:
             logger.exception(f"Error handling heartbeat for gateway {estation_id}")
-
-    def handle_tag_heartbeat(self, estation_id, data):
-        """
-        WRAPPER FOR TEST COMPATIBILITY
-        -----------------------------
-        Historically, this method handled tag lists. It now delegates
-        to the centralized _process_tags engine.
-        """
-        tags = data if isinstance(data, list) else data.get('Tags', [])
-        self._process_tags(estation_id, tags)
 
     def handle_infor(self, estation_id, data):
         """
@@ -613,6 +594,27 @@ class ESLMqttClient:
                     new_dict[k] = self._sanitize_data(v)
             return new_dict
         elif isinstance(data, list):
+            # Positional sanitization for eStation Protocol
+            # 1. 'infor' message (17+ elements) -> ConnParam at index 10 is [user, pass]
+            if len(data) >= 17:
+                new_list = list(data)
+                conn_param = new_list[10]
+                if isinstance(conn_param, list):
+                    new_list[10] = ["********"] * len(conn_param)
+                else:
+                    new_list[10] = "********"
+                return [self._sanitize_data(item) for item in new_list]
+
+            # 2. 'taskESL' params (11 elements) -> OldKey, NewKey at index 8, 9
+            if len(data) == 11:
+                new_list = list(data)
+                new_list[8] = "********"  # OldKey
+                new_list[9] = "********"  # NewKey
+                # Truncate large data (like images) at index 10 to avoid DB bloat
+                if isinstance(new_list[10], (str, bytes)) and len(new_list[10]) > 200:
+                    new_list[10] = f"<data:{len(new_list[10])} bytes>"
+                return [self._sanitize_data(item) for item in new_list]
+
             return [self._sanitize_data(item) for item in data]
         return data
 

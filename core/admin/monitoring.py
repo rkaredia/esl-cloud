@@ -82,6 +82,12 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         """Renders the raw JSON string as a pretty-printed, scrollable code block."""
         try:
             parsed = json.loads(obj.data)
+
+            # Security: Sanitize sensitive data on-the-fly for display.
+            # This protects against historical logs that might contain plain text secrets.
+            from ..mqtt_client import mqtt_service
+            parsed = mqtt_service._sanitize_data(parsed)
+
             formatted = json.dumps(parsed, indent=2)
             # Increased max-height and improved readability for large payloads (like Base64 images)
             return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 600px; overflow: auto; white-space: pre-wrap; word-break: break-all;">{}</pre>', formatted)

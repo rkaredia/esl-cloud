@@ -94,6 +94,28 @@ class GatewayAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         return format_html('<a class="button" href="{}">⚙ Config</a>', url)
     configure_link.short_description = "Configuration"
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Security: Use a PasswordInput widget for the password field.
+        We set render_value=False to ensure the plain-text password is never
+        sent to the browser in the HTML source.
+        """
+        from django import forms
+        if db_field.name == 'password':
+            kwargs['widget'] = forms.PasswordInput(render_value=False)
+            kwargs['help_text'] = "Leave blank to keep the current password."
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        """
+        Security: Ensure we don't overwrite the password with an empty string
+        if the user leaves the password field blank (since we don't render it).
+        """
+        if change and not form.cleaned_data.get('password'):
+            # Re-fetch the existing password from the database
+            obj.password = Gateway.objects.get(pk=obj.pk).password
+        super().save_model(request, obj, form, change)
+
     # PERMISSION OVERRIDES:
     # Only superusers can see credentials or perform destructive actions.
     def get_fields(self, request, obj=None):
