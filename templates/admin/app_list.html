@@ -1,0 +1,24 @@
+{% load i18n %}{% spaceless %}
+{% if app_list %}
+  {% for app in app_list %}
+    <div class="app-{{ app.app_label }} module" style="margin: 0; padding: 0; border: none;">
+      <table style="margin: 0; padding: 0; border: none; width: 100%; border-collapse: collapse;">
+        <caption class="section" style="margin: 0; border: none; text-align: left;">
+          <span>{{ app.name }}</span>
+        </caption>
+        {% for model in app.models %}
+          <tr class="model-{{ model.object_name|lower }}" style="margin: 0; padding: 0; border: none;">
+            <th scope="row" style="margin: 0; padding: 0; border: none;">
+              {% if model.admin_url %}
+                <a href="{{ model.admin_url }}" {% if model.is_active %}class="active"{% endif %} style="display: block; text-decoration: none;">{{ model.name }}</a>
+              {% else %}
+                <span style="display: block; padding: 6px 12px; margin: 0; border: none; font-size: 12px; color: #4b6a7a; font-weight: 500;">{{ model.name }}</span>
+              {% endif %}
+            </th>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% endfor %}
+{% endif %}
+{% endspaceless %}

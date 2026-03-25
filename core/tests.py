@@ -25,27 +25,23 @@ class LogicalBindingTest(TestCase):
             alias="01"
         )
         self.assertEqual(gateway.estation_id, "0CGV")
-        self.assertFalse(gateway.is_online)
+        self.assertEqual(gateway.is_online, 'OFFLINE')
 
     def test_heartbeat_parsing(self):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
-        heartbeat_data = {
-            "ID": "0CGV",
-            "Alias": "01",
-            "IP": "192.168.1.100",
-            "MAC": "90:A9:F7:32:0B:45",
-            "ApType": 6,
-            "ApVersion": "1.0.28.0",
-            "Server": "192.168.1.92:9081",
-            "Heartbeat": 60
-        }
+        # Updated to 9-element list format
+        # [AP ID, ConfigVer, BaseVer, BlueVer, MsgCode, MsgExt, Queued, Comm, Tags]
+        heartbeat_data = [
+            "0CGV", 0, "1.0.28.0", "1.0.0.1", 4, "", 10, 5, []
+        ]
         mqtt_service.handle_heartbeat("0CGV", heartbeat_data)
 
         gateway.refresh_from_db()
-        self.assertEqual(gateway.gateway_ip, "192.168.1.100")
-        self.assertEqual(gateway.gateway_mac, "90:A9:F7:32:0B:45")
-        self.assertEqual(gateway.app_server_ip, "192.168.1.92")
-        self.assertTrue(gateway.is_online)
+        self.assertEqual(gateway.ap_version, "1.0.28.0")
+        self.assertEqual(gateway.module_version, "1.0.0.1")
+        self.assertEqual(gateway.tags_queued_count, 10)
+        self.assertEqual(gateway.tags_comm_count, 5)
+        self.assertEqual(gateway.is_online, 'ONLINE')
 
     def test_tag_heartbeat_updates_binding(self):
         from core.models import TagHardware
@@ -54,12 +50,13 @@ class LogicalBindingTest(TestCase):
         tag = ESLTag.objects.create(store=self.store, tag_mac="ABCDEF123456", hardware_spec=hw)
 
         # Simulate tag heartbeat via gateway 0CGV
-        heartbeat_data = {"Tags": [{"TagId": "ABCDEF123456", "Battery": 85}]}
-        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
+        # Raw voltage 29 = 2.9V -> (29-22)*12.5 = 87.5% -> 87%
+        heartbeat_data = {"Tags": [{"TagId": "ABCDEF123456", "Battery": 29}]}
+        mqtt_service._process_tags("0CGV", heartbeat_data["Tags"])
 
         tag.refresh_from_db()
         self.assertEqual(tag.last_successful_gateway_id, "0CGV")
-        self.assertEqual(tag.battery_level, 85)
+        self.assertEqual(tag.battery_level, 87)
 
     def test_tag_auto_discovery(self):
         # Create a gateway but no tag
@@ -68,15 +65,16 @@ class LogicalBindingTest(TestCase):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV")
 
         # Simulate heartbeat for unknown tag
-        heartbeat_data = {"Tags": [{"TagId": "NEWTAG999", "Battery": 90}]}
-        mqtt_service.handle_tag_heartbeat("0CGV", heartbeat_data)
+        # Raw voltage 28 = 2.8V -> (28-22)*12.5 = 75%
+        heartbeat_data = {"Tags": [{"TagId": "NEWTAG999", "Battery": 28}]}
+        mqtt_service._process_tags("0CGV", heartbeat_data["Tags"])
 
         # Verify tag was created
         new_tag = ESLTag.objects.filter(tag_mac="NEWTAG999").first()
         self.assertIsNotNone(new_tag)
         self.assertEqual(new_tag.store, self.store)
         self.assertEqual(new_tag.last_successful_gateway_id, "0CGV")
-        self.assertEqual(new_tag.battery_level, 90)
+        self.assertEqual(new_tag.battery_level, 75)
 
     def test_gateway_admin_permissions(self):
         gateway = Gateway.objects.create(store=self.store, estation_id="0CGV", username="admin", password="secret_password")

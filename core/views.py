@@ -369,7 +369,11 @@ def configure_gateway_view(request, gateway_id):
         alias = request.POST.get('alias')
         server = request.POST.get('server') or "192.168.1.92:9081"
         username = request.POST.get('username') or "test"
-        password = request.POST.get('password') or "123456"
+        password = request.POST.get('password')
+        if not password:
+            # If no password provided, keep the existing one from the DB
+            password = gateway.password or "123456"
+
         encrypt = request.POST.get('encrypt') == 'on'
         auto_ip = request.POST.get('auto_ip') == 'on'
         local_ip = request.POST.get('local_ip', '')

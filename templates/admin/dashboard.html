@@ -37,7 +37,7 @@
 
     {% comment %} HEADER: Shows the current store name using the 'active_store' variable from context {% endcomment %}
     <h1 style="font-size: 28px; font-weight: 800; color: var(--navy); margin-bottom: 24px; letter-spacing: -0.025em; display: flex; align-items: center; gap: 12px;">
-        📊 Analytics Dashboard <span style="font-weight: 400; color: #94a3b8;">/</span> <span style="color: #64748b;">{{ active_store.name|default:"All Stores" }}</span>
+        Analytics Dashboard <span style="font-weight: 400; color: #94a3b8;" aria-hidden="true">/</span> <span style="color: #64748b;">{{ active_store.name|default:"All Stores" }}</span>
     </h1>
 
     <!-- TOP ROW: KPI CARDS -->
@@ -45,9 +45,9 @@
         
         <!-- CARD 1: INVENTORY (Products & Tags) -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">📦</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;" aria-hidden="true">📦</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>📦</span> Inventory
+                📦 Inventory
             </h3>
 
             {% comment %} Big Value display {% endcomment %}
@@ -78,19 +78,19 @@
 
         <!-- CARD 2: BATTERY & INFRASTRUCTURE -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">🔋</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;" aria-hidden="true">🔋</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <span>🔋</span> Battery Monitoring
+                🔋 Battery Monitoring
             </h3>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
                 <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2; text-align: center;">
                     <div style="color: #dc2626; font-weight: 800; font-size: 32px;">{{ critical_battery_count|default:0 }}</div>
-                    <div style="font-size: 11px; color: #dc2626; font-weight: 700; text-transform: uppercase;">Critical (<5%)</div>
+                    <div style="font-size: 11px; color: #dc2626; font-weight: 700; text-transform: uppercase;">Critical (&lt;5%)</div>
                 </div>
                 <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
                     <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
-                    <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (<20%)</div>
+                    <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
                 </div>
             </div>
             
@@ -104,9 +104,9 @@
 
         <!-- CARD 3: GATEWAY LOAD INFRASTRUCTURE -->
         <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">📡</div>
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;" aria-hidden="true">📡</div>
             <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <span>📡</span> Gateway Infrastructure
+                📡 Gateway Infrastructure
             </h3>
 
             {% comment %} Loop through the gateway_loads list passed from SAISAdminSite.dashboard_view {% endcomment %}
@@ -117,12 +117,12 @@
                         <div style="font-size: 14px; font-weight: 800; color: #1e293b;">{{ gw.estation_id }}</div>
                         <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">{{ gw.gateway_mac }}</div>
                     </div>
-                    <span style="font-size: 9px; padding: 2px 8px; border-radius: 20px; background: {% if gw.is_active %}#dcfce7{% else %}#fee2e2{% endif %}; color: {% if gw.is_active %}#15803d{% else %}#991b1b{% endif %}; font-weight: 800;">
-                        {{ gw.is_active|yesno:"ONLINE,OFFLINE" }}
+                    <span style="font-size: 9px; padding: 2px 8px; border-radius: 20px; background: {{ gw.status_color }}22; color: {{ gw.status_color }}; font-weight: 800;">
+                        {{ gw.status_label|upper }}
                     </span>
                 </div>
                 {% comment %} Progress bar showing how many tags are assigned to this gateway {% endcomment %}
-                <div style="height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                <div style="height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;" role="progressbar" aria-valuenow="{{ gw.load_percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Gateway Load" title="Gateway Load: {{ gw.load_percent }}%">
                     <div style="width: {{ gw.load_percent }}%; background: #3b82f6; height: 100%;"></div>
                 </div>
             </div>
@@ -132,9 +132,9 @@
 
     <!-- BOTTOM SECTION: SYNC PIPELINE (The "State Machine" of updates) -->
     <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
-        <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;">🔄</div>
+        <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;" aria-hidden="true">🔄</div>
         <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-            <span>🔄</span> Sync Pipeline Status
+            🔄 Sync Pipeline Status
         </h3>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">

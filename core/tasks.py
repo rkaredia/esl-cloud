@@ -72,7 +72,6 @@ def update_tag_image_task(self, tag_id):
         # CALL UTILS: Render the actual BMP image using Pillow (PIL)
         try:
             pil_img = generate_esl_image(tag_id, tag_instance=tag)
-            if pil_img.mode != 'RGB': pil_img = pil_img.convert('RGB')
         except Exception as e:
             logger.exception(f"Image gen failed for {tag.tag_mac}")
             ESLTag.objects.filter(pk=tag_id).update(sync_state='GEN_FAILED')
@@ -135,8 +134,9 @@ def dispatch_tag_image_task(tag_id):
             gateways_to_try.append(tag.gateway.estation_id)
 
         online_gateways = list(Gateway.objects.filter(
-            store=tag.store,
-            is_online=True
+            store=tag.store
+        ).exclude(
+            is_online='OFFLINE'
         ).exclude(
             estation_id__in=gateways_to_try
         ).values_list('estation_id', flat=True))
@@ -154,7 +154,8 @@ def dispatch_tag_image_task(tag_id):
 
         # Generate a unique 'Token' for this specific hardware transaction.
         # The gateway will send this back in the result so we know WHICH update finished.
-        token = random.randint(1, 255)
+        # Range 1-100 matches hardware working sandbox
+        token = random.randint(1, 100)
 
         # DELIVERY LOOP: Try each gateway until one accepts the message.
         for gateway_id in gateways_to_try:
@@ -163,7 +164,11 @@ def dispatch_tag_image_task(tag_id):
 
             if success:
                 # MARK AS PUSHED: We now wait for the '/result' MQTT message to mark it SUCCESS.
-                ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSHED', last_image_task_token=token)
+                ESLTag.objects.filter(pk=tag_id).update(
+                    sync_state='PUSHED',
+                    last_image_task_token=token,
+                    last_pushed_at=timezone.now()
+                )
                 cache.delete(lock_id)
                 return f"MQTT Pushed via {gateway_id}"
             else:
@@ -208,30 +213,71 @@ def check_gateways_status_task():
     """
     HEALTH MONITORING (Heartbeat Check)
     -----------------------------------
-    Runs every minute via Celery Beat (Scheduled Task).
-    If a gateway hasn't sent a heartbeat in X minutes, mark it 'Offline'.
+    Runs every minute. Marks gateways as offline if they miss 4 heartbeats.
+    Uses a lightweight bulk-query approach to avoid 'hammering' the system.
     """
     try:
-        # Load timeout thresholds from Global Settings
-        default_interval = int(GlobalSetting.objects.filter(key='DEFAULT_HEARTBEAT_INTERVAL').values_list('value', flat=True).first() or 300)
-        multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
+        from django.db.models import F, ExpressionWrapper, DurationField, Q
 
-        gateways = Gateway.objects.filter(is_online=True)
-        count_offline = 0
+        # Load multiplier from Global Settings (Default: 4x)
+        multiplier = int(GlobalSetting.objects.filter(key='OFFLINE_TIMEOUT_MULTIPLIER').values_list('value', flat=True).first() or 4)
         now = timezone.now()
 
-        for gw in gateways:
-            interval = gw.heartbeat_interval or default_interval
+        # LIGHTWEIGHT BATCH PROCESSING:
+        # We group gateways by their heartbeat_interval to run minimal SQL updates.
+        intervals = Gateway.objects.exclude(is_online='OFFLINE').values_list('heartbeat_interval', flat=True).distinct()
+
+        count_offline = 0
+        for interval_val in intervals:
+            # Safe default for hardware is 15 seconds if unknown
+            interval = interval_val or 15
             timeout_seconds = interval * multiplier
+            cutoff = now - timezone.timedelta(seconds=timeout_seconds)
 
-            last_signal = gw.last_heartbeat or gw.created_at
-            if (now - last_signal).total_seconds() > timeout_seconds:
-                gw.is_online = False
-                gw.save(update_fields=['is_online'])
-                count_offline += 1
-                logger.info(f"Gateway {gw.estation_id} marked OFFLINE (No heartbeat for {timeout_seconds}s)")
+            # Update all online/error gateways with THIS interval that haven't been seen since the cutoff.
+            # update() runs a single SQL query: UPDATE ... WHERE ...
+            updated = Gateway.objects.exclude(
+                is_online='OFFLINE'
+            ).filter(
+                heartbeat_interval=interval_val,
+                last_heartbeat__lt=cutoff
+            ).update(
+                is_online='OFFLINE',
+                last_error_message=f"Offline: No heartbeat received for {timeout_seconds}s (Checked at {now.strftime('%H:%M:%S')})"
+            )
+            count_offline += updated
 
-        return f"Checked status. Marked {count_offline} gateways offline."
+        # Handle edge case: Gateways that never sent a heartbeat (last_heartbeat is null)
+        # but have been created longer than 4x 15s ago.
+        orphaned_cutoff = now - timezone.timedelta(seconds=15 * multiplier)
+        updated_orphans = Gateway.objects.exclude(
+            is_online='OFFLINE'
+        ).filter(
+            last_heartbeat__isnull=True,
+            created_at__lt=orphaned_cutoff
+        ).update(
+            is_online='OFFLINE',
+            last_error_message="Offline: Never received initial heartbeat"
+        )
+        count_offline += updated_orphans
+
+        if count_offline > 0:
+            logger.info(f"Gateway Status Check: Marked {count_offline} gateways as OFFLINE.")
+
+        # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
+        # If a tag has been in 'PUSHED' state for more than 60 seconds, mark as 'PUSH_FAILED'
+        timeout_cutoff = now - timezone.timedelta(seconds=60)
+        timed_out_tags = ESLTag.objects.filter(
+            sync_state='PUSHED',
+            last_pushed_at__lt=timeout_cutoff
+        )
+
+        # PERFORMANCE: Use the return value of update() to avoid an extra .count() query
+        count_tag_timeouts = timed_out_tags.update(sync_state='PUSH_FAILED')
+        if count_tag_timeouts > 0:
+            logger.info(f"Marked {count_tag_timeouts} tags as PUSH_FAILED due to 60s timeout.")
+
+        return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."
     except Exception:
         logger.exception("Error in check_gateways_status_task")
         return "Status check failed"

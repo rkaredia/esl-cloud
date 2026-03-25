@@ -1,4 +1,4 @@
-{% extends "admin/index.html" %}
+{% extends "admin/base_site.html" %}
 {% comment %}
    CUSTOM ADMIN HOME PAGE
    ----------------------
@@ -7,6 +7,10 @@
 {% endcomment %}
 
 {% load i18n %}
+
+{% block nav-sidebar %}
+    {% include 'admin/nav_sidebar.html' %}
+{% endblock %}
 
 {% block content_title %}
     <div class="welcome-container" style="padding: 20px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">

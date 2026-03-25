@@ -78,10 +78,10 @@
     {% if request.user.is_authenticated %}
         <div style="margin-left: auto; display: flex; align-items: center; gap: 20px;">
             {# Dashboard Link #}
-            <a href="{{ dashboard_url }}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Analytics Dashboard"><span aria-hidden="true">📊</span> Dashboard</a>
+            <a href="{{ dashboard_url }}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Analytics Dashboard">📊 Dashboard</a>
 
             {# Help Module Link #}
-            <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation"><span aria-hidden="true">📖</span> Help</a>
+            <a href="{% url 'help_module:index' %}" style="color: white; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase;" aria-label="View Help Documentation">📖 Help</a>
 
             {% comment %}
                THE GLOBAL STORE SELECTOR

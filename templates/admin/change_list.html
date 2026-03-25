@@ -23,7 +23,11 @@
        The 'filter-hidden' class allows us to hide the right-hand filter bar
        by default using CSS (in sais_admin.css).
     {% endcomment %}
-    <div id="changelist-wrapper" class="{% if not cl.has_filters %}filter-hidden{% endif %}">
+    {% comment %}
+       Filters start 'hidden' by default as per user preference.
+       The JS will remove this class if the user has a saved 'visible' state.
+    {% endcomment %}
+    <div id="changelist-wrapper" class="filter-hidden">
         {{ block.super }}
     </div>
 {% endblock %}

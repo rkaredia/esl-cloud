@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.urls import path, reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q
 from .base import admin_site, CompanySecurityMixin, UIHelperMixin
@@ -53,6 +54,9 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     # Search functionality
     search_fields = ('sku', 'name')
+
+    # Filters on the right sidebar
+    list_filter = ('store', 'preferred_supplier', 'is_on_special', 'created_at')
 
     # Non-editable fields for security/audit integrity
     readonly_fields = ('updated_at', 'updated_by', 'image_status', 'store', 'created_at')
@@ -138,22 +142,34 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         Returns raw HTML formatted with styles.
         """
         try:
-            has_image = obj.esl_tags.filter(tag_image__gt='').exists()
-            has_tag = obj.esl_tags.exists()
+            # PERFORMANCE: Use pre-calculated annotations from get_queryset if available
+            # This avoids N+1 queries in the list view.
+            has_tag = getattr(obj, 'tag_count', None)
+            if has_tag is None:
+                has_tag = obj.esl_tags.exists()
+
+            has_image = getattr(obj, 'tags_with_image_count', None)
+            if has_image is None:
+                has_image = obj.esl_tags.filter(tag_image__gt='').exists()
+
             if has_image:
                 return format_html('<span style="color: #059669; font-weight: bold;"><span aria-hidden="true">●</span> Generated</span>')
             if has_tag:
                 return format_html('<span style="color: #ea580c; font-weight: bold;"><span aria-hidden="true">●</span> Pending</span>')
             return format_html('<span style="color: #94a3b8;"><span aria-hidden="true">○</span> No Tag</span>')
-        except:
+        except Exception:
+            logger.exception("Error in image_status")
             return "Error"
     image_status.short_description = "Status"
-    image_status.admin_order_field = 'has_tag_image'
+    image_status.admin_order_field = 'tags_with_image_count'
 
     def get_queryset(self, request):
-        """Pre-calculate (annotate) image counts to improve performance."""
-        qs = super().get_queryset(request)
-        return qs.annotate(has_tag_image=Count('esl_tags', filter=Q(esl_tags__tag_image__gt='')))
+        """Pre-calculate (annotate) image counts and prefetch relationships to improve performance."""
+        qs = super().get_queryset(request).select_related('store', 'preferred_supplier')
+        return qs.annotate(
+            tag_count=Count('esl_tags'),
+            tags_with_image_count=Count('esl_tags', filter=Q(esl_tags__tag_image__gt=''))
+        )
 
     def get_urls(self):
         """Register the custom Modisoft Excel Import view."""

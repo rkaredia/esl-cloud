@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 import os
 from django.utils.text import slugify
@@ -228,7 +229,13 @@ class Gateway(AuditModel):
     estation_id = models.CharField(max_length=4, unique=True, null=True, blank=True, verbose_name="Gateway ID")
     name = models.CharField(max_length=255, blank=True, null=True, help_text="Logical name for the gateway")
     alias = models.CharField(max_length=2, blank=True, null=True)
-    is_online = models.BooleanField(default=False)
+
+    STATUS_CHOICES = [
+        ('ONLINE', 'Online'),
+        ('OFFLINE', 'Offline'),
+        ('ERROR', 'Error'),
+    ]
+    is_online = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OFFLINE')
     gateway_mac = models.CharField(max_length=100, unique=True, verbose_name="MAC Address")
 
     # Network Connection Details (Source of truth for MQTT handshakes)
@@ -242,12 +249,19 @@ class Gateway(AuditModel):
 
     # Hardware Metadata (Updated via MQTT Heartbeats)
     ap_type = models.IntegerField(null=True, blank=True, verbose_name="AP Type")
-    ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firmware Version")
-    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Module Version")
+    ap_version = models.CharField(max_length=50, blank=True, null=True, verbose_name="Base Station Version")
+    module_version = models.CharField(max_length=255, blank=True, null=True, verbose_name="Bluetooth Module Version")
     disk_size = models.IntegerField(null=True, blank=True, verbose_name="Disk Size (MB)")
     free_space = models.IntegerField(null=True, blank=True, verbose_name="Free Space (MB)")
     heartbeat_interval = models.IntegerField(null=True, blank=True, verbose_name="Heartbeat Interval (sec)")
     is_encrypt_enabled = models.BooleanField(default=True, verbose_name="Encryption Enabled")
+
+    # Status & Error tracking
+    tags_queued_count = models.IntegerField(default=0, verbose_name="Tags Queued")
+    tags_comm_count = models.IntegerField(default=0, verbose_name="Tags in Communication")
+    last_error_message = models.TextField(blank=True, null=True, verbose_name="Last Error Message")
+    last_error_code = models.IntegerField(null=True, blank=True, verbose_name="Last Error Code")
+    last_error_timestamp = models.DateTimeField(null=True, blank=True, verbose_name="Last Error Timestamp")
 
     # Static IP Configuration
     is_auto_ip = models.BooleanField(default=True, verbose_name="Auto IP (DHCP)")
@@ -262,6 +276,46 @@ class Gateway(AuditModel):
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     last_successful_heartbeat = models.DateTimeField(null=True, blank=True)
     last_seen = models.DateTimeField(auto_now=True)
+
+    MESSAGE_CODES = {
+        1: "OK",
+        2: "Idle",
+        3: "Result",
+        4: "Heartbeat",
+        5: "ModError",
+        6: "AppError",
+        7: "Busy",
+        8: "MaxLimit",
+        9: "InvalidTaskESL",
+        10: "InvalidTaskDSL",
+        11: "InvalidConfig",
+        12: "InvalidOTA",
+    }
+
+    def get_real_time_status(self):
+        """
+        REAL-TIME STATUS CALCULATION
+        ----------------------------
+        Returns a tuple of (status_code, status_label, color)
+        """
+        interval = self.heartbeat_interval or 15
+        timeout_seconds = interval * 4
+
+        if not self.last_heartbeat or self.last_heartbeat < (timezone.now() - timezone.timedelta(seconds=timeout_seconds)):
+            return ('OFFLINE', 'No Heartbeat', '#dc2626') # Red
+
+        # If we have a recent heartbeat, use the last known state/code
+        label = self.MESSAGE_CODES.get(self.last_error_code, "Online")
+
+        if self.is_online == 'ERROR':
+            return ('ERROR', f"Error: {label}", '#f59e0b') # Amber/Orange
+
+        return ('ONLINE', f"Online ({label})", '#059669') # Green
+
+    def is_currently_online(self):
+        """Helper for simple boolean checks, keeps compatibility with older logic."""
+        status, _, _ = self.get_real_time_status()
+        return status != 'OFFLINE'
 
     def __str__(self):
         name_str = f" - {self.name}" if self.name else ""
@@ -402,6 +456,7 @@ class ESLTag(AuditModel):
     # Background Task Tracking (for Celery)
     last_image_task_id = models.CharField(max_length=255, null=True, blank=True)
     last_image_task_token = models.IntegerField(null=True, blank=True)
+    last_pushed_at = models.DateTimeField(null=True, blank=True, verbose_name="Last Pushed to Gateway")
 
     # Hardware Status (Telemetery)
     battery_level = models.IntegerField(default=100)
@@ -451,6 +506,12 @@ class ESLTag(AuditModel):
                 self._original_data['template_id'] != self.template_id or
                 self._original_data['hardware_spec_id'] != self.hardware_spec_id):
                 trigger_refresh = True
+
+            # Reset image and status if product is removed
+            if self._original_data['paired_product_id'] and not self.paired_product_id:
+                self.tag_image = None
+                self.sync_state = 'IDLE'
+                self.last_image_gen_success = None
         else:
             if self.paired_product_id:
                 trigger_refresh = True

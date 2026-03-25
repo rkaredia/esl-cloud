@@ -68,8 +68,8 @@
                 </div>
                 <div class="form-row">
                     <label for="id_password">Password:</label>
-                    <input type="password" name="password" value="{{ gateway.password|default:'123456' }}" class="vTextField" id="id_password">
-                    <div class="help">Gateway admin password. Default: 123456</div>
+                    <input type="password" name="password" value="" class="vTextField" id="id_password" autocomplete="new-password">
+                    <div class="help">Gateway admin password. Leave blank to keep current password. Default: 123456</div>
                 </div>
                 <div class="form-row">
                     <label for="id_encrypt">Enable Encryption:</label>

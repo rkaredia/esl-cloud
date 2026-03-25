@@ -70,6 +70,15 @@ class SAISAdminSite(admin.AdminSite):
         ]
         return custom_urls + urls
 
+    def index(self, request, extra_context=None):
+        """
+        LANDING PAGE OVERRIDE
+        ---------------------
+        Instead of showing the standard app list, we send users straight
+        to the Analytics Dashboard.
+        """
+        return redirect('sais_admin:dashboard')
+
     def dashboard_view(self, request):
         """
         ANALYTICS DASHBOARD LOGIC
@@ -105,11 +114,11 @@ class SAISAdminSite(admin.AdminSite):
             )
             tag_count = tag_stats['total']
 
-            # PERFORMANCE: Combine gateway counts into one query
-            gateway_stats = gateways_qs.aggregate(
-                total=Count('id'),
-                online=Count('id', filter=Q(is_online=True))
-            )
+            # PERFORMANCE: Use annotate(Count) to avoid N+1 queries when calculating gateway loads.
+            # We fetch the list to perform just-in-time online status calculation in Python.
+            gateways = list(gateways_qs.annotate(tag_count_ann=Count('tags')))
+            gateway_count = len(gateways)
+            active_gateways = sum(1 for gw in gateways if gw.is_currently_online())
 
             # GROUP BY: Count how many of each hardware model exists
             tag_types = list(tags_qs.values('hardware_spec__model_number').annotate(
@@ -119,22 +128,24 @@ class SAISAdminSite(admin.AdminSite):
             for item in tag_types:
                 item['percent'] = (item['count'] / tag_count * 100) if tag_count > 0 else 0
 
-            # PERFORMANCE: Use annotate(Count) to avoid N+1 queries when calculating gateway loads.
             gateway_loads = []
-            for gw in gateways_qs.annotate(tag_count_ann=Count('tags')):
+            for gw in gateways:
+                status_code, status_label, status_color = gw.get_real_time_status()
                 count = gw.tag_count_ann
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
-                    'is_active': gw.is_online,
+                    'is_active': status_code != 'OFFLINE',
+                    'status_label': status_label,
+                    'status_color': status_color,
                     'tag_count': count,
                     'load_percent': min(int((count / 500) * 100), 100) # Max 500 tags per gateway
                 })
 
             context = {
                 'active_store': active_store,
-                'gateway_count': gateway_stats['total'],
-                'active_gateways': gateway_stats['online'],
+                'gateway_count': gateway_count,
+                'active_gateways': active_gateways,
                 'tag_count': tag_count,
                 'tags_with_products': tag_stats['with_products'],
                 'low_battery_count': tag_stats['low_battery'],
@@ -249,10 +260,12 @@ class SAISAdminSite(admin.AdminSite):
         """
         context = super().each_context(request)
         context['dashboard_url'] = reverse('sais_admin:dashboard')
+        context['is_nav_sidebar_enabled'] = True
+        context['available_apps'] = self.get_app_list(request)
 
-        # Inject custom styles and scripts using 'mark_safe' to allow raw HTML
-        context['custom_admin_css'] = mark_safe(f'<link rel="stylesheet" type="text/css" href="{settings.STATIC_URL}admin/css/sais_admin.css">')
-        context['custom_admin_js'] = mark_safe(f'<script src="{settings.STATIC_URL}admin/js/sais_admin.js" defer></script>')
+        # Inject custom styles and scripts using 'format_html' for security
+        context['custom_admin_css'] = format_html('<link rel="stylesheet" type="text/css" href="{}{}admin/css/sais_admin.css">', settings.STATIC_URL, "")
+        context['custom_admin_js'] = format_html('<script src="{}{}admin/js/sais_admin.js" defer></script>', settings.STATIC_URL, "")
         return context
 
     def get_app_list(self, request, app_label=None):
@@ -277,36 +290,62 @@ class SAISAdminSite(admin.AdminSite):
             # --- DEFINE CUSTOM GROUPS ---
 
             # Group 1: Daily Store Operations
+            inventory_models = []
+            m = find_model('ESLTag')
+            if m: m['name'] = 'ESL Tags'; inventory_models.append(m)
+            m = find_model('Product')
+            if m: m['name'] = 'Products'; inventory_models.append(m)
+            m = find_model('Supplier')
+            if m: m['name'] = 'Suppliers'; inventory_models.append(m)
+
             inventory = {
-                'name': '📦 Inventory',
+                'name': '📦 INVENTORY',
                 'app_label': 'inventory',
-                'models': [m for m in [find_model('ESLTag'), find_model('Product'), find_model('Supplier')] if m]
+                'models': inventory_models
             }
 
             # Group 2: Base Stations & Hardware setup
+            hardware_models = []
+            m = find_model('Gateway')
+            if m: m['name'] = 'Gateways'; hardware_models.append(m)
+            m = find_model('TagHardware')
+            if m: m['name'] = 'Tag hardwares'; hardware_models.append(m)
+            m = find_model('GlobalSetting')
+            if m: m['name'] = 'Global Settings'; hardware_models.append(m)
+
             hardware = {
-                'name': '📡 Hardware',
+                'name': '📡 HARDWARE',
                 'app_label': 'hardware',
-                'models': [m for m in [find_model('Gateway'), find_model('TagHardware'), find_model('GlobalSetting')] if m]
+                'models': hardware_models
             }
 
             # Group 3: Multi-tenant management (Admin only)
+            org_models = []
+            m = find_model('Company')
+            if m: m['name'] = 'Companies'; org_models.append(m)
+            m = find_model('Store')
+            if m: m['name'] = 'Stores'; org_models.append(m)
+            m = find_model('User')
+            if m: m['name'] = 'Users'; org_models.append(m)
+            m = find_model('Group')
+            if m: m['name'] = 'Groups'; org_models.append(m)
+
             org = {
-                'name': '🏢 Organisation',
+                'name': '🏢 ORGANISATION',
                 'app_label': 'organisation',
-                'models': [m for m in [find_model('Company'), find_model('Store'), find_model('User'), find_model('Group')] if m]
+                'models': org_models
             }
 
             # Group 4: Logs & Monitoring
             monitoring = {
-                'name': '⚙️ System Monitoring',
+                'name': '⚙️ SYSTEM MONITORING',
                 'app_label': 'monitoring',
                 'models': []
             }
 
             # Add 'Virtual' models (links to our custom views) to the sidebar
             monitoring['models'].append({
-                'name': '📊 Analytics Dashboard',
+                'name': 'Analytics Dashboard',
                 'object_name': 'dashboard',
                 'admin_url': reverse('sais_admin:dashboard'),
                 'view_only': True,
@@ -322,12 +361,14 @@ class SAISAdminSite(admin.AdminSite):
 
                 # Background Task logs
                 celery_res = find_model('TaskResult')
-                if celery_res: monitoring['models'].append(celery_res)
+                if celery_res:
+                    celery_res['name'] = 'Task results'
+                    monitoring['models'].append(celery_res)
 
                 # Raw MQTT Packet logs
                 mqtt_logs = find_model('MQTTMessage')
                 if mqtt_logs:
-                    mqtt_logs['name'] = '📡 eStation Communication'
+                    mqtt_logs['name'] = 'eStation Communication'
                     monitoring['models'].append(mqtt_logs)
 
             groups = [inventory, hardware, org]
@@ -469,13 +510,13 @@ class UIHelperMixin:
     Contains methods that generate HTML 'Snippets' for the admin list view.
     """
     def sync_button(self, obj):
-        """Generates a Blue 'Sync' button to manually trigger a tag refresh."""
+        """Generates a Navy 'Sync' button to manually trigger a tag refresh."""
         try:
             try:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="button" href="{}" style="background:#2563eb; color:white; padding: 4px 10px; border-radius: 4px; text-decoration: none;" title="Manually trigger tag update" aria-label="Sync tag"><span aria-hidden="true">🔄</span> Sync</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

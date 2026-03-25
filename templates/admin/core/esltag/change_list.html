@@ -18,6 +18,9 @@
    of the table (usually just 'Add Record').
 {% endcomment %}
 {% block object-tools-items %}
+    {# Standard Add Button (restored because it was removed from sidebar) #}
+    <li><a href="{% url 'sais_admin:core_esltag_add' %}" class="addlink">Add ESL Tag</a></li>
+
     {% comment %} Tool 1: Download the Excel Template {% endcomment %}
     <li><a href="{% url 'admin:download_tag_template' %}" class="addlink">Download Template</a></li>
 

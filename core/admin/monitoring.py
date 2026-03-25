@@ -48,8 +48,16 @@ class CustomGroupResultAdmin(GroupResultAdmin):
             return format_html("<b>{}%</b> (✅ {} | ❌ {} | Total {})", percent, completed, failed, total)
         except: return "Pending"
 
-# Standard Task monitoring for individual Celery tasks
-admin_site.register(TaskResult, TaskResultAdmin)
+class CustomTaskResultAdmin(TaskResultAdmin):
+    """
+    CELERY TASK MONITORING
+    ----------------------
+    Restricted to read-only access to prevent manual task creation.
+    """
+    def has_add_permission(self, request): return False
+
+# Register custom task monitoring
+admin_site.register(TaskResult, CustomTaskResultAdmin)
 
 @admin.register(MQTTMessage, site=admin_site)
 class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
@@ -60,7 +68,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     exchange with the physical hardware.
     """
     list_display = (
-        'timestamp', 'direction_indicator', 'estation_id',
+        'timestamp', 'direction_indicator', 'estation_id', 'tag_id_column',
         'topic', 'data_preview', 'status_indicator'
     )
     list_filter = ('direction', 'is_success', 'estation_id', 'topic')
@@ -75,7 +83,8 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         try:
             parsed = json.loads(obj.data)
             formatted = json.dumps(parsed, indent=2)
-            return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 400px; overflow: auto;">{}</pre>', formatted)
+            # Increased max-height and improved readability for large payloads (like Base64 images)
+            return format_html('<pre style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 0.9em; max-height: 600px; overflow: auto; white-space: pre-wrap; word-break: break-all;">{}</pre>', formatted)
         except:
             return obj.data
     data_json.short_description = "Formatted Payload"
@@ -91,6 +100,44 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         text = "SUCCESS" if obj.is_success else "FAILURE"
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
+
+    def tag_id_column(self, obj):
+        """
+        Extracts and displays the ESL Tag ID from the payload.
+        Handles complex nested hardware lists and dictionary formats.
+        """
+        def find_tag_id(item):
+            """Recursive search for the first 12-char hex string (MAC address)."""
+            if isinstance(item, (str, bytes)):
+                val = item.decode('utf-8', errors='ignore') if isinstance(item, bytes) else item
+                # ESL Tags use 12-character hex MACs (e.g., '390000F41F5F')
+                clean = val.replace(':', '').upper()
+                if len(clean) == 12 and all(c in '0123456789ABCDEF' for c in clean):
+                    return clean
+            elif isinstance(item, list):
+                for sub in item:
+                    found = find_tag_id(sub)
+                    if found: return found
+            elif isinstance(item, dict):
+                # Check common keys first
+                for key in ['TagId', 'tag_id', 'Tags']:
+                    found = find_tag_id(item.get(key))
+                    if found: return found
+                # Then check all values
+                for val in item.values():
+                    found = find_tag_id(val)
+                    if found: return found
+            return None
+
+        try:
+            data = json.loads(obj.data)
+            tag_id = find_tag_id(data)
+            if tag_id:
+                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', tag_id)
+            return "-"
+        except:
+            return "-"
+    tag_id_column.short_description = "ESL Tag ID"
 
     def data_preview(self, obj):
         """Short snippet of the payload for the main table."""
