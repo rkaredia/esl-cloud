@@ -211,16 +211,20 @@ class ESLMqttClient:
 
             # 3. Verify Token: We only update if the token matches the last task we sent
             if tag.last_image_task_token == token:
-                # 0 = Success in eStation protocol. Any other value (like 4) is a failure.
-                is_success = (status_code == 0)
-                tag.sync_state = 'SUCCESS' if is_success else 'FAILED'
-                tag.battery_level = self._calculate_battery_percentage(battery_raw)
+                # PERFORMANCE: Support both 0 and 128 as success codes per latest protocol update
+                # and use direct .update() to bypass signal overhead for status changes.
+                is_success = (status_code == 0 or status_code == 128)
 
+                update_fields = {
+                    'sync_state': 'SUCCESS' if is_success else 'FAILED',
+                    'battery_level': self._calculate_battery_percentage(battery_raw),
+                    'updated_at': timezone.now()
+                }
                 if is_success:
-                    tag.last_successful_gateway_id = estation_id
+                    update_fields['last_successful_gateway_id'] = estation_id
 
-                tag.save(update_fields=['sync_state', 'battery_level', 'last_successful_gateway_id'])
-                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {tag.battery_level}%)")
+                ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {update_fields['battery_level']}%)")
             else:
                 logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {token}")
         except Exception:
