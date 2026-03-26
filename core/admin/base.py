@@ -108,7 +108,7 @@ class SAISAdminSite(admin.AdminSite):
                 ready=Count('id', filter=Q(sync_state='IMAGE_READY')),
                 processing=Count('id', filter=Q(sync_state='PROCESSING')),
                 idle=Count('id', filter=Q(sync_state='IDLE')),
-                failed_total=Count('id', filter=Q(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED'))),
+                failed_total=Count('id', filter=Q(sync_state='FAILED')),
                 gen_failed=Count('id', filter=Q(sync_state='GEN_FAILED')),
                 push_failed=Count('id', filter=Q(sync_state='PUSH_FAILED')),
             )
