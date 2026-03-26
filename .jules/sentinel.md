@@ -17,3 +17,8 @@
 **Vulnerability:** The `handle_tag_heartbeat` method in `core/mqtt_client.py` performed a bulk lookup of tags by MAC address without filtering by the gateway's store. In a multi-tenant environment where the same MAC can exist in different stores, a heartbeat from one store's gateway could update or hijack tags in another store.
 **Learning:** Even automated background processes triggered by hardware signals must enforce tenant isolation. MAC addresses are not globally unique across stores in this system's architecture.
 **Prevention:** Always include the tenant context (e.g., `store=gateway.store`) in database queries, even when the trigger is a trusted hardware message, to prevent accidental or malicious cross-tenant data leakage.
+
+## 2025-05-25 - [Sensitive Data Exposure in MQTT Logs]
+**Vulnerability:** The MQTT client was logging full message payloads, including hardware credentials (usernames and passwords), to both the database and local files in plaintext. These logs are accessible to various administrative roles and could be exposed during troubleshooting.
+**Learning:** Automated logging of hardware protocols often captures sensitive configuration data. Relying on simple JSON serialization without pre-processing can lead to massive credential leakage.
+**Prevention:** Implement recursive masking logic in the logging layer that identifies and redacts sensitive keys (e.g., 'password') and project-specific credential structures (e.g., 'ConnParam' lists) before data is persisted. Use deep-copy patterns to ensure application logic remains unaffected by the masking.

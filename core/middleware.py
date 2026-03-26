@@ -117,6 +117,7 @@ class SecurityHeadersMiddleware:
             "img-src 'self' data: blob:",
             "font-src 'self'",
             "connect-src 'self'",
+            "object-src 'none'", # Prevents malicious plugins (e.g. Flash)
             "frame-ancestors 'none'", # Prevents the site from being put in an <iframe> (Anti-Clickjacking)
             "form-action 'self'",
             "base-uri 'self'",

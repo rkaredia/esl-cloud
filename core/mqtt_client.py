@@ -597,6 +597,26 @@ class ESLMqttClient:
         -------------
         """
         try:
+            def mask_sensitive_info(d):
+                """Recursively mask passwords and credentials in logs."""
+                if isinstance(d, dict):
+                    # Create a copy to avoid modifying the original data used in the app
+                    new_dict = {}
+                    for k, v in d.items():
+                        if isinstance(k, str) and 'password' in k.lower():
+                            new_dict[k] = "********"
+                        elif k == 'ConnParam' and isinstance(v, list) and len(v) >= 2:
+                            # Protocol: [username, password]
+                            new_dict[k] = [v[0], "********"]
+                        else:
+                            new_dict[k] = mask_sensitive_info(v)
+                    return new_dict
+                elif isinstance(d, list):
+                    return [mask_sensitive_info(item) for item in d]
+                return d
+
+            masked_data = mask_sensitive_info(data)
+
             class BytesEncoder(json.JSONEncoder):
                 def default(self, obj):
                     if isinstance(obj, bytes):
@@ -606,7 +626,7 @@ class ESLMqttClient:
                             return f"<binary:{len(obj)} bytes>"
                     return super().default(obj)
 
-            json_data = json.dumps(data, cls=BytesEncoder)
+            json_data = json.dumps(masked_data, cls=BytesEncoder)
 
             if force_success is not None:
                 is_success = force_success

@@ -183,3 +183,34 @@ class MQTTTagHeartbeatSecurityTest(TestCase):
         # Store B tag SHOULD NOT be updated
         self.assertEqual(self.tag_b.battery_level, 100)
         self.assertNotEqual(self.tag_b.last_successful_gateway_id, "GW01")
+
+class MQTTLoggingSecurityTest(TestCase):
+    def setUp(self):
+        from core.mqtt_client import ESLMqttClient
+        self.mqtt_service = ESLMqttClient()
+
+    def test_mqtt_log_masks_sensitive_data(self):
+        """
+        Verify that sensitive data like passwords and ConnParam are masked in MQTT logs.
+        """
+        sensitive_data = {
+            'Alias': 'test',
+            'Server': '127.0.0.1:9081',
+            'ConnParam': ['user123', 'secret_password'],
+            'password': 'another_secret',
+            'SafeField': 'PublicValue'
+        }
+
+        # This should trigger _log_mqtt_message
+        self.mqtt_service._log_mqtt_message("sent", "GW01", "/estation/GW01/configure", sensitive_data)
+
+        # Get the log entry from DB
+        log_entry = MQTTMessage.objects.first()
+        import json
+        logged_data = json.loads(log_entry.data)
+
+        # Check if sensitive data is masked
+        # Initially this will FAIL until I implement the masking
+        self.assertEqual(logged_data['ConnParam'][1], '********', "ConnParam password not masked")
+        self.assertEqual(logged_data['password'], '********', "'password' field not masked")
+        self.assertEqual(logged_data['SafeField'], 'PublicValue', "Non-sensitive field was incorrectly masked")
