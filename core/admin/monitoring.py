@@ -107,7 +107,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
                     data = json.loads(obj.data)
                     if isinstance(data, list) and len(data) >= 5 and isinstance(data[4], list):
                         status_codes = [tr[4] for tr in data[4] if isinstance(tr, list) and len(tr) >= 5]
-                        success_count = sum(1 for s in status_codes if s == 0 or s == 128)
+                        success_count = sum(1 for s in status_codes if s == 1 or s == 128)
                         if success_count > 0 and success_count < len(status_codes):
                             is_partial = True
                 except: pass
@@ -149,7 +149,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
                             if isinstance(tr, list) and len(tr) >= 5:
                                 mac = clean_mac(tr[0])
                                 if mac:
-                                    status = "Success" if (tr[4] == 0 or tr[4] == 128) else "Failure"
+                                    status = "Success" if (tr[4] == 1 or tr[4] == 128) else "Failure"
                                     tags_with_status.append(f"{mac}-{status}")
                     # Single-tag format: [TagID, Rf, Batt, Ver, Status, ...]
                     else:
@@ -157,7 +157,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
                         if isinstance(d, list) and len(d) >= 5:
                             mac = clean_mac(d[0])
                             if mac:
-                                status = "Success" if (d[4] == 0 or d[4] == 128) else "Failure"
+                                status = "Success" if (d[4] == 1 or d[4] == 128) else "Failure"
                                 tags_with_status.append(f"{mac}-{status}")
 
             if tags_with_status:

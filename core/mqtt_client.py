@@ -243,8 +243,8 @@ class ESLMqttClient:
                 # Verify Token: We only update if the token matches the last task we sent
                 if tag.last_image_task_token == res['token']:
                     status_code = res['status_code']
-                    # SUCCESS codes: 0 and 128 per hardware documentation
-                    is_success = (status_code == 0 or status_code == 128)
+                    # SUCCESS codes: 1 and 128 per hardware observation (0 is failure)
+                    is_success = (status_code == 1 or status_code == 128)
 
                     update_fields = {
                         'sync_state': 'SUCCESS' if is_success else 'FAILED',
@@ -658,8 +658,8 @@ class ESLMqttClient:
                         status_codes = [data.get('Status')]
 
                     if status_codes:
-                        # Message is successful ONLY if all tags succeeded
-                        is_success = all(s == 0 or s == 128 for s in status_codes)
+                        # Message is successful ONLY if all tags succeeded (1 and 128 are SUCCESS)
+                        is_success = all(s == 1 or s == 128 for s in status_codes)
 
             MQTTMessage.objects.create(
                 direction=direction,

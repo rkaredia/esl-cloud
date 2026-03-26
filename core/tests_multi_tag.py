@@ -31,7 +31,7 @@ class MultiTagResultTest(TestCase):
         data = [
             13, 0, 2, "",
             [
-                ["840000C3281C", -69, 30, "v1", 0, 100, 27, 0], # Success
+                ["840000C3281C", -69, 30, "v1", 1, 100, 27, 0], # Success (1)
                 ["390000F41F5F", -256, 29, "v1", 128, 200, 0, 0] # Success (128)
             ]
         ]
@@ -56,8 +56,8 @@ class MultiTagResultTest(TestCase):
         data = [
             13, 0, 2, "",
             [
-                ["840000C3281C", -69, 30, "v1", 0, 100, 27, 0], # Success
-                ["390000F41F5F", -256, 29, "v1", 1, 200, 0, 0]  # Failure (1)
+                ["840000C3281C", -69, 30, "v1", 1, 100, 27, 0], # Success (1)
+                ["390000F41F5F", -256, 29, "v1", 0, 200, 0, 0]  # Failure (0)
             ]
         ]
 
@@ -78,7 +78,7 @@ class MultiTagResultTest(TestCase):
         data = [
             13, 0, 2, "",
             [
-                ["840000C3281C", -69, 30, "v1", 1, 100, 27, 0],
+                ["840000C3281C", -69, 30, "v1", 0, 100, 27, 0], # Failure (0)
                 ["390000F41F5F", -256, 29, "v1", 2, 200, 0, 0]
             ]
         ]
@@ -107,7 +107,7 @@ class MultiTagResultTest(TestCase):
             estation_id="GW01",
             topic="/estation/GW01/result",
             data=json.dumps([13, 0, 2, "", [
-                ["840000C3281C", -69, 30, "v1", 0, 100],
+                ["840000C3281C", -69, 30, "v1", 1, 100],
                 ["390000F41F5F", -256, 29, "v1", 128, 200]
             ]]),
             is_success=True
@@ -127,8 +127,8 @@ class MultiTagResultTest(TestCase):
             estation_id="GW01",
             topic="/estation/GW01/result",
             data=json.dumps([13, 0, 2, "", [
-                ["840000C3281C", -69, 30, "v1", 0, 100],
-                ["390000F41F5F", -256, 29, "v1", 1, 200]
+                ["840000C3281C", -69, 30, "v1", 1, 100],
+                ["390000F41F5F", -256, 29, "v1", 0, 200]
             ]]),
             is_success=False
         )
@@ -147,7 +147,7 @@ class MultiTagResultTest(TestCase):
             estation_id="GW01",
             topic="/estation/GW01/result",
             data=json.dumps([13, 0, 2, "", [
-                ["840000C3281C", -69, 30, "v1", 1, 100],
+                ["840000C3281C", -69, 30, "v1", 0, 100],
                 ["390000F41F5F", -256, 29, "v1", 2, 200]
             ]]),
             is_success=False
