@@ -160,7 +160,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # Supplier Abbreviation (Always visible at bottom)
     supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
-    supp_font = get_dynamic_font_size(supp_abbr, p_box_w, 20, 20, "bold")
+    supp_font = get_dynamic_font_size(supp_abbr, p_box_w, 20, 16, "bold")
     draw.text((split_x + (width - split_x)//2, height - 8), supp_abbr, fill=price_txt_col, font=supp_font, anchor="mb")
 
     if is_promo:

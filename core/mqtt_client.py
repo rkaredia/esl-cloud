@@ -175,60 +175,90 @@ class ESLMqttClient:
         PROCESS UPDATE RESULTS
         ----------------------
         Triggered when a Gateway reports back after trying to update a tag.
+        Supports both single-tag and multi-tag result formats.
         """
         try:
-            # Protocol definition: [TagID, RfPower, Battery, Version, Status, Token, Temp, Channel]
+            tag_results = []
+
+            # 1. Identify format and normalize to a list of tag result objects
             if isinstance(data, list):
-                # Handle nested list wrapper if present (common in taskESL response)
-                if len(data) == 1 and isinstance(data[0], list):
-                    data = data[0]
+                # New Multi-tag format: [Port, WaitCount, SendCount, MessageCode, [TagResult1, ...]]
+                if len(data) >= 5 and isinstance(data[4], list):
+                    for tr in data[4]:
+                        if isinstance(tr, list) and len(tr) >= 6:
+                            tag_results.append({
+                                'tag_mac': tr[0],
+                                'battery_raw': tr[2],
+                                'status_code': tr[4],
+                                'token': tr[5]
+                            })
+                # Legacy/Single-tag format: [TagID, RfPower, Battery, Version, Status, Token, ...]
+                else:
+                    # Handle nested list wrapper if present
+                    if len(data) == 1 and isinstance(data[0], list):
+                        data = data[0]
 
-                if len(data) < 6: return
-                tag_mac, battery_raw, status_code, token = data[0], data[2], data[4], data[5]
-            else:
-                tag_mac = data.get('TagId')
-                battery_raw = data.get('Battery')
-                status_code = data.get('Status')
-                token = data.get('Token')
+                    if len(data) >= 6:
+                        tag_results.append({
+                            'tag_mac': data[0],
+                            'battery_raw': data[2],
+                            'status_code': data[4],
+                            'token': data[5]
+                        })
+            elif isinstance(data, dict):
+                tag_results.append({
+                    'tag_mac': data.get('TagId'),
+                    'battery_raw': data.get('Battery'),
+                    'status_code': data.get('Status'),
+                    'token': data.get('Token')
+                })
 
-            # 1. Identify which gateway sent this (case-insensitive)
-            gateway = Gateway.objects.filter(estation_id__iexact=estation_id).first()
+            if not tag_results:
+                return
+
+            # 2. Identify which gateway sent this
+            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).first()
             if not gateway:
                 logger.error(f"Received result from unknown gateway {estation_id}")
                 return
 
-            # 2. Find the tag being updated (Isolated by the gateway's store)
-            # Use flexible matching to handle MACs with/without colons and case differences
+            # 3. Process each tag result
             from django.db.models.functions import Upper, Replace
             from django.db.models import Value
 
-            clean_mac = tag_mac.replace(':', '').upper()
-            tag = ESLTag.objects.filter(store=gateway.store).annotate(
-                clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
-            ).filter(clean_db_mac=clean_mac).first()
+            for res in tag_results:
+                tag_mac = res['tag_mac']
+                if not tag_mac: continue
 
-            if not tag:
-                logger.warning(f"Result for unknown tag {tag_mac} in store {gateway.store}")
-                return
+                clean_mac = tag_mac.replace(':', '').upper()
+                # Find the tag being updated (Isolated by the gateway's store)
+                tag = ESLTag.objects.filter(store=gateway.store).annotate(
+                    clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
+                ).filter(clean_db_mac=clean_mac).first()
 
-            # 3. Verify Token: We only update if the token matches the last task we sent
-            if tag.last_image_task_token == token:
-                # PERFORMANCE: Support both 0 and 128 as success codes per latest protocol update
-                # and use direct .update() to bypass signal overhead for status changes.
-                is_success = (status_code == 0 or status_code == 128)
+                if not tag:
+                    logger.warning(f"Result for unknown tag {tag_mac} in store {gateway.store}")
+                    continue
 
-                update_fields = {
-                    'sync_state': 'SUCCESS' if is_success else 'FAILED',
-                    'battery_level': self._calculate_battery_percentage(battery_raw),
-                    'updated_at': timezone.now()
-                }
-                if is_success:
-                    update_fields['last_successful_gateway_id'] = estation_id
+                # Verify Token: We only update if the token matches the last task we sent
+                if tag.last_image_task_token == res['token']:
+                    status_code = res['status_code']
+                    # SUCCESS codes: 0 and 128 per hardware documentation
+                    is_success = (status_code == 0 or status_code == 128)
 
-                ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
-                logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {update_fields['battery_level']}%)")
-            else:
-                logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {token}")
+                    update_fields = {
+                        'sync_state': 'SUCCESS' if is_success else 'FAILED',
+                        'battery_level': self._calculate_battery_percentage(res['battery_raw']),
+                        'updated_at': timezone.now()
+                    }
+                    if is_success:
+                        update_fields['last_successful_gateway_id'] = estation_id
+
+                    ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                    logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {update_fields['battery_level']}%)")
+                else:
+                    logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {res['token']}")
+
         except Exception:
             logger.exception("Error handling MQTT result message")
 
@@ -613,21 +643,23 @@ class ESLMqttClient:
             else:
                 is_success = True
                 if direction == "received" and topic.endswith("/result"):
-                    status_val = None
+                    # Extract all status codes from the payload (supports single and multi-tag)
+                    status_codes = []
                     if isinstance(data, list):
-                        if len(data) == 1 and isinstance(data[0], list): data = data[0]
-                        if len(data) >= 5: status_val = data[4]
+                        # Multi-tag format: [Port, Wait, Send, Msg, [Tags]]
+                        if len(data) >= 5 and isinstance(data[4], list):
+                            status_codes = [tr[4] for tr in data[4] if isinstance(tr, list) and len(tr) >= 5]
+                        else:
+                            # Single-tag format: [TagID, Rf, Batt, Ver, Status, ...]
+                            d = data[0] if len(data) == 1 and isinstance(data[0], list) else data
+                            if isinstance(d, list) and len(d) >= 5:
+                                status_codes = [d[4]]
                     elif isinstance(data, dict):
-                        status_val = data.get('Status')
+                        status_codes = [data.get('Status')]
 
-                    if status_val is not None:
-                        is_success = (status_val == 128 or status_val == 0)
-                        # If failed, include the error code in the log for visibility
-                        if not is_success:
-                            topic = f"{topic}"# (OUTPUT:{status_val})"
-                            # To avoid topic corruption with large lists, only keep the first 20 chars of status_val if it's a string/list
-                            if len(topic) > 100:
-                                topic = topic[:97] + "..."
+                    if status_codes:
+                        # Message is successful ONLY if all tags succeeded
+                        is_success = all(s == 0 or s == 128 for s in status_codes)
 
             MQTTMessage.objects.create(
                 direction=direction,
