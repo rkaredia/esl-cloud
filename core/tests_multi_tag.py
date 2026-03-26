@@ -95,6 +95,42 @@ class MultiTagResultTest(TestCase):
         log = MQTTMessage.objects.first()
         self.assertFalse(log.is_success)
 
+    def test_handle_battery_zero_abnormal(self):
+        # Initial battery level
+        self.tag1.battery_level = 50
+        self.tag1.save()
+
+        data = [
+            13, 0, 1, "",
+            [
+                ["840000C3281C", -69, 0, "v1", 1, 100, 27, 0] # Battery 0 (Abnormal)
+            ]
+        ]
+
+        mqtt_service.handle_result("GW01", data)
+
+        self.tag1.refresh_from_db()
+        # Battery should still be 50, not 0 or 100
+        self.assertEqual(self.tag1.battery_level, 50)
+        self.assertEqual(self.tag1.sync_state, 'SUCCESS')
+
+    def test_discovery_battery_zero_abnormal(self):
+        # Initial battery level
+        self.tag1.battery_level = 75
+        self.tag1.save()
+
+        # Discovery message (e.g. from tagheartbeat or infor, but here we test the internal _process_tags)
+        # Format for _process_tags: [ [MAC, Rf, Batt, ...], ... ]
+        tags_list = [
+            ["840000C3281C", -50, 0, "v1"] # MAC matches tag1, Batt is 0
+        ]
+
+        mqtt_service._process_tags("GW01", tags_list)
+
+        self.tag1.refresh_from_db()
+        # Battery should still be 75
+        self.assertEqual(self.tag1.battery_level, 75)
+
     def test_admin_ui_helpers(self):
         from core.admin.monitoring import MQTTMessageAdmin
         from core.admin.base import admin_site

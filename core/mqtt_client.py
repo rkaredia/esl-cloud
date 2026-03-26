@@ -160,9 +160,11 @@ class ESLMqttClient:
         -----------------------------
         ESL tags report raw voltage (e.g. 30 = 3.0V).
         Mapping: 3.0V (30) = 100%, 2.2V (22) = 0%.
+        Value 0 is treated as abnormal and returns None.
         """
         try:
             val = int(voltage_raw)
+            if val == 0: return None
             if val >= 30: return 100
             if val <= 22: return 0
             # Linear interpolation: (val - 22) / (30 - 22) * 100
@@ -246,11 +248,14 @@ class ESLMqttClient:
                     # SUCCESS codes: 1 and 128 per hardware observation (0 is failure)
                     is_success = (status_code == 1 or status_code == 128)
 
+                    battery_pct = self._calculate_battery_percentage(res['battery_raw'])
                     update_fields = {
                         'sync_state': 'SUCCESS' if is_success else 'FAILED',
-                        'battery_level': self._calculate_battery_percentage(res['battery_raw']),
                         'updated_at': timezone.now()
                     }
+                    if battery_pct is not None:
+                        update_fields['battery_level'] = battery_pct
+
                     if is_success:
                         update_fields['last_successful_gateway_id'] = estation_id
 
@@ -503,7 +508,8 @@ class ESLMqttClient:
 
                 if tag:
                     tag.last_successful_gateway_id = estation_id
-                    tag.battery_level = battery_pct
+                    if battery_pct is not None:
+                        tag.battery_level = battery_pct
                     tag.updated_at = now
                     if not tag.store: tag.store = gateway.store
                     tags_to_update[clean_mac] = tag
@@ -514,7 +520,7 @@ class ESLMqttClient:
 
                     tags_to_create[clean_mac] = ESLTag(
                         tag_mac=metadata['original_mac'],
-                        battery_level=battery_pct,
+                        battery_level=battery_pct if battery_pct is not None else 100,
                         last_successful_gateway_id=estation_id,
                         store=gateway.store,
                         sync_state='IDLE',
