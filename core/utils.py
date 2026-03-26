@@ -222,7 +222,7 @@ def template_v3(image, draw, product, width, height, color_scheme):
     """
     LAYOUT: MODERN / CLEAN (V3)
     ---------------------------
-    Uses white space and a clean vertical split with a colored pricetag icon.
+    Uses white space and a clean vertical split.
     """
     is_promo = getattr(product, 'is_on_special', False)
     split_x = int(width * 0.45)
@@ -232,46 +232,89 @@ def template_v3(image, draw, product, width, height, color_scheme):
     if not product: return
 
     safe_pad = 8
+    left_zone_w = split_x - (safe_pad * 2)
 
-    # 1. DRAW PRICETAG ICON (Top Right of Left Section)
+    # 1. DRAW PRODUCT NAME (Left Top)
+    name_text = product.name.upper()
+    wrapper = textwrap.TextWrapper(width=14)
+    lines = wrapper.wrap(text=name_text)[:3]
+
+    if lines:
+        # Start with a larger font size and let it scale down to fit the zone
+        initial_font_size = 22
+        longest_line = max(lines, key=len)
+        max_h_total = height * 0.40
+        max_h_per_line = max_h_total / len(lines)
+
+        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "bold")
+
+        bbox = draw.textbbox((0, 0), "Ay", font=n_font)
+        line_height = bbox[3] - bbox[1] + 2
+
+        curr_y = 20
+        for line in lines:
+            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
+            curr_y += line_height
+
+    # 2. DRAW BARCODE (Left Bottom)
     try:
-        tag_color = "black"
-        if 'Y' in color_scheme: tag_color = "yellow"
-        elif 'R' in color_scheme: tag_color = "red"
+        barcode_w, barcode_h = int(left_zone_w * 0.95), int(height * 0.18)
+        raw_sku_data = str(product.sku)
+        code128 = barcode.get_barcode_class('code128')
+        ean = code128(raw_sku_data, writer=ImageWriter())
 
-        icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
-        if os.path.exists(icon_path):
-            icon = Image.open(icon_path).convert("RGBA")
-            # Dynamic sizing based on height (approx 30% of tag height)
-            icon_h = int(height * 0.30)
-            icon_w = int(icon.width * (icon_h / icon.height))
-            icon = icon.resize((icon_w, icon_h), Image.Resampling.LANCZOS)
+        b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
+        b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
 
-            # Position at top right of the white section
-            icon_x = split_x - icon_w - 4
-            icon_y = 4
-            image.paste(icon, (icon_x, icon_y), icon)
+        barcode_y = height - barcode_h - 15
+        image.paste(b_img, (safe_pad, barcode_y), b_img)
+
+        display_text = f"{product.sku}"
+        s_font = get_dynamic_font_size(display_text, left_zone_w, 14, 12, "condensed")
+        draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
     except Exception as e:
-        logger.error(f"Error drawing pricetag icon: {e}")
+        logger.error(f"Barcode error (V3): {e}")
 
-    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
-    sku_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
-    draw.text((safe_pad, safe_pad), sku_text, fill=(0,0,0), font=get_font_by_type(10, "bold"))
-
-    name_font = get_font_by_type(16, "bold")
-    lines = textwrap.wrap(text=product.name.upper(), width=12)[:4]
-    curr_y = safe_pad + 18
-    for line in lines:
-        draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=name_font)
-        curr_y += 18
-
+    # 3. PROMO SECTION (Right Side Top)
     if is_promo:
-        banner_color = (255, 0, 0) if 'R' in color_scheme else (0,0,0)
-        draw.text((split_x + (width - split_x)//2, 25), "SALE!", fill=banner_color, font=get_font_by_type(18, "bold"), anchor="mm")
+        try:
+            tag_color = "black"
+            if 'Y' in color_scheme: tag_color = "red" # User wants RED for BWR/BWRY
+            elif 'R' in color_scheme: tag_color = "red"
 
+            icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
+
+            sale_text = "SALE!"
+            sale_font = get_font_by_type(30, "bold") # Larger font as requested
+            sale_bbox = draw.textbbox((0, 0), sale_text, font=sale_font)
+            sale_w = sale_bbox[2] - sale_bbox[0]
+            sale_h = sale_bbox[3] - sale_bbox[1]
+
+            icon_h = int(sale_h * 1.2)
+            if os.path.exists(icon_path):
+                icon = Image.open(icon_path).convert("RGBA")
+                icon_w = int(icon.width * (icon_h / icon.height))
+                icon = icon.resize((icon_w, icon_h), Image.Resampling.LANCZOS)
+
+                total_w = sale_w + icon_w + 5
+                start_x = split_x + (width - split_x - total_w) // 2
+
+                banner_color = (255, 0, 0) if ('R' in color_scheme or 'Y' in color_scheme) else (0,0,0)
+                image.paste(icon, (start_x, 15), icon)
+                draw.text((start_x + icon_w + 5, 15 + (icon_h // 2)), sale_text, fill=banner_color, font=sale_font, anchor="lm")
+        except Exception as e:
+            logger.error(f"Error drawing pricetag icon (V3): {e}")
+
+    # 4. PRICE SECTION (Right Side Bottom)
     price_str = f"${product.price}"
-    price_font = get_dynamic_font_size(price_str, (width - split_x) - 10, height // 2, 45)
-    draw.text((split_x + (width - split_x)//2, height - 40), price_str, fill=(0,0,0), font=price_font, anchor="mm")
+    # Use condensed font and increase size
+    price_font = get_dynamic_font_size(price_str, (width - split_x) - 10, height // 2, 65, "condensed")
+    draw.text((split_x + (width - split_x)//2, height - 35), price_str, fill=(0,0,0), font=price_font, anchor="mm")
+
+    # Supplier/SKU at top left (small)
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
+    sku_top_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
+    draw.text((safe_pad, 4), sku_top_text, fill=(0,0,0), font=get_font_by_type(10, "bold"))
 
 def generate_esl_image(tag_id, tag_instance=None):
     """
