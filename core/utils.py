@@ -223,6 +223,7 @@ def template_v3(image, draw, product, width, height, color_scheme):
     LAYOUT: MODERN / CLEAN (V3)
     ---------------------------
     Uses white space and a clean vertical split.
+    Refined based on user feedback.
     """
     is_promo = getattr(product, 'is_on_special', False)
     split_x = int(width * 0.45)
@@ -234,31 +235,10 @@ def template_v3(image, draw, product, width, height, color_scheme):
     safe_pad = 8
     left_zone_w = split_x - (safe_pad * 2)
 
-    # 1. DRAW PRODUCT NAME (Left Top)
-    name_text = product.name.upper()
-    wrapper = textwrap.TextWrapper(width=14)
-    lines = wrapper.wrap(text=name_text)[:3]
-
-    if lines:
-        # Start with a larger font size and let it scale down to fit the zone
-        initial_font_size = 22
-        longest_line = max(lines, key=len)
-        max_h_total = height * 0.40
-        max_h_per_line = max_h_total / len(lines)
-
-        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "bold")
-
-        bbox = draw.textbbox((0, 0), "Ay", font=n_font)
-        line_height = bbox[3] - bbox[1] + 2
-
-        curr_y = 20
-        for line in lines:
-            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
-            curr_y += line_height
-
-    # 2. DRAW BARCODE (Left Bottom)
+    # 1. DRAW BARCODE & SKU (Left Bottom First - to calculate remaining space)
+    barcode_h = int(height * 0.18)
     try:
-        barcode_w, barcode_h = int(left_zone_w * 0.95), int(height * 0.18)
+        barcode_w = int(left_zone_w * 0.95)
         raw_sku_data = str(product.sku)
         code128 = barcode.get_barcode_class('code128')
         ean = code128(raw_sku_data, writer=ImageWriter())
@@ -266,26 +246,51 @@ def template_v3(image, draw, product, width, height, color_scheme):
         b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
         b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
 
-        barcode_y = height - barcode_h - 15
+        barcode_y = height - barcode_h - 22 # Lifted up to give SKU label room
         image.paste(b_img, (safe_pad, barcode_y), b_img)
 
         display_text = f"{product.sku}"
-        s_font = get_dynamic_font_size(display_text, left_zone_w, 14, 12, "condensed")
+        # Increased font size for SKU bottom
+        s_font = get_dynamic_font_size(display_text, left_zone_w, 20, 18, "condensed")
         draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
     except Exception as e:
         logger.error(f"Barcode error (V3): {e}")
 
+    # 2. DRAW PRODUCT NAME (Left Top/Center)
+    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
+    full_name_text = f"{supp_abbr}:{product.name.upper()}" if supp_abbr else product.name.upper()
+
+    wrapper = textwrap.TextWrapper(width=14)
+    lines = wrapper.wrap(text=full_name_text)[:4]
+
+    if lines:
+        # Utilize the space from top till the barcode
+        max_h_total = barcode_y - 10
+        max_h_per_line = max_h_total / len(lines)
+        initial_font_size = 28
+        longest_line = max(lines, key=len)
+
+        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "bold")
+
+        bbox = draw.textbbox((0, 0), "Ay", font=n_font)
+        line_height = bbox[3] - bbox[1] + 2
+
+        # Center the block of text vertically in the available space
+        total_text_h = line_height * len(lines)
+        curr_y = (max_h_total - total_text_h) // 2 + 5
+
+        for line in lines:
+            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
+            curr_y += line_height
+
     # 3. PROMO SECTION (Right Side Top)
     if is_promo:
         try:
-            tag_color = "black"
-            if 'Y' in color_scheme: tag_color = "red" # User wants RED for BWR/BWRY
-            elif 'R' in color_scheme: tag_color = "red"
-
+            tag_color = "red" if ('R' in color_scheme or 'Y' in color_scheme) else "black"
             icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
 
             sale_text = "SALE!"
-            sale_font = get_font_by_type(30, "bold") # Larger font as requested
+            sale_font = get_font_by_type(32, "bold")
             sale_bbox = draw.textbbox((0, 0), sale_text, font=sale_font)
             sale_w = sale_bbox[2] - sale_bbox[0]
             sale_h = sale_bbox[3] - sale_bbox[1]
@@ -305,16 +310,18 @@ def template_v3(image, draw, product, width, height, color_scheme):
         except Exception as e:
             logger.error(f"Error drawing pricetag icon (V3): {e}")
 
-    # 4. PRICE SECTION (Right Side Bottom)
+    # 4. PRICE SECTION (Right Side Bottom or Center)
     price_str = f"${product.price}"
-    # Use condensed font and increase size
     price_font = get_dynamic_font_size(price_str, (width - split_x) - 10, height // 2, 65, "condensed")
-    draw.text((split_x + (width - split_x)//2, height - 35), price_str, fill=(0,0,0), font=price_font, anchor="mm")
 
-    # Supplier/SKU at top left (small)
-    supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
-    sku_top_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
-    draw.text((safe_pad, 4), sku_top_text, fill=(0,0,0), font=get_font_by_type(10, "bold"))
+    p_color = (255, 0, 0) if ('R' in color_scheme or 'Y' in color_scheme) else (0,0,0)
+
+    if is_promo:
+        p_y = height - 35
+    else:
+        p_y = height // 2 # Center vertically for non-promo tags
+
+    draw.text((split_x + (width - split_x)//2, p_y), price_str, fill=p_color, font=price_font, anchor="mm")
 
 def generate_esl_image(tag_id, tag_instance=None):
     """
