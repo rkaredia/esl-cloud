@@ -222,7 +222,7 @@ def template_v3(image, draw, product, width, height, color_scheme):
     """
     LAYOUT: MODERN / CLEAN (V3)
     ---------------------------
-    Uses white space and a clean vertical split.
+    Uses white space and a clean vertical split with a colored pricetag icon.
     """
     is_promo = getattr(product, 'is_on_special', False)
     split_x = int(width * 0.45)
@@ -232,6 +232,28 @@ def template_v3(image, draw, product, width, height, color_scheme):
     if not product: return
 
     safe_pad = 8
+
+    # 1. DRAW PRICETAG ICON (Top Right of Left Section)
+    try:
+        tag_color = "black"
+        if 'Y' in color_scheme: tag_color = "yellow"
+        elif 'R' in color_scheme: tag_color = "red"
+
+        icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
+        if os.path.exists(icon_path):
+            icon = Image.open(icon_path).convert("RGBA")
+            # Dynamic sizing based on height (approx 30% of tag height)
+            icon_h = int(height * 0.30)
+            icon_w = int(icon.width * (icon_h / icon.height))
+            icon = icon.resize((icon_w, icon_h), Image.Resampling.LANCZOS)
+
+            # Position at top right of the white section
+            icon_x = split_x - icon_w - 4
+            icon_y = 4
+            image.paste(icon, (icon_x, icon_y), icon)
+    except Exception as e:
+        logger.error(f"Error drawing pricetag icon: {e}")
+
     supp_abbr = product.preferred_supplier.abbreviation if product.preferred_supplier else ""
     sku_text = f"{supp_abbr}: {product.sku}" if supp_abbr else f"{product.sku}"
     draw.text((safe_pad, safe_pad), sku_text, fill=(0,0,0), font=get_font_by_type(10, "bold"))
