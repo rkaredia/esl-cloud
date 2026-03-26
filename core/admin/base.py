@@ -102,13 +102,14 @@ class SAISAdminSite(admin.AdminSite):
             tag_stats = tags_qs.aggregate(
                 total=Count('id'),
                 low_battery=Count('id', filter=Q(battery_level__lte=20)),
+                critical_battery=Count('id', filter=Q(battery_level__lte=5)),
                 with_products=Count('id', filter=Q(paired_product__isnull=False)),
                 success=Count('id', filter=Q(sync_state='SUCCESS')),
                 pushed=Count('id', filter=Q(sync_state='PUSHED')),
                 ready=Count('id', filter=Q(sync_state='IMAGE_READY')),
                 processing=Count('id', filter=Q(sync_state='PROCESSING')),
                 idle=Count('id', filter=Q(sync_state='IDLE')),
-                failed_total=Count('id', filter=Q(Q(sync_state__contains='FAILED') | Q(sync_state='FAILED'))),
+                failed_total=Count('id', filter=Q(sync_state='FAILED')),
                 gen_failed=Count('id', filter=Q(sync_state='GEN_FAILED')),
                 push_failed=Count('id', filter=Q(sync_state='PUSH_FAILED')),
             )
@@ -149,6 +150,7 @@ class SAISAdminSite(admin.AdminSite):
                 'tag_count': tag_count,
                 'tags_with_products': tag_stats['with_products'],
                 'low_battery_count': tag_stats['low_battery'],
+                'critical_battery_count': tag_stats['critical_battery'],
                 'product_count': products_qs.count(),
                 'tag_types': tag_types,
                 'gateway_loads': gateway_loads,
@@ -158,9 +160,10 @@ class SAISAdminSite(admin.AdminSite):
                     'ready': tag_stats['ready'],
                     'processing': tag_stats['processing'],
                     'idle': tag_stats['idle'],
-                    'failed_total': tag_stats['failed_total'],
+                    'failed': tag_stats['failed_total'],
                     'gen_failed': tag_stats['gen_failed'],
                     'push_failed': tag_stats['push_failed'],
+                    'failed': tag_stats['failed_total'],
                 }
             }
 
@@ -516,7 +519,7 @@ class UIHelperMixin:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync 🔄</a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"

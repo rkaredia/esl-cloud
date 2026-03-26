@@ -102,8 +102,29 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     direction_indicator.short_description = "Dir"
 
     def status_indicator(self, obj):
-        color = "#059669" if obj.is_success else "#dc2626"
-        text = "SUCCESS" if obj.is_success else "FAILURE"
+        if obj.is_success:
+            color = "#059669" # Green
+            text = "SUCCESS"
+        else:
+            # Check if it's a partial failure (some tags succeeded, some failed)
+            is_partial = False
+            if obj.topic.endswith("/result"):
+                try:
+                    data = json.loads(obj.data)
+                    if isinstance(data, list) and len(data) >= 5 and isinstance(data[4], list):
+                        status_codes = [tr[4] for tr in data[4] if isinstance(tr, list) and len(tr) >= 5]
+                        success_count = sum(1 for s in status_codes if s == 1 or s == 128)
+                        if success_count > 0 and success_count < len(status_codes):
+                            is_partial = True
+                except: pass
+
+            if is_partial:
+                color = "#f59e0b" # Amber/Orange
+                text = "PARTIAL FAILURE"
+            else:
+                color = "#dc2626" # Red
+                text = "FAILURE"
+
         return format_html('<span style="color: {}; font-weight: bold;"><span aria-hidden="true">●</span> {}</span>', color, text)
     status_indicator.short_description = "Status"
 
@@ -111,32 +132,63 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         """
         Extracts and displays the ESL Tag ID from the payload.
         Handles complex nested hardware lists and dictionary formats.
+        For result messages, it appends the status to each tag ID.
         """
-        def find_tag_id(item):
-            """Recursive search for the first 12-char hex string (MAC address)."""
-            if isinstance(item, (str, bytes)):
-                val = item.decode('utf-8', errors='ignore') if isinstance(item, bytes) else item
-                # ESL Tags use 12-character hex MACs (e.g., '390000F41F5F')
-                clean = val.replace(':', '').upper()
-                if len(clean) == 12 and all(c in '0123456789ABCDEF' for c in clean):
-                    return clean
-            elif isinstance(item, list):
-                for sub in item:
-                    found = find_tag_id(sub)
-                    if found: return found
-            elif isinstance(item, dict):
-                # Check common keys first
-                for key in ['TagId', 'tag_id', 'Tags']:
-                    found = find_tag_id(item.get(key))
-                    if found: return found
-                # Then check all values
-                for val in item.values():
-                    found = find_tag_id(val)
-                    if found: return found
+        def clean_mac(val):
+            if not isinstance(val, (str, bytes)): return None
+            s = val.decode('utf-8', errors='ignore') if isinstance(val, bytes) else val
+            c = s.replace(':', '').upper()
+            if len(c) == 12 and all(char in '0123456789ABCDEF' for char in c):
+                return c
             return None
 
         try:
             data = json.loads(obj.data)
+            tags_with_status = []
+
+            # SPECIAL CASE: Result topic with potentially multiple tags
+            if obj.topic.endswith("/result"):
+                if isinstance(data, list):
+                    # Multi-tag format: [Port, Wait, Send, Msg, [Tags]]
+                    if len(data) >= 5 and isinstance(data[4], list):
+                        for tr in data[4]:
+                            if isinstance(tr, list) and len(tr) >= 5:
+                                mac = clean_mac(tr[0])
+                                if mac:
+                                    status = "Success" if (tr[4] == 1 or tr[4] == 128) else "Failure"
+                                    tags_with_status.append(f"{mac}-{status}")
+                    # Single-tag format: [TagID, Rf, Batt, Ver, Status, ...]
+                    else:
+                        d = data[0] if len(data) == 1 and isinstance(data[0], list) else data
+                        if isinstance(d, list) and len(d) >= 5:
+                            mac = clean_mac(d[0])
+                            if mac:
+                                status = "Success" if (d[4] == 1 or d[4] == 128) else "Failure"
+                                tags_with_status.append(f"{mac}-{status}")
+
+            if tags_with_status:
+                html_items = [format_html('<code style="font-weight: bold; color: {};">{}</code>',
+                                         "#059669" if "Success" in ts else "#dc2626", ts)
+                              for ts in tags_with_status]
+                return format_html(", ".join(["{}"] * len(html_items)), *html_items)
+
+            # FALLBACK: Recursive search for any tag ID (for other topics)
+            def find_tag_id(item):
+                mac = clean_mac(item)
+                if mac: return mac
+                if isinstance(item, list):
+                    for sub in item:
+                        found = find_tag_id(sub)
+                        if found: return found
+                elif isinstance(item, dict):
+                    for key in ['TagId', 'tag_id', 'Tags']:
+                        found = find_tag_id(item.get(key))
+                        if found: return found
+                    for val in item.values():
+                        found = find_tag_id(val)
+                        if found: return found
+                return None
+
             tag_id = find_tag_id(data)
             if tag_id:
                 return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', tag_id)

@@ -209,6 +209,42 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.placeholder += ' [/]';
     }
 
+    // 6. MAC ADDRESS CLICK-TO-COPY
+    // Streamlines hardware management by allowing users to quickly copy IDs.
+    document.addEventListener('click', function(e) {
+        const macField = e.target.closest('.field-tag_mac, .field-gateway_mac');
+        if (macField && !e.target.closest('a')) {
+            const macAddress = macField.innerText.trim();
+            if (macAddress && macAddress !== '-') {
+                navigator.clipboard.writeText(macAddress).then(() => {
+                    const originalContent = macField.innerHTML;
+                    macField.style.width = macField.offsetWidth + 'px'; // Prevent layout shift
+                    macField.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+                    setTimeout(() => {
+                        macField.innerHTML = originalContent;
+                    }, 1000);
+                });
+            }
+        }
+    });
+
+    // Add visual cue for copyable fields
+    const style = document.createElement('style');
+    style.textContent = `
+        .field-tag_mac, .field-gateway_mac {
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+        .field-tag_mac:hover, .field-gateway_mac:hover {
+            background-color: #f1f5f9 !important;
+        }
+        .field-tag_mac:active, .field-gateway_mac:active {
+            background-color: #e2e8f0 !important;
+        }
+    `;
+    document.head.appendChild(style);
+
     document.addEventListener('keydown', function(e) {
         // Rule: Ignore shortcuts if the user is currently typing in a text box
         const active = document.activeElement;
