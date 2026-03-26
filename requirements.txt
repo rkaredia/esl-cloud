@@ -1,5 +1,5 @@
 django==5.1.5           #Main app
-pillow==11.1.0          #Image processing
+pillow==12.1.1          #Image processing
 openpyxl==3.1.5         #Read write XLX
 paho-mqtt==2.1.0        #MQTT brocker
 psycopg2-binary==2.9.10 #PostgreSQL database adapter 
