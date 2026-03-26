@@ -211,7 +211,11 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         ('Audit', {'fields': ('updated_by', 'updated_at', 'created_at')}),
     )
 
-    actions = ['safe_delete', 'safe_regenerate_images', 'refresh_all_store_tags', 'set_template_v1', 'set_template_v2']
+    actions = [
+        'safe_regenerate_images', 'refresh_all_store_tags',
+        'set_all_template_v1', 'set_all_template_v2', 'set_all_template_v3',
+        'safe_delete'
+    ]
 
     def get_queryset(self, request):
         """Optimize performance by prefetching related objects and adding custom sorting."""
@@ -329,7 +333,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         if 'delete_selected' in actions: del actions['delete_selected']
         return actions
 
-    @admin.action(description="Regenerate selected (Max 100)")
+    @admin.action(description="Refresh selected (Max 100)")
     def safe_regenerate_images(self, request, queryset):
         try:
             count = queryset.count()
@@ -337,17 +341,17 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
                 self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
                 return
             for tag in queryset: update_tag_image_task.delay(tag.id)
-            self.message_user(request, f"Queued {count} tags for regeneration.")
+            self.message_user(request, f"Queued {count} tags for refresh.")
         except Exception as e:
             logger.exception("Error in safe_regenerate_images")
-            self.message_user(request, "Failed to queue regeneration.", messages.ERROR)
+            self.message_user(request, "Failed to queue refresh.", messages.ERROR)
 
-    @admin.action(description="Delete selected (Max 100)")
+    @admin.action(description="Delete selected tags (Max 100)")
     def safe_delete(self, request, queryset):
         try:
             count = queryset.count()
             if count > 100:
-                self.message_user(request, "Error: Max 100 items allowed.", messages.ERROR)
+                self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
                 return
             queryset.delete()
             self.message_user(request, f"Deleted {count} tags.")
@@ -355,7 +359,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             logger.exception("Error in safe_delete action")
             self.message_user(request, "Technical error during deletion.", messages.ERROR)
 
-    @admin.action(description="Refresh ALL tags in Store")
+    @admin.action(description="Refresh ALL Images")
     def refresh_all_store_tags(self, request, queryset):
         try:
             if not request.active_store:
@@ -363,30 +367,58 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
                 return
             tags = ESLTag.objects.for_store(request.active_store).filter(paired_product__isnull=False)
             count = tags.count()
-            for tag in tags[:200]: update_tag_image_task.delay(tag.id)
-            self.message_user(request, f"Queued refresh for {min(count, 200)} tags.")
+            # Safety limit: max 500 for ALL refresh to prevent queue flooding
+            for tag in tags[:500]: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Queued refresh for {min(count, 500)} tags in {request.active_store.name}.")
         except Exception as e:
             logger.exception("Error in refresh_all_store_tags")
-            self.message_user(request, "Failed to trigger store refresh.", messages.ERROR)
+            self.message_user(request, "Failed to trigger image refresh.", messages.ERROR)
 
-    @admin.action(description="Set template to Standard (V1)")
-    def set_template_v1(self, request, queryset):
+    @admin.action(description="Set ALL Image Template - V1")
+    def set_all_template_v1(self, request, queryset):
         try:
-            count = queryset.count()
-            queryset.update(template_id=1)
-            for tag in queryset: update_tag_image_task.delay(tag.id)
-            self.message_user(request, f"Updated {count} tags to V1 and queued sync.")
+            if not request.active_store:
+                self.message_user(request, "Please select a store first.", messages.WARNING)
+                return
+            tags = ESLTag.objects.for_store(request.active_store)
+            count = tags.count()
+            tags.update(template_id=1)
+            # Sync only tags with products
+            sync_tags = tags.filter(paired_product__isnull=False)
+            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Updated {count} tags to V1 and queued sync for paired tags.")
         except Exception as e:
-            logger.exception("Error in set_template_v1")
+            logger.exception("Error in set_all_template_v1")
             self.message_user(request, "Error updating templates.", messages.ERROR)
 
-    @admin.action(description="Set template to High-Visibility (V2)")
-    def set_template_v2(self, request, queryset):
+    @admin.action(description="Set ALL Image Template - V2")
+    def set_all_template_v2(self, request, queryset):
         try:
-            count = queryset.count()
-            queryset.update(template_id=2)
-            for tag in queryset: update_tag_image_task.delay(tag.id)
-            self.message_user(request, f"Updated {count} tags to V2 and queued sync.")
+            if not request.active_store:
+                self.message_user(request, "Please select a store first.", messages.WARNING)
+                return
+            tags = ESLTag.objects.for_store(request.active_store)
+            count = tags.count()
+            tags.update(template_id=2)
+            sync_tags = tags.filter(paired_product__isnull=False)
+            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Updated {count} tags to V2 and queued sync for paired tags.")
         except Exception as e:
-            logger.exception("Error in set_template_v2")
+            logger.exception("Error in set_all_template_v2")
+            self.message_user(request, "Error updating templates.", messages.ERROR)
+
+    @admin.action(description="Set ALL Image Template - V3")
+    def set_all_template_v3(self, request, queryset):
+        try:
+            if not request.active_store:
+                self.message_user(request, "Please select a store first.", messages.WARNING)
+                return
+            tags = ESLTag.objects.for_store(request.active_store)
+            count = tags.count()
+            tags.update(template_id=3)
+            sync_tags = tags.filter(paired_product__isnull=False)
+            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            self.message_user(request, f"Updated {count} tags to V3 and queued sync for paired tags.")
+        except Exception as e:
+            logger.exception("Error in set_all_template_v3")
             self.message_user(request, "Error updating templates.", messages.ERROR)

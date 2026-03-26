@@ -1,68 +1,172 @@
 {% extends "admin/base_site.html" %}
 
-{#
-   TEMPLATE DESIGN LAB
-   -------------------
-   A developer tool to visualize how the different rendering templates
-   look across all supported hardware models (Tag Specs).
-
-   It dynamically calls the 'mock_render_view' for every combination
-   of spec, template ID, and promo status.
-#}
+{% block extrastyle %}
+    {{ block.super }}
+    {{ custom_admin_css }}
+{% endblock %}
 
 {% block content %}
 <style>
-    .gallery-container { display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; background: #f4f4f4; }
-    .card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; width: fit-content; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .card h3 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-    .preview-box { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+    .gallery-page-wrapper {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .gallery-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        margin-top: 24px;
+    }
+    .card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        width: fit-content;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease-in-out;
+    }
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .card h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: var(--navy, #003459);
+        font-size: 20px;
+        font-weight: 800;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 12px;
+        letter-spacing: -0.025em;
+    }
+    .preview-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+    .template-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+    }
     .preview-item { text-align: center; }
-    .preview-item p { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #666; }
-    .esl-img { border: 1px solid #000; display: block; max-width: 100%; height: auto; background: #eee; }
-    .refresh-bar { margin-bottom: 20px; background: #fff; padding: 10px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
-    .btn-refresh { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    .btn-refresh:hover { background: #1d4ed8; }
+    .preview-item p {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        color: #64748b;
+        letter-spacing: 0.05em;
+    }
+    .esl-img {
+        border: 1px solid #e2e8f0;
+        display: block;
+        max-width: 100%;
+        height: auto;
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .refresh-bar {
+        background: #fff;
+        padding: 16px 24px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    .refresh-bar strong {
+        font-size: 16px;
+        color: var(--navy, #003459);
+    }
+    .btn-refresh {
+        background: var(--primary-blue, #2563eb);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-refresh:hover {
+        background: #1d4ed8;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
 </style>
 
-<div class="refresh-bar">
-    <strong>Design Lab:</strong> Use this page to verify how templates render across different screen sizes and color schemes.
-    <button class="btn-refresh" onclick="refreshImages()">Force Refresh All Previews</button>
-</div>
+<div class="gallery-page-wrapper">
+    <h1 style="font-size: 28px; font-weight: 800; color: var(--navy, #003459); margin-bottom: 24px; letter-spacing: -0.025em; display: flex; align-items: center; gap: 12px;">
+        Template Design Lab <span style="font-weight: 400; color: #94a3b8;" aria-hidden="true">/</span> <span style="color: #64748b; font-size: 20px;">Visual Gallery</span>
+    </h1>
 
-<div class="gallery-container">
-    {# Loop through all Hardware Specs (e.g., Mi 05, Mi 21, etc.) #}
-    {% for spec in specs %}
-    <div class="card">
-        <h3>{{ spec.model_number }} ({{ spec.width_px }}x{{ spec.height_px }} - {{ spec.color_scheme }})</h3>
-        
-        <div class="preview-box">
-            {#
-               The 'src' URLs below call a Python view that generates
-               a mock PNG on the fly.
-            #}
+    <div class="refresh-bar">
+        <div>
+            <strong style="display: block; margin-bottom: 4px;">Hardware Preview Engine</strong>
+            <span style="color: #64748b; font-size: 13px;">Verify rendering across different screen sizes and color schemes.</span>
+        </div>
+        <button class="btn-refresh" onclick="refreshImages()">
+            Force Refresh All Previews <span style="font-size: 16px;">🔄</span>
+        </button>
+    </div>
 
-            <!-- Template 1: Standard Split -->
-            <div class="preview-item">
-                <p>V1 Standard</p>
-                 <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=false" alt="V1 Std">
-            </div>
-            <div class="preview-item">
-                <p>V1 Promo</p>
-                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=true" alt="V1 Promo">
-            </div>
+    <div class="gallery-container">
+        {# Loop through all Hardware Specs (e.g., Mi 05, Mi 21, etc.) #}
+        {% for spec in specs %}
+        <div class="card">
+            <h3>{{ spec.model_number }} ({{ spec.width_px }}x{{ spec.height_px }} - {{ spec.color_scheme }})</h3>
             
-            <!-- Template 2: Large Price -->
-            <div class="preview-item">
-                <p>V2 Standard</p>
-                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=false" alt="V2 Std">
-            </div>
-            <div class="preview-item">
-                <p>V2 Promo</p>
-                <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=true" alt="V2 Promo">
+            <div class="preview-grid">
+                <!-- Template V1 -->
+                <div class="template-row">
+                    <div class="preview-item">
+                        <p>Template V1 Standard</p>
+                         <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=false" alt="V1 Std">
+                    </div>
+                    <div class="preview-item">
+                        <p>Template V1 Special</p>
+                        <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=1&promo=true" alt="V1 Special">
+                    </div>
+                </div>
+
+                <!-- Template V2 -->
+                <div class="template-row">
+                    <div class="preview-item">
+                        <p>Template V2 Standard</p>
+                        <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=false" alt="V2 Std">
+                    </div>
+                    <div class="preview-item">
+                        <p>Template V2 Special</p>
+                        <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=2&promo=true" alt="V2 Special">
+                    </div>
+                </div>
+
+                <!-- Template V3 -->
+                <div class="template-row">
+                    <div class="preview-item">
+                        <p>Template V3 Standard</p>
+                        <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=3&promo=false" alt="V3 Std">
+                    </div>
+                    <div class="preview-item">
+                        <p>Template V3 Special</p>
+                        <img class="esl-img" src="{% url 'sais_admin:template-render' spec.id %}?t=3&promo=true" alt="V3 Special">
+                    </div>
+                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
 <script>
