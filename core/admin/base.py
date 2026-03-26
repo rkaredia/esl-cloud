@@ -158,7 +158,7 @@ class SAISAdminSite(admin.AdminSite):
                     'ready': tag_stats['ready'],
                     'processing': tag_stats['processing'],
                     'idle': tag_stats['idle'],
-                    'failed_total': tag_stats['failed_total'],
+                    'failed': tag_stats['failed_total'],
                     'gen_failed': tag_stats['gen_failed'],
                     'push_failed': tag_stats['push_failed'],
                 }

@@ -68,7 +68,7 @@ class MultiTagResultTest(TestCase):
         self.tag2.refresh_from_db()
 
         self.assertEqual(self.tag1.sync_state, 'SUCCESS')
-        self.assertEqual(self.tag2.sync_state, 'FAILED')
+        self.assertEqual(self.tag2.sync_state, 'PUSH_FAILED')
 
         # Check MQTTMessage log - Overall should be failure if any tag failed
         log = MQTTMessage.objects.first()
@@ -89,8 +89,8 @@ class MultiTagResultTest(TestCase):
         self.tag1.refresh_from_db()
         self.tag2.refresh_from_db()
 
-        self.assertEqual(self.tag1.sync_state, 'FAILED')
-        self.assertEqual(self.tag2.sync_state, 'FAILED')
+        self.assertEqual(self.tag1.sync_state, 'PUSH_FAILED')
+        self.assertEqual(self.tag2.sync_state, 'PUSH_FAILED')
 
         log = MQTTMessage.objects.first()
         self.assertFalse(log.is_success)

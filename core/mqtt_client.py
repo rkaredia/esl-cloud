@@ -250,7 +250,7 @@ class ESLMqttClient:
 
                     battery_pct = self._calculate_battery_percentage(res['battery_raw'])
                     update_fields = {
-                        'sync_state': 'SUCCESS' if is_success else 'FAILED',
+                        'sync_state': 'SUCCESS' if is_success else 'PUSH_FAILED',
                         'updated_at': timezone.now()
                     }
                     if battery_pct is not None:
