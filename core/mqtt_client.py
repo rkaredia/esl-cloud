@@ -576,7 +576,8 @@ class ESLMqttClient:
 
             import base64
             # 0. Clean Tag MAC (Remove colons and UPPERCASE to match hardware expectation)
-            clean_mac = tag_mac.replace(':', '').upper()
+            # STRIP WHITESPACE to prevent incorrect ID lengths
+            clean_mac = tag_mac.replace(':', '').strip().upper()
 
             # 1. Base64 encode the BMP image
             image_b64 = base64.b64encode(image_bytes).decode('utf-8')

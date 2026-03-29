@@ -497,6 +497,10 @@ class ESLTag(AuditModel):
         ------------------
         Ensures data integrity (Store inheritance) and detects pairing changes.
         """
+        # Normalize MAC Address to UPPERCASE (Fixes Case Sensitivity issues)
+        if self.tag_mac:
+            self.tag_mac = self.tag_mac.strip().upper()
+
         # Rule: If a tag is assigned to a gateway, it must inherit that gateway's store.
         if self.gateway and not self.store:
             self.store = self.gateway.store

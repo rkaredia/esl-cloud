@@ -137,8 +137,9 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         def clean_mac(val):
             if not isinstance(val, (str, bytes)): return None
             s = val.decode('utf-8', errors='ignore') if isinstance(val, bytes) else val
-            c = s.replace(':', '').upper()
-            if len(c) == 12 and all(char in '0123456789ABCDEF' for char in c):
+            c = s.replace(':', '').strip().upper()
+            # Relaxed validation: Support tag IDs of various lengths (e.g. 10 or 12 chars)
+            if 8 <= len(c) <= 20 and all(char in '0123456789ABCDEF' for char in c):
                 return c
             return None
 

@@ -207,6 +207,9 @@ def process_gateway_queue_task(gateway_id):
             # Re-fetch tag to ensure we have the latest state within the inner try
             tag.refresh_from_db()
 
+            # Ensure MAC is uppercase for hardware communication
+            tag_mac = tag.tag_mac.upper()
+
             if not tag.tag_image:
                  logger.error(f"Tag {tag.tag_mac} in queue has no image.")
                  ESLTag.objects.filter(pk=tag.pk).update(sync_state='GEN_FAILED')
@@ -218,9 +221,9 @@ def process_gateway_queue_task(gateway_id):
                 base_token = (tag.last_image_task_token or 0) & 0x3FFF
                 token = ((tag.retry_count & 0x03) << 14) | base_token
 
-                logger.info(f"Pushing tag {tag.tag_mac} to {gateway_id} | Token: {token} | Retry: {tag.retry_count}")
+                logger.info(f"Pushing tag {tag_mac} to {gateway_id} | Token: {token} | Retry: {tag.retry_count}")
 
-                success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
+                success = mqtt_service.publish_tag_update(gateway_id, tag_mac, image_bytes, token)
 
                 if success:
                     ESLTag.objects.filter(pk=tag.pk).update(
