@@ -413,6 +413,7 @@ class GlobalSettingAdmin(admin.ModelAdmin):
     }
 
     # PERMISSIONS: Only Superusers can see/touch global settings
+    # Restrict to Edit-Only for existing entries. No add or delete allowed.
     def has_module_permission(self, request):
         return request.user.is_superuser
 
@@ -420,13 +421,20 @@ class GlobalSettingAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
     def has_add_permission(self, request):
-        return request.user.is_superuser
+        return False # No manual creation
 
     def has_change_permission(self, request, obj=None):
         return request.user.is_superuser
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser
+        return False # No manual deletion
+
+    def get_actions(self, request):
+        """Remove 'Delete selected' from the list view actions."""
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
 # =================================================================
 # SECURITY & AUDIT MIXINS
