@@ -51,6 +51,8 @@ def update_tag_image_task(self, tag_id, is_retry=False):
         if not is_retry:
             base_token = random.randint(0, 16383)
             ESLTag.objects.filter(pk=tag_id).update(retry_count=0, last_image_task_token=base_token, sync_state='PROCESSING')
+        else:
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PROCESSING')
 
         # DATA PREFETCHING
         tag = ESLTag.objects.select_related(
@@ -102,9 +104,12 @@ def update_tag_image_task(self, tag_id, is_retry=False):
 def trigger_gateway_processing(gateway_id):
     """Ensures a worker is processing the queue for this gateway."""
     lock_key = f"gateway_proc_lock_{gateway_id}"
-    # Lock for 60 seconds
-    if cache.add(lock_key, "locked", 60):
+    # Use a specific value to identify the active task
+    if cache.add(lock_key, "active", 60):
+        logger.info(f"Triggering new queue processor for gateway {gateway_id}")
         process_gateway_queue_task.delay(gateway_id)
+    else:
+        logger.debug(f"Queue processor already active for gateway {gateway_id}")
 
 @shared_task(name="core.tasks.dispatch_tag_image_task")
 def dispatch_tag_image_task(tag_id):
@@ -170,17 +175,18 @@ def process_gateway_queue_task(gateway_id):
     STAGE 3: SERIALIZED DELIVERY
     ----------------------------
     Processes tags for a specific gateway one by one with a 500ms delay.
+    Ensures strict serialization and one-at-a-time delivery.
     """
     from django.db import transaction
     lock_key = f"gateway_proc_lock_{gateway_id}"
 
-    # 1. Extend the lock to prevent other workers from jumping in
-    cache.set(lock_key, "locked", 60)
+    # 1. Maintain the lock to prevent other workers from starting a parallel loop
+    cache.set(lock_key, "active", 60)
 
+    tag_processed = False
     try:
         tag = None
         # 2. Find and LOCK the next tag in the queue for THIS gateway
-        # Using select_for_update prevents two tasks from picking the same tag.
         with transaction.atomic():
             tag = ESLTag.objects.select_for_update(skip_locked=True).filter(
                 gateway__estation_id=gateway_id,
@@ -188,51 +194,59 @@ def process_gateway_queue_task(gateway_id):
             ).order_by('updated_at').first()
 
             if not tag:
-                logger.debug(f"Queue for gateway {gateway_id} is empty. Releasing lock.")
+                logger.info(f"Queue for gateway {gateway_id} is empty. Terminating loop.")
                 cache.delete(lock_key)
                 return "Queue empty"
 
-            # Mark as 'PROCESSING' immediately so no other concurrent process picks it up
-            # even if skip_locked wasn't supported (it is in Postgres, not SQLite).
+            # Mark as 'PROCESSING' immediately to claim it
             ESLTag.objects.filter(pk=tag.pk).update(sync_state='PROCESSING')
 
         # 3. Prepare and Send
+        tag_processed = True
         try:
-            with tag.tag_image.open('rb') as f:
-                image_bytes = f.read()
+            # Re-fetch tag to ensure we have the latest state within the inner try
+            tag.refresh_from_db()
 
-            # TOKEN LOGIC: 2 bits for retry, 14 bits for unique ID (base token)
-            # We preserve the base token across retries for robust matching in handle_result.
-            base_token = (tag.last_image_task_token or 0) & 0x3FFF
-            token = ((tag.retry_count & 0x03) << 14) | base_token
-
-            logger.info(f"Pushing tag {tag.tag_mac} via {gateway_id} (Retry: {tag.retry_count}, Token: {token})")
-
-            success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
-
-            if success:
-                ESLTag.objects.filter(pk=tag.pk).update(
-                    sync_state='PUSHED',
-                    last_image_task_token=token,
-                    last_pushed_at=timezone.now()
-                )
+            if not tag.tag_image:
+                 logger.error(f"Tag {tag.tag_mac} in queue has no image.")
+                 ESLTag.objects.filter(pk=tag.pk).update(sync_state='GEN_FAILED')
             else:
-                logger.warning(f"MQTT Publish failed for tag {tag.tag_mac}")
-                handle_tag_failure_task.delay(tag.id)
+                with tag.tag_image.open('rb') as f:
+                    image_bytes = f.read()
 
-        except Exception:
-            logger.exception(f"Error processing tag {tag.tag_mac} in gateway queue")
+                # TOKEN LOGIC: 2 bits for retry, 14 bits for unique ID
+                base_token = (tag.last_image_task_token or 0) & 0x3FFF
+                token = ((tag.retry_count & 0x03) << 14) | base_token
+
+                logger.info(f"Pushing tag {tag.tag_mac} to {gateway_id} | Token: {token} | Retry: {tag.retry_count}")
+
+                success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
+
+                if success:
+                    ESLTag.objects.filter(pk=tag.pk).update(
+                        sync_state='PUSHED',
+                        last_image_task_token=token,
+                        last_pushed_at=timezone.now()
+                    )
+                else:
+                    logger.warning(f"MQTT Publish failed for tag {tag.tag_mac}")
+                    handle_tag_failure_task.delay(tag.id)
+
+        except Exception as e:
+            logger.exception(f"Error processing tag {tag.tag_mac} in gateway queue: {str(e)}")
             handle_tag_failure_task.delay(tag.id)
 
-        # 4. Schedule next tag with 500ms delay ONLY AFTER this one is done.
-        # This guarantees the 500ms gap between MQTT messages.
-        process_gateway_queue_task.apply_async(args=[gateway_id], countdown=0.5)
-        return f"Processed {tag.tag_mac}, scheduled next with 500ms gap"
-
-    except Exception:
-        logger.exception(f"Critical error in process_gateway_queue_task for {gateway_id}")
-        cache.delete(lock_key)
-        raise
+    except Exception as e:
+        logger.exception(f"Critical error in process_gateway_queue_task for {gateway_id}: {str(e)}")
+        # If we didn't even pick a tag, release the lock so it can be re-triggered
+        if not tag_processed:
+            cache.delete(lock_key)
+        raise e
+    finally:
+        # 4. ALWAYS schedule the next check after 500ms if we were in the middle of a loop
+        # This ensures the 500ms gap and that the loop continues even after errors.
+        if tag_processed:
+            process_gateway_queue_task.apply_async(args=[gateway_id], countdown=0.5)
 
 @shared_task(name="core.tasks.handle_tag_failure_task")
 def handle_tag_failure_task(tag_id):
@@ -368,6 +382,12 @@ def check_gateways_status_task():
 
         if count_tag_timeouts > 0:
             logger.info(f"Triggered retry for {count_tag_timeouts} tags due to 60s timeout.")
+
+        # NEW: Restart stalled queues (in case a worker died)
+        # We look for any tag in 'IMAGE_READY' state and ensure its gateway's queue is active.
+        gateways_with_pending = list(Gateway.objects.filter(tags__sync_state='IMAGE_READY').values_list('estation_id', flat=True).distinct())
+        for gw_id in gateways_with_pending:
+            trigger_gateway_processing(gw_id)
 
         return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."
     except Exception:

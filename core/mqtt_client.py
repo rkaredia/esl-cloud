@@ -226,53 +226,65 @@ class ESLMqttClient:
             from django.db.models.functions import Upper, Replace
             from django.db.models import Value
 
-            for res in tag_results:
-                tag_mac = res['tag_mac']
-                if not tag_mac: continue
-
-                clean_mac = tag_mac.replace(':', '').upper()
-                # Find the tag being updated (Isolated by the gateway's store)
-                tag = ESLTag.objects.filter(store=gateway.store).annotate(
+            # Pre-fetch tags for efficiency (Bulk Lookup)
+            macs_to_find = [r['tag_mac'].replace(':', '').upper() for r in tag_results if r.get('tag_mac')]
+            tags_map = {}
+            if macs_to_find:
+                db_tags = ESLTag.objects.filter(store=gateway.store).annotate(
                     clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
-                ).filter(clean_db_mac=clean_mac).first()
+                ).filter(clean_db_mac__in=macs_to_find)
+                for t in db_tags:
+                    tags_map[t.clean_db_mac] = t
 
-                if not tag:
-                    logger.warning(f"Result for unknown tag {tag_mac} in store {gateway.store}")
-                    continue
+            for res in tag_results:
+                try:
+                    tag_mac = res.get('tag_mac')
+                    if not tag_mac: continue
 
-                # Verify Token: We only update if the token matches the last task we sent
-                # Use a bitmask to extract the unique 14-bit ID from the 16-bit token
-                received_token_id = res['token'] & 0x3FFF
-                expected_token_id = (tag.last_image_task_token or 0) & 0x3FFF
+                    clean_mac = tag_mac.replace(':', '').upper()
+                    tag = tags_map.get(clean_mac)
 
-                if received_token_id == expected_token_id:
-                    status_code = res['status_code']
-                    # SUCCESS codes: 1 and 128 per hardware observation (0 is failure)
-                    is_success = (status_code == 1 or status_code == 128)
+                    if not tag:
+                        logger.warning(f"Result for unknown tag {tag_mac} in store {gateway.store}")
+                        continue
 
-                    battery_pct = self._calculate_battery_percentage(res['battery_raw'])
-                    update_fields = {
-                        'updated_at': timezone.now()
-                    }
-                    if battery_pct is not None:
-                        update_fields['battery_level'] = battery_pct
+                    # Verify Token
+                    received_token = res.get('token')
+                    if received_token is None:
+                        logger.warning(f"Tag {tag_mac} result has no token.")
+                        continue
 
-                    if is_success:
-                        update_fields['sync_state'] = 'SUCCESS'
-                        update_fields['last_successful_gateway_id'] = estation_id
-                        update_fields['retry_count'] = 0
-                        ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
-                        logger.info(f"Tag {tag_mac} sync result: SUCCESS (Batt: {update_fields.get('battery_level')}%)")
-                    else:
-                        from .tasks import handle_tag_failure_task
-                        # If failed, trigger retry logic instead of immediate PUSH_FAILED
+                    received_token_id = received_token & 0x3FFF
+                    expected_token_id = (tag.last_image_task_token or 0) & 0x3FFF
+
+                    if received_token_id == expected_token_id:
+                        status_code = res.get('status_code')
+                        is_success = (status_code == 1 or status_code == 128)
+
+                        # Check if this is the latest retry (for log clarity)
+                        received_retry_count = (received_token >> 14) & 0x03
+
+                        battery_pct = self._calculate_battery_percentage(res.get('battery_raw'))
+                        update_fields = {'updated_at': timezone.now()}
                         if battery_pct is not None:
-                             ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
+                            update_fields['battery_level'] = battery_pct
 
-                        handle_tag_failure_task.delay(tag.id)
-                        logger.warning(f"Tag {tag_mac} sync result: FAILED (Status: {status_code}). Triggering retry.")
-                else:
-                    logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {res['token']}")
+                        if is_success:
+                            update_fields['sync_state'] = 'SUCCESS'
+                            update_fields['last_successful_gateway_id'] = estation_id
+                            update_fields['retry_count'] = 0
+                            ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                            logger.info(f"Tag {tag_mac} sync: SUCCESS (Retry: {received_retry_count}, Batt: {battery_pct}%)")
+                        else:
+                            from .tasks import handle_tag_failure_task
+                            if battery_pct is not None:
+                                ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
+                            handle_tag_failure_task.delay(tag.id)
+                            logger.warning(f"Tag {tag_mac} sync: FAILED (Retry: {received_retry_count}, Code: {status_code})")
+                    else:
+                        logger.warning(f"Token mismatch {tag_mac}: Exp {expected_token_id}, Got {received_token_id}")
+                except Exception as e:
+                    logger.error(f"Error processing single tag result {res.get('tag_mac')}: {str(e)}")
 
         except Exception:
             logger.exception("Error handling MQTT result message")
