@@ -80,6 +80,51 @@ def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
 
     return get_font_by_type(best_size, font_type)
 
+def render_sharp_barcode(sku, max_w, max_h, quiet_zone_px=10):
+    """
+    PIXEL-PERFECT BARCODE GENERATOR
+    ------------------------------
+    Ensures each "bar" is an integer number of pixels to prevent
+    anti-aliasing/blur on E-ink screens.
+    """
+    code128 = barcode.get_barcode_class('code128')
+    try:
+        ean = code128(str(sku))
+        modules_list = ean.build()
+        full_code = "".join(modules_list)
+        num_modules = len(full_code)
+
+        # Calculate largest possible integer module width that fits in (max_w - 2 * quiet_zone_px)
+        # We start with quiet_zone_px and reduce it if necessary.
+        qz = quiet_zone_px
+        module_px = (max_w - 2 * qz) // num_modules
+
+        if module_px < 1:
+            # Try with a smaller quiet zone (2px)
+            qz = 2
+            module_px = (max_w - 2 * qz) // num_modules
+            if module_px < 1:
+                # Still doesn't fit? Force 1px modules and 0 quiet zone.
+                module_px = 1
+                qz = 0
+
+        barcode_w = num_modules * module_px
+        total_w = barcode_w + 2 * qz
+
+        img = Image.new('RGBA', (total_w, max_h), (255, 255, 255, 255))
+        draw = ImageDraw.Draw(img)
+
+        curr_x = qz
+        for char in full_code:
+            if char == '1':
+                draw.rectangle([curr_x, 0, curr_x + module_px - 1, max_h], fill=(0, 0, 0, 255))
+            curr_x += module_px
+
+        return img
+    except Exception as e:
+        logger.error(f"Sharp barcode error: {e}")
+        return None
+
 def template_v1(image, draw, product, width, height, color_scheme):
     """
     LAYOUT: STANDARD SPLIT (V1)
@@ -173,23 +218,23 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # 5. DRAW BARCODE (Left Bottom)
     try:
-        barcode_w, barcode_h = int(left_zone_w * 0.95), int(height * 0.25)
-        raw_sku_data = str(product.sku)
-        code128 = barcode.get_barcode_class('code128')
-        ean = code128(raw_sku_data, writer=ImageWriter())
+        barcode_h = int(height * 0.25)
+        # Use pixel-perfect barcode renderer with 10px quiet zone (approx 0.85mm at 300dpi)
+        # We increase the default to 10px to meet the "quiet zone" requirement
+        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
 
-        b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
-        b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
+        if b_img:
+            # Center the barcode in the left zone
+            barcode_x = safe_pad + (left_zone_w - b_img.width) // 2
+            barcode_y = height - barcode_h - 15
+            image.paste(b_img, (barcode_x, barcode_y), b_img)
 
-        barcode_y = height - barcode_h - 15
-        image.paste(b_img, (safe_pad, barcode_y), b_img)
-
-        display_text = f"{product.sku}"
-
-        s_font = get_dynamic_font_size(display_text, left_zone_w, 16, 14,  "condensed")
-        draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
+            display_text = f"{product.sku}"
+            s_font = get_dynamic_font_size(display_text, left_zone_w, 16, 14, "condensed")
+            # Center SKU text relative to the zone
+            draw.text((safe_pad + (left_zone_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
     except Exception as e:
-        logger.error(f"Barcode error: {e}")
+        logger.error(f"Barcode error (V1): {e}")
 
 def template_v2(image, draw, product, width, height, color_scheme):
     """
@@ -238,21 +283,21 @@ def template_v3(image, draw, product, width, height, color_scheme):
     # 1. DRAW BARCODE & SKU (Left Bottom First - to calculate remaining space)
     barcode_h = int(height * 0.18)
     try:
-        barcode_w = int(left_zone_w * 0.95)
-        raw_sku_data = str(product.sku)
-        code128 = barcode.get_barcode_class('code128')
-        ean = code128(raw_sku_data, writer=ImageWriter())
+        # Use pixel-perfect barcode renderer with 10px quiet zone
+        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
 
-        b_img = ean.render(writer_options={"write_text": False, "quiet_zone": 1})
-        b_img = b_img.resize((barcode_w, barcode_h), Image.NEAREST).convert("RGBA")
+        barcode_y = height - barcode_h - 22 # Default fallback position
 
-        barcode_y = height - barcode_h - 22 # Lifted up to give SKU label room
-        image.paste(b_img, (safe_pad, barcode_y), b_img)
+        if b_img:
+            barcode_x = safe_pad + (left_zone_w - b_img.width) // 2
+            barcode_y = height - barcode_h - 22 # Lifted up to give SKU label room
+            image.paste(b_img, (barcode_x, barcode_y), b_img)
 
         display_text = f"{product.sku}"
         # Increased font size for SKU bottom
         s_font = get_dynamic_font_size(display_text, left_zone_w, 20, 18, "condensed")
-        draw.text((safe_pad + (barcode_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
+        # Center SKU text relative to the zone
+        draw.text((safe_pad + (left_zone_w // 2), height - 2), display_text, fill=(0,0,0), font=s_font, anchor="mb")
     except Exception as e:
         logger.error(f"Barcode error (V3): {e}")
 
