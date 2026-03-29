@@ -209,8 +209,32 @@ def template_v1(image, draw, product, width, height, color_scheme):
     draw.text((split_x + (width - split_x)//2, height - 8), supp_abbr, fill=price_txt_col, font=supp_font, anchor="mb")
 
     if is_promo:
-        promo_font = get_dynamic_font_size("SPECIAL", p_box_w, 20, 20, "bold")
-        draw.text((split_x + (width - split_x)//2, 8), "SPECIAL", fill=price_txt_col, font=promo_font, anchor="mt")
+        try:
+            # Color logic for V1: Use white icon if price_bg is dark (Red or Black)
+            # price_bg is (255,0,0) for color tags or (0,0,0) for BW promo
+            is_dark_bg = (price_bg == (255,0,0) or price_bg == (0,0,0))
+            tag_color = "white" if is_dark_bg else "black"
+            icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
+
+            sale_text = "SALE!"
+            sale_font = get_font_by_type(18, "bold") # Slightly smaller for V1's narrower price box
+            sale_bbox = draw.textbbox((0, 0), sale_text, font=sale_font)
+            sale_w = sale_bbox[2] - sale_bbox[0]
+            sale_h = sale_bbox[3] - sale_bbox[1]
+
+            icon_h = int(sale_h * 1.2)
+            if os.path.exists(icon_path):
+                icon = Image.open(icon_path).convert("RGBA")
+                icon_w = int(icon.width * (icon_h / icon.height))
+                icon = icon.resize((icon_w, icon_h), Image.Resampling.LANCZOS)
+
+                total_w = sale_w + icon_w + 3
+                start_x = split_x + (width - split_x - total_w) // 2
+
+                image.paste(icon, (int(start_x), 8), icon)
+                draw.text((int(start_x + icon_w + 3), 8 + (icon_h // 2)), sale_text, fill=price_txt_col, font=sale_font, anchor="lm")
+        except Exception as e:
+            logger.error(f"Error drawing pricetag icon (V1): {e}")
 
     # Draw dollars and then draw cents slightly higher
     draw.text((p_x, y_center), dollars, fill=price_txt_col, font=d_font, anchor="lm")
