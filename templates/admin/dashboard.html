@@ -183,6 +183,12 @@
                         <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.gen_failed }}</span>
                     </div>
                 </a>
+                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=FAILED" class="kpi-link">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
+                        <span style="font-size: 13px; font-weight: 600; color: #be123c;">General Failure</span>
+                        <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.failed }}</span>
+                    </div>
+                </a>
             </div>
 
             <!-- PHASE 2: DELIVERY -->
@@ -227,12 +233,6 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #ecfdf5; border-radius: 10px; border-left: 4px solid #10b981;">
                         <span style="font-size: 13px; font-weight: 700; color: #065f46;">Update Confirmed (Success)</span>
                         <span style="font-weight: 800; color: #059669; font-size: 18px;">{{ sync_stats.success }}</span>
-                    </div>
-                </a>
-                <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=FAILED" class="kpi-link">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
-                        <span style="font-size: 13px; font-weight: 600; color: #be123c;">General Failure</span>
-                        <span style="font-weight: 800; color: #be123c; font-size: 18px;">{{ sync_stats.failed }}</span>
                     </div>
                 </a>
             </div>
