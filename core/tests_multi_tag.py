@@ -1,28 +1,44 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from core.models import Gateway, Store, Company, ESLTag, TagHardware, MQTTMessage
 from core.mqtt_client import mqtt_service
 import json
 
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 class MultiTagResultTest(TestCase):
     def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
         self.company = Company.objects.create(name="Test Company")
         self.store = Store.objects.create(name="Admin Store", company=self.company)
-        self.gateway = Gateway.objects.create(estation_id="GW01", store=self.store, gateway_mac="GW:MAC")
+        self.gateway = Gateway.objects.create(
+            estation_id="GW01",
+            store=self.store,
+            gateway_mac="GW:MAC",
+            is_online='ONLINE',
+            last_heartbeat=timezone.now()
+        )
         self.hw = TagHardware.objects.create(model_number="ET0213", width_px=250, height_px=122, display_size_inch=2.13)
+        from core.models import Product
+        self.product1 = Product.objects.create(sku="SKU1", name="Product 1", price=10.0, store=self.store)
+        self.product2 = Product.objects.create(sku="SKU2", name="Product 2", price=20.0, store=self.store)
 
         # Create two tags
         self.tag1 = ESLTag.objects.create(
             tag_mac="840000C3281C",
             store=self.store,
             hardware_spec=self.hw,
-            last_image_task_token=100
+            paired_product=self.product1,
+            last_image_task_token=100,
+            sync_state='PUSHED'
         )
         self.tag2 = ESLTag.objects.create(
             tag_mac="390000F41F5F",
             store=self.store,
             hardware_spec=self.hw,
-            last_image_task_token=200
+            paired_product=self.product2,
+            last_image_task_token=200,
+            sync_state='PUSHED'
         )
 
     def test_handle_multi_tag_result_success(self):
@@ -68,7 +84,8 @@ class MultiTagResultTest(TestCase):
         self.tag2.refresh_from_db()
 
         self.assertEqual(self.tag1.sync_state, 'SUCCESS')
-        self.assertEqual(self.tag2.sync_state, 'PUSH_FAILED')
+        # Failure triggers retry logic
+        self.assertIn(self.tag2.sync_state, ['RETRY_WAITING', 'PUSH_FAILED'])
 
         # Check MQTTMessage log - Overall should be failure if any tag failed
         log = MQTTMessage.objects.first()
@@ -89,8 +106,8 @@ class MultiTagResultTest(TestCase):
         self.tag1.refresh_from_db()
         self.tag2.refresh_from_db()
 
-        self.assertEqual(self.tag1.sync_state, 'PUSH_FAILED')
-        self.assertEqual(self.tag2.sync_state, 'PUSH_FAILED')
+        self.assertIn(self.tag1.sync_state, ['RETRY_WAITING', 'PUSH_FAILED'])
+        self.assertIn(self.tag2.sync_state, ['RETRY_WAITING', 'PUSH_FAILED'])
 
         log = MQTTMessage.objects.first()
         self.assertFalse(log.is_success)

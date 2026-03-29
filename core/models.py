@@ -420,6 +420,7 @@ class ESLTag(AuditModel):
         ('PROCESSING', 'Generating Image...'),
         ('IMAGE_READY', 'Image Prepared'),
         ('PUSHED', 'Sent to Gateway'),
+        ('RETRY_WAITING', 'Waiting for Retry'),
         ('SUCCESS', 'Update Confirmed'),
         ('GEN_FAILED', 'Image Generation Failed'),
         ('PUSH_FAILED', 'Gateway Delivery Failed'),
@@ -457,6 +458,7 @@ class ESLTag(AuditModel):
     last_image_task_id = models.CharField(max_length=255, null=True, blank=True)
     last_image_task_token = models.IntegerField(null=True, blank=True)
     last_pushed_at = models.DateTimeField(null=True, blank=True, verbose_name="Last Pushed to Gateway")
+    retry_count = models.IntegerField(default=0)
 
     # Hardware Status (Telemetery)
     battery_level = models.IntegerField(default=100)

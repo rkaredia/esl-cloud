@@ -29,32 +29,29 @@ Why use Celery?
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, name="core.tasks.update_tag_image_task")
-def update_tag_image_task(self, tag_id):
+def update_tag_image_task(self, tag_id, is_retry=False):
     """
     STAGE 1: IMAGE GENERATION
     -------------------------
     This task creates the physical BMP file that will be displayed on the tag.
-
-    EDUCATIONAL: 'shared_task' makes this function available to Celery.
-    'bind=True' gives us access to 'self' (the task instance).
     """
     try:
-        # Small random delay to prevent 'Thundering Herd' (too many tasks hitting
-        # the DB at the exact same microsecond during bulk imports).
+        # Small random delay to prevent 'Thundering Herd'
         time.sleep(random.uniform(0, 0.1))
 
-        # DISTRIBUTED LOCKING:
-        # Prevents two workers from generating the same image at the same time.
+        # DISTRIBUTED LOCKING
         lock_id = f"lock-tag-gen-{tag_id}"
         if not cache.add(lock_id, self.request.id, 30):
             logger.info(f"Aborting duplicate task for Tag {tag_id}. Lock held.")
             return "Duplicate aborted"
 
-        logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id}")
+        logger.debug(f"Processing Tag ID: {tag_id} | Task: {self.request.id} | Retry: {is_retry}")
 
-        # DATA PREFETCHING:
-        # select_related performs a SQL JOIN to get related data (Company, Store, Product)
-        # in a single query rather than multiple individual queries.
+        # Reset retry count if this is a fresh update
+        if not is_retry:
+            ESLTag.objects.filter(pk=tag_id).update(retry_count=0)
+
+        # DATA PREFETCHING
         tag = ESLTag.objects.select_related(
             'hardware_spec',
             'paired_product__preferred_supplier',
@@ -104,13 +101,19 @@ def update_tag_image_task(self, tag_id):
         if 'lock_id' in locals(): cache.delete(lock_id)
         raise e
 
+def trigger_gateway_processing(gateway_id):
+    """Ensures a worker is processing the queue for this gateway."""
+    lock_key = f"gateway_proc_lock_{gateway_id}"
+    # Lock for 60 seconds
+    if cache.add(lock_key, "locked", 60):
+        process_gateway_queue_task.delay(gateway_id)
+
 @shared_task(name="core.tasks.dispatch_tag_image_task")
 def dispatch_tag_image_task(tag_id):
     """
-    STAGE 2: HARDWARE PUSH (MQTT)
-    -----------------------------
-    Takes the BMP generated in Stage 1 and sends it to the physical gateway.
-    Includes 'Failover' logic to try multiple gateways if one is offline.
+    STAGE 2: GATEWAY ASSIGNMENT
+    ---------------------------
+    Decides which gateway will handle this tag and triggers the queue.
     """
     lock_id = f"lock-tag-gen-{tag_id}"
     try:
@@ -121,12 +124,8 @@ def dispatch_tag_image_task(tag_id):
             cache.delete(lock_id)
             return "No image to push"
 
-        # FAILOVER ROTATION STRATEGY:
-        # 1. Try the gateway that succeeded last time.
-        # 2. Try the gateway currently assigned in the Admin.
-        # 3. Try ANY other online gateway in the same store.
+        # FAILOVER ROTATION STRATEGY
         gateways_to_try = []
-
         if tag.last_successful_gateway_id:
             gateways_to_try.append(tag.last_successful_gateway_id)
 
@@ -144,46 +143,118 @@ def dispatch_tag_image_task(tag_id):
         gateways_to_try.extend(online_gateways)
 
         if not gateways_to_try:
-            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
             cache.delete(lock_id)
+            handle_tag_failure_task.delay(tag_id)
             return "No online gateways found for store"
 
-        # READ BMP: Load the file from disk into memory
-        with tag.tag_image.open('rb') as f:
-            image_bytes = f.read()
+        # Assign the first available gateway and trigger processing
+        best_gateway_id = gateways_to_try[0]
+        gateway_obj = Gateway.objects.filter(estation_id=best_gateway_id).first()
 
-        # Generate a unique 'Token' for this specific hardware transaction.
-        # The gateway will send this back in the result so we know WHICH update finished.
-        # Range 1-100 matches hardware working sandbox
-        token = random.randint(1, 100)
+        ESLTag.objects.filter(pk=tag_id).update(
+            gateway=gateway_obj,
+            sync_state='IMAGE_READY'
+        )
 
-        # DELIVERY LOOP: Try each gateway until one accepts the message.
-        for gateway_id in gateways_to_try:
-            logger.info(f"Attempting update for {tag.tag_mac} via gateway {gateway_id}")
+        trigger_gateway_processing(best_gateway_id)
+        cache.delete(lock_id)
+        return f"Queued for gateway {best_gateway_id}"
+
+    except Exception:
+        logger.exception(f"Error in dispatch_tag_image_task for tag {tag_id}")
+        cache.delete(lock_id)
+        handle_tag_failure_task.delay(tag_id)
+        return "Dispatch Failed"
+
+@shared_task(name="core.tasks.process_gateway_queue_task")
+def process_gateway_queue_task(gateway_id):
+    """
+    STAGE 3: SERIALIZED DELIVERY
+    ----------------------------
+    Processes tags for a specific gateway one by one with a 500ms delay.
+    """
+    lock_key = f"gateway_proc_lock_{gateway_id}"
+    try:
+        # 1. Find the next tag in the queue for THIS gateway
+        tag = ESLTag.objects.filter(
+            gateway__estation_id=gateway_id,
+            sync_state='IMAGE_READY'
+        ).order_by('updated_at').first()
+
+        if not tag:
+            cache.delete(lock_key)
+            return "Queue empty"
+
+        # 2. Prepare and Send
+        try:
+            with tag.tag_image.open('rb') as f:
+                image_bytes = f.read()
+
+            # TOKEN LOGIC: 2 bits for retry, 14 bits for unique ID
+            token = ((tag.retry_count & 0x03) << 14) | (random.randint(0, 16383))
+
+            logger.info(f"Pushing tag {tag.tag_mac} via {gateway_id} (Retry: {tag.retry_count}, Token: {token})")
             success = mqtt_service.publish_tag_update(gateway_id, tag.tag_mac, image_bytes, token)
 
             if success:
-                # MARK AS PUSHED: We now wait for the '/result' MQTT message to mark it SUCCESS.
-                ESLTag.objects.filter(pk=tag_id).update(
+                ESLTag.objects.filter(pk=tag.pk).update(
                     sync_state='PUSHED',
                     last_image_task_token=token,
                     last_pushed_at=timezone.now()
                 )
-                cache.delete(lock_id)
-                return f"MQTT Pushed via {gateway_id}"
             else:
-                logger.warning(f"Failed to push to gateway {gateway_id} for tag {tag.tag_mac}")
+                logger.warning(f"MQTT Publish failed for tag {tag.tag_mac}")
+                handle_tag_failure_task.delay(tag.id)
 
-        # All attempts failed
-        ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
-        cache.delete(lock_id)
-        return "MQTT Failed on all available gateways"
+        except Exception:
+            logger.exception(f"Error processing tag {tag.tag_mac} in gateway queue")
+            handle_tag_failure_task.delay(tag.id)
 
-    except Exception as e:
-        logger.exception(f"Critical error in dispatch_tag_image_task for tag {tag_id}")
-        ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
-        cache.delete(lock_id)
-        raise e
+        # 3. Schedule next tag with 500ms delay
+        process_gateway_queue_task.apply_async(args=[gateway_id], countdown=0.5)
+        return f"Processed {tag.tag_mac}, scheduled next"
+
+    except Exception:
+        logger.exception(f"Critical error in process_gateway_queue_task for {gateway_id}")
+        cache.delete(lock_key)
+        raise
+
+@shared_task(name="core.tasks.handle_tag_failure_task")
+def handle_tag_failure_task(tag_id):
+    """
+    RETRY LOGIC
+    -----------
+    Implements 5m, 15m, 30m backoff for failed updates.
+    """
+    try:
+        from .models import ESLTag
+        tag = ESLTag.objects.get(pk=tag_id)
+
+        # Lock to prevent concurrent retry triggers
+        lock_key = f"retry_lock_{tag_id}"
+        if not cache.add(lock_key, "locked", 10):
+            return "Retry already in progress"
+
+        if tag.retry_count < 3:
+            tag.retry_count += 1
+            tag.sync_state = 'RETRY_WAITING'
+            tag.save()
+
+            # Backoff: 5m, 15m, 30m
+            delays = [300, 900, 1800]
+            delay = delays[tag.retry_count - 1]
+
+            logger.info(f"Scheduling retry #{tag.retry_count} for {tag.tag_mac} in {delay}s")
+            update_tag_image_task.apply_async(kwargs={'tag_id': tag_id, 'is_retry': True}, countdown=delay)
+            return f"Retry #{tag.retry_count} scheduled"
+        else:
+            tag.sync_state = 'PUSH_FAILED'
+            tag.save()
+            logger.warning(f"Max retries reached for tag {tag.tag_mac}")
+            return "Max retries reached"
+    except Exception:
+        logger.exception(f"Error in handle_tag_failure_task for {tag_id}")
+        return "Failure handling failed"
 
 @shared_task(name="core.tasks.refresh_store_products_task")
 def refresh_store_products_task(store_id):
@@ -265,17 +336,20 @@ def check_gateways_status_task():
             logger.info(f"Gateway Status Check: Marked {count_offline} gateways as OFFLINE.")
 
         # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
-        # If a tag has been in 'PUSHED' state for more than 60 seconds, mark as 'PUSH_FAILED'
+        # If a tag has been in 'PUSHED' state for more than 60 seconds, trigger retry logic
         timeout_cutoff = now - timezone.timedelta(seconds=60)
-        timed_out_tags = ESLTag.objects.filter(
+        timed_out_tags = list(ESLTag.objects.filter(
             sync_state='PUSHED',
             last_pushed_at__lt=timeout_cutoff
-        )
+        ).values_list('id', flat=True))
 
-        # PERFORMANCE: Use the return value of update() to avoid an extra .count() query
-        count_tag_timeouts = timed_out_tags.update(sync_state='PUSH_FAILED')
+        count_tag_timeouts = 0
+        for tid in timed_out_tags:
+            handle_tag_failure_task.delay(tid)
+            count_tag_timeouts += 1
+
         if count_tag_timeouts > 0:
-            logger.info(f"Marked {count_tag_timeouts} tags as PUSH_FAILED due to 60s timeout.")
+            logger.info(f"Triggered retry for {count_tag_timeouts} tags due to 60s timeout.")
 
         return f"Checked status. Marked {count_offline} gateways offline and {count_tag_timeouts} tag timeouts."
     except Exception:

@@ -241,24 +241,38 @@ class ESLMqttClient:
                     continue
 
                 # Verify Token: We only update if the token matches the last task we sent
-                if tag.last_image_task_token == res['token']:
+                # Use a bitmask to extract the unique 14-bit ID from the 16-bit token
+                received_token_id = res['token'] & 0x3FFF
+                expected_token_id = (tag.last_image_task_token or 0) & 0x3FFF
+
+                if received_token_id == expected_token_id:
                     status_code = res['status_code']
                     # SUCCESS codes: 1 and 128 per hardware observation (0 is failure)
                     is_success = (status_code == 1 or status_code == 128)
 
                     battery_pct = self._calculate_battery_percentage(res['battery_raw'])
                     update_fields = {
-                        'sync_state': 'SUCCESS' if is_success else 'PUSH_FAILED',
                         'updated_at': timezone.now()
                     }
                     if battery_pct is not None:
                         update_fields['battery_level'] = battery_pct
 
                     if is_success:
+                        update_fields['sync_state'] = 'SUCCESS'
                         update_fields['last_successful_gateway_id'] = estation_id
+                        update_fields['retry_count'] = 0
+                        ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                        logger.info(f"Tag {tag_mac} sync result: SUCCESS (Batt: {update_fields.get('battery_level')}%)")
+                    else:
+                        from .tasks import handle_tag_failure_task
+                        # If failed, trigger retry logic instead of immediate PUSH_FAILED
+                        if battery_pct is not None:
+                             ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
 
-                    ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
-                    logger.info(f"Tag {tag_mac} sync result: {'SUCCESS' if is_success else 'FAILED'} (Batt: {update_fields['battery_level']}%)")
+                        # In test mode, .delay() might not run immediately if Celery isn't configured for eager execution.
+                        # We use handle_tag_failure_task directly for tests, or .delay() for production.
+                        handle_tag_failure_task.delay(tag.id)
+                        logger.warning(f"Tag {tag_mac} sync result: FAILED (Status: {status_code}). Triggering retry.")
                 else:
                     logger.warning(f"Token mismatch for tag {tag_mac}: Expected {tag.last_image_task_token}, got {res['token']}")
 

@@ -261,11 +261,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             color_map = {
                 'SUCCESS': '#059669', 'PROCESSING': '#2563eb', 'PUSHED': '#7c3aed',
                 'IDLE': '#a2a2a3', 'GEN_FAILED': '#f50000', 'PUSH_FAILED': '#f50000',
-                'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000'
+                'IMAGE_READY': '#f5ac00', 'FAILED': '#f50000', 'RETRY_WAITING': '#f5ac00'
             }
             color = color_map.get(obj.sync_state, '#ea580c')
             status_text = obj.get_sync_state_display()
-            if obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
+            if obj.sync_state == 'RETRY_WAITING':
+                status_text = f"Retrying ({obj.retry_count}/3)"
+            elif obj.last_image_gen_success and obj.sync_state == 'SUCCESS':
                 status_text = "Success - Tag Updated"
             return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, status_text)
         except: return "Error"
