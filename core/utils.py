@@ -149,7 +149,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # 2. Split Screen
     split_x = int(width * 0.62)
-    safe_pad = 4
+    safe_pad = 8
     left_zone_w = split_x - (safe_pad * 2)
     draw.rectangle([split_x, 0, width, height], fill=price_bg)
 
@@ -157,7 +157,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # 3. DRAW PRODUCT NAME (Left Top)
     name_text = product.name.upper()
-    wrapper = textwrap.TextWrapper(width=16) # Wrap text to prevent overflow
+    wrapper = textwrap.TextWrapper(width=14) # Wrap text to prevent overflow
     lines = wrapper.wrap(text=name_text)[:4] # Max 4 lines
 
     if lines:
@@ -224,8 +224,8 @@ def template_v1(image, draw, product, width, height, color_scheme):
         b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
 
         if b_img:
-            # Center the barcode in the left zone
-            barcode_x = safe_pad + (left_zone_w - b_img.width) // 2
+            # Center the barcode in the left zone, but ensure it doesn't spill into the left buffer
+            barcode_x = safe_pad + max(0, (left_zone_w - b_img.width) // 2)
             barcode_y = height - barcode_h - 15
             image.paste(b_img, (barcode_x, barcode_y), b_img)
 
@@ -289,7 +289,8 @@ def template_v3(image, draw, product, width, height, color_scheme):
         barcode_y = height - barcode_h - 22 # Default fallback position
 
         if b_img:
-            barcode_x = safe_pad + (left_zone_w - b_img.width) // 2
+            # Center the barcode in the left zone, but ensure it doesn't spill into the left buffer
+            barcode_x = safe_pad + max(0, (left_zone_w - b_img.width) // 2)
             barcode_y = height - barcode_h - 22 # Lifted up to give SKU label room
             image.paste(b_img, (barcode_x, barcode_y), b_img)
 
