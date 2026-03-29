@@ -35,9 +35,27 @@ def update_tag_image_task(self, tag_id, is_retry=False):
     -------------------------
     This task creates the physical BMP file that will be displayed on the tag.
     """
+    # 0. SYSTEM RETRY CHECK:
+    # If this is an automatic system retry (backoff), we only proceed if
+    # the tag hasn't already succeeded or been manually refreshed in between.
+    if is_retry:
+        tag_status = ESLTag.objects.filter(pk=tag_id).values_list('sync_state', flat=True).first()
+        if tag_status != 'RETRY_WAITING':
+            logger.info(f"Tag {tag_id} no longer in RETRY_WAITING (is: {tag_status}). Aborting retry task.")
+            return "Retry aborted: Status changed"
+
     try:
         # Small random delay to prevent 'Thundering Herd'
         time.sleep(random.uniform(0, 0.1))
+
+        # DEDUPLICATION & EFFICIENCY:
+        # If a tag is already 'in-flight' (PROCESSING, IMAGE_READY, PUSHED, RETRY_WAITING)
+        # we skip redundant refreshes unless this is an explicit system retry.
+        if not is_retry:
+            tag_status = ESLTag.objects.filter(pk=tag_id).values_list('sync_state', flat=True).first()
+            if tag_status in ['PROCESSING', 'IMAGE_READY', 'PUSHED', 'RETRY_WAITING']:
+                logger.info(f"Tag {tag_id} already has a pending update ({tag_status}). Skipping redundant refresh.")
+                return "Skipped: Already pending"
 
         # DISTRIBUTED LOCKING
         lock_id = f"lock-tag-gen-{tag_id}"
@@ -277,7 +295,7 @@ def handle_tag_failure_task(tag_id):
         from .models import ESLTag
         tag = ESLTag.objects.get(pk=tag_id)
 
-        # SAFETY: If the tag has already succeeded (e.g. late result received), don't retry.
+        # 1. SUCCESS CHECK: Don't retry if the tag already succeeded
         if tag.sync_state == 'SUCCESS':
             return "Skipping retry: Tag already successful"
 

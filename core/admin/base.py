@@ -109,6 +109,10 @@ class SAISAdminSite(admin.AdminSite):
                 ready=Count('id', filter=Q(sync_state='IMAGE_READY')),
                 processing=Count('id', filter=Q(sync_state='PROCESSING')),
                 idle=Count('id', filter=Q(sync_state='IDLE')),
+                retry_waiting=Count('id', filter=Q(sync_state='RETRY_WAITING')),
+                retry_1=Count('id', filter=Q(sync_state='RETRY_WAITING', retry_count=1)),
+                retry_2=Count('id', filter=Q(sync_state='RETRY_WAITING', retry_count=2)),
+                retry_3=Count('id', filter=Q(sync_state='RETRY_WAITING', retry_count=3)),
                 failed_total=Count('id', filter=Q(sync_state='FAILED')),
                 gen_failed=Count('id', filter=Q(sync_state='GEN_FAILED')),
                 push_failed=Count('id', filter=Q(sync_state='PUSH_FAILED')),
@@ -160,10 +164,13 @@ class SAISAdminSite(admin.AdminSite):
                     'ready': tag_stats['ready'],
                     'processing': tag_stats['processing'],
                     'idle': tag_stats['idle'],
+                    'retry_waiting': tag_stats['retry_waiting'],
+                    'retry_1': tag_stats['retry_1'],
+                    'retry_2': tag_stats['retry_2'],
+                    'retry_3': tag_stats['retry_3'],
                     'failed': tag_stats['failed_total'],
                     'gen_failed': tag_stats['gen_failed'],
                     'push_failed': tag_stats['push_failed'],
-                    'failed': tag_stats['failed_total'],
                 }
             }
 

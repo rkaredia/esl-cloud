@@ -193,6 +193,30 @@
                         <span style="font-weight: 800; color: #2563eb; font-size: 18px;">{{ sync_stats.pushed }}</span>
                     </div>
                 </a>
+
+                <!-- RETRY SECTION -->
+                <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; background: #fffbeb; border-radius: 10px; border-left: 4px solid #f59e0b;">
+                    <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING" class="kpi-link" style="margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; font-weight: 700; color: #92400e;">Tags Waiting for Retry</span>
+                            <span style="font-weight: 800; color: #b45309; font-size: 18px;">{{ sync_stats.retry_waiting }}</span>
+                        </div>
+                    </a>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=1" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
+                            <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_1 }}</div>
+                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 1</div>
+                        </a>
+                        <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=2" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
+                            <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_2 }}</div>
+                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 2</div>
+                        </a>
+                        <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=3" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
+                            <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_3 }}</div>
+                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 3</div>
+                        </a>
+                    </div>
+                </div>
                 <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=PUSH_FAILED" class="kpi-link">
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: #fff1f2; border-radius: 10px; border-left: 4px solid #be123c;">
                         <span style="font-size: 13px; font-weight: 600; color: #be123c;">Gateway Push Failed</span>
