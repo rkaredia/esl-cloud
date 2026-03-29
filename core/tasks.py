@@ -311,7 +311,10 @@ def handle_tag_failure_task(tag_id, reason="Unknown"):
 
         # Lock to prevent concurrent retry triggers
         lock_key = f"retry_lock_{tag_id}"
-        if not cache.add(lock_key, "locked", 10):
+        if not cache.add(lock_key, "locked", 15):
+            # If the lock is held, it means another worker is already processing the failure
+            # for this specific tag. We return so we don't duplicate the retry schedule.
+            logger.info(f"Retry/Failure processing already in progress for {tag.tag_mac}. Skipping.")
             return "Retry already in progress"
 
         if tag.retry_count < 3:
@@ -415,19 +418,23 @@ def check_gateways_status_task():
 
         # NEW: Check for Tag Sync Timeouts (Requested: 60 seconds)
         # If a tag has been in 'PUSHED' state for more than 60 seconds, trigger retry logic
+        # We also catch tags stuck in 'PROCESSING' for more than 5 minutes.
         timeout_cutoff = now - timezone.timedelta(seconds=60)
+        stuck_cutoff = now - timezone.timedelta(minutes=5)
+
         timed_out_tags = list(ESLTag.objects.filter(
-            sync_state='PUSHED',
-            last_pushed_at__lt=timeout_cutoff
+            Q(sync_state='PUSHED', last_pushed_at__lt=timeout_cutoff) |
+            Q(sync_state='PROCESSING', updated_at__lt=stuck_cutoff)
         ).values_list('id', flat=True))
 
         count_tag_timeouts = 0
         for tid in timed_out_tags:
+            # We don't countdown here, we call immediately so it enters RETRY_WAITING or PUSH_FAILED
             handle_tag_failure_task.delay(tid, reason="Timeout")
             count_tag_timeouts += 1
 
         if count_tag_timeouts > 0:
-            logger.info(f"Triggered retry for {count_tag_timeouts} tags due to 60s timeout.")
+            logger.info(f"Triggered recovery/retry for {count_tag_timeouts} tags due to timeout or stuck processing.")
 
         # NEW: Restart stalled queues (in case a worker died)
         # We look for any tag in 'IMAGE_READY' state and ensure its gateway's queue is active.

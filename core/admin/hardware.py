@@ -312,12 +312,24 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
     # CUSTOM VIEW METHODS
     def manual_sync_view(self, request, object_id):
         """Logic for the 'Sync' button in the list view."""
-        if not self.get_queryset(request).filter(pk=object_id).exists():
+        tag = self.get_queryset(request).filter(pk=object_id).first()
+        if not tag:
             messages.error(request, "Permission denied.")
             return redirect('admin:index')
 
+        # GATEWAY STATUS VALIDATION
+        if tag.gateway:
+            status, label, _ = tag.gateway.get_real_time_status()
+            if status == 'OFFLINE':
+                messages.warning(request, f"Warning: Gateway {tag.gateway.estation_id} is OFFLINE. Update may be delayed.")
+            elif status == 'ERROR':
+                messages.warning(request, f"Warning: Gateway {tag.gateway.estation_id} is reporting an ERROR ({label}).")
+            else:
+                messages.success(request, f"Sync task queued for {tag.tag_mac} via Gateway {tag.gateway.estation_id}.")
+        else:
+            messages.warning(request, "Warning: This tag has no assigned gateway. It will try to find one automatically.")
+
         update_tag_image_task.delay(object_id) # Queue the task
-        messages.success(request, "Sync task queued.")
         return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
 
     def get_urls(self):
@@ -342,8 +354,23 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if count > 100:
                 self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
                 return
-            for tag in queryset: update_tag_image_task.delay(tag.id)
-            self.message_user(request, f"Queued {count} tags for refresh.")
+
+            offline_gateways = set()
+            for tag in queryset:
+                if tag.gateway:
+                    status, _, _ = tag.gateway.get_real_time_status()
+                    if status == 'OFFLINE':
+                        offline_gateways.add(tag.gateway.estation_id)
+                update_tag_image_task.delay(tag.id)
+
+            if offline_gateways:
+                self.message_user(
+                    request,
+                    f"Queued {count} tags for refresh. Note: {len(offline_gateways)} gateways are currently OFFLINE ({', '.join(offline_gateways)}).",
+                    messages.WARNING
+                )
+            else:
+                self.message_user(request, f"Queued {count} tags for refresh.")
         except Exception as e:
             logger.exception("Error in safe_regenerate_images")
             self.message_user(request, "Failed to queue refresh.", messages.ERROR)
