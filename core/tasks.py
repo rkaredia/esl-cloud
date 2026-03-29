@@ -49,13 +49,14 @@ def update_tag_image_task(self, tag_id, is_retry=False):
         time.sleep(random.uniform(0, 0.1))
 
         # DEDUPLICATION & EFFICIENCY:
-        # If a tag is already 'in-flight' (PROCESSING, IMAGE_READY, PUSHED, RETRY_WAITING)
-        # we skip redundant refreshes unless this is an explicit system retry.
+        # If a tag is already being processed (IMAGE GENERATION), skip redundant refreshes.
+        # We allow overriding PUSHED (sent to gateway) or RETRY_WAITING (backoff) states
+        # if a user manually triggers a refresh.
         if not is_retry:
             tag_status = ESLTag.objects.filter(pk=tag_id).values_list('sync_state', flat=True).first()
-            if tag_status in ['PROCESSING', 'IMAGE_READY', 'PUSHED', 'RETRY_WAITING']:
-                logger.info(f"Tag {tag_id} already has a pending update ({tag_status}). Skipping redundant refresh.")
-                return "Skipped: Already pending"
+            if tag_status in ['PROCESSING', 'IMAGE_READY']:
+                logger.info(f"Tag {tag_id} is currently being processed ({tag_status}). Skipping redundant refresh.")
+                return "Skipped: Already processing"
 
         # DISTRIBUTED LOCKING
         lock_id = f"lock-tag-gen-{tag_id}"
@@ -109,6 +110,9 @@ def update_tag_image_task(self, tag_id, is_retry=False):
             last_image_task_id=self.request.id
         )
         
+        # RELEASE LOCK: Image is generated, we can now allow new generation tasks if needed.
+        cache.delete(lock_id)
+
         # CHAINING: Trigger the next stage (MQTT Delivery)
         dispatch_tag_image_task.delay(tag_id)
         return f"BMP Generated for {tag.tag_mac}"
@@ -198,15 +202,8 @@ def process_gateway_queue_task(gateway_id):
     from django.db import transaction
     lock_key = f"gateway_proc_lock_{gateway_id}"
 
-    # 1. Maintain the lock to prevent other workers from starting a parallel loop.
+    # 1. Ensure the lock is held to prevent other workers from starting a parallel loop.
     # TTL of 60 seconds is ample.
-    if not cache.set(lock_key, "active", 60):
-        # We assume the current process set it if it returns False?
-        # Actually cache.set in Django returns None or True depending on implementation.
-        # Let's just use .add and .set properly.
-        pass
-
-    # Ensure the lock is held
     cache.set(lock_key, "active", 60)
 
     # 2. Dynamic Settings
@@ -232,7 +229,9 @@ def process_gateway_queue_task(gateway_id):
 
             if not tag:
                 logger.info(f"Queue for gateway {gateway_id} is empty. (Processed: {tags_processed_count})")
-                cache.delete(lock_key)
+                # IMPORTANT: Only delete if it's been less than 45s, otherwise we might delete a NEW task's lock
+                if (time.time() - start_time) < 45:
+                    cache.delete(lock_key)
                 return f"Queue empty. Processed: {tags_processed_count}"
 
             # Mark as 'PROCESSING' immediately to claim it
