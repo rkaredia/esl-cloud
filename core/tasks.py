@@ -174,13 +174,15 @@ def process_gateway_queue_task(gateway_id):
     """
     STAGE 3: SERIALIZED DELIVERY
     ----------------------------
-    Processes tags for a specific gateway one by one with a 500ms delay.
+    Processes tags for a specific gateway one by one with a dynamic delay.
     Ensures strict serialization and one-at-a-time delivery.
     """
     from django.db import transaction
     lock_key = f"gateway_proc_lock_{gateway_id}"
 
-    # 1. Maintain the lock to prevent other workers from starting a parallel loop
+    # 1. Maintain the lock to prevent other workers from starting a parallel loop.
+    # We use a 60-second TTL which is ample time for a single tag update.
+    # The lock is refreshed in EVERY step of the recursive loop.
     cache.set(lock_key, "active", 60)
 
     tag_processed = False
@@ -246,10 +248,13 @@ def process_gateway_queue_task(gateway_id):
             cache.delete(lock_key)
         raise e
     finally:
-        # 4. ALWAYS schedule the next check after 500ms if we were in the middle of a loop
-        # This ensures the 500ms gap and that the loop continues even after errors.
+        # 4. ALWAYS schedule the next check after a delay if we were in the middle of a loop.
+        # This ensures the gap and that the loop continues even after errors.
         if tag_processed:
-            process_gateway_queue_task.apply_async(args=[gateway_id], countdown=0.5)
+            # Fetch dynamic delay from settings (Default: 500ms)
+            delay_ms = int(GlobalSetting.objects.filter(key='ESL_SEND_DELAY_MS').values_list('value', flat=True).first() or 500)
+            countdown = max(0.1, delay_ms / 1000.0) # Ensure at least 0.1s safety
+            process_gateway_queue_task.apply_async(args=[gateway_id], countdown=countdown)
 
 @shared_task(name="core.tasks.handle_tag_failure_task")
 def handle_tag_failure_task(tag_id):
