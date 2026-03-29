@@ -169,7 +169,7 @@ def dispatch_tag_image_task(tag_id):
 
         if not gateways_to_try:
             cache.delete(lock_id)
-            handle_tag_failure_task.delay(tag_id)
+            handle_tag_failure_task.delay(tag_id, reason="No Online Gateways")
             return "No online gateways found for store"
 
         # Assign the first available gateway and trigger processing
@@ -266,11 +266,11 @@ def process_gateway_queue_task(gateway_id):
                     )
                 else:
                     logger.warning(f"MQTT Publish failed for tag {tag.tag_mac}")
-                    handle_tag_failure_task.delay(tag.id)
+                    handle_tag_failure_task.delay(tag.id, reason="MQTT Publish Failed")
 
         except Exception as e:
             logger.exception(f"Error processing tag {tag.tag_mac} in gateway queue: {str(e)}")
-            handle_tag_failure_task.delay(tag.id)
+            handle_tag_failure_task.delay(tag.id, reason=f"Queue Error: {str(e)}")
 
         tags_processed_count += 1
 
@@ -284,19 +284,30 @@ def process_gateway_queue_task(gateway_id):
     return f"Time budget reached. Processed: {tags_processed_count}"
 
 @shared_task(name="core.tasks.handle_tag_failure_task")
-def handle_tag_failure_task(tag_id):
+def handle_tag_failure_task(tag_id, reason="Unknown"):
     """
     RETRY LOGIC
     -----------
     Implements 5m, 15m, 30m backoff for failed updates.
     """
     try:
-        from .models import ESLTag
+        from .models import ESLTag, MQTTMessage
         tag = ESLTag.objects.get(pk=tag_id)
 
         # 1. SUCCESS CHECK: Don't retry if the tag already succeeded
         if tag.sync_state == 'SUCCESS':
             return "Skipping retry: Tag already successful"
+
+        # 2. LOGGING & AUDIT: Record the failure in the system logs for visibility
+        if reason == "Timeout" and tag.gateway:
+            # Create a synthetic MQTT log entry to ensure the 'stuck' tag is visible in audit logs
+            MQTTMessage.objects.create(
+                direction='received',
+                estation_id=tag.gateway.estation_id,
+                topic=f"/estation/{tag.gateway.estation_id}/timeout",
+                data=f"TIMEOUT FAILURE: No response from tag {tag.tag_mac} after 60 seconds.",
+                is_success=False
+            )
 
         # Lock to prevent concurrent retry triggers
         lock_key = f"retry_lock_{tag_id}"
@@ -311,14 +322,14 @@ def handle_tag_failure_task(tag_id):
             delays = [300, 900, 1800]
             delay = delays[tag.retry_count - 1]
 
-            logger.info(f"Scheduling retry #{tag.retry_count} for {tag.tag_mac} in {delay}s")
+            logger.info(f"Scheduling retry #{tag.retry_count} for {tag.tag_mac} due to {reason}. (Attempt: {tag.retry_count}, Delay: {delay}s)")
             update_tag_image_task.apply_async(kwargs={'tag_id': tag_id, 'is_retry': True}, countdown=delay)
             return f"Retry #{tag.retry_count} scheduled"
         else:
             tag.sync_state = 'PUSH_FAILED'
             tag.save()
-            logger.warning(f"Max retries reached for tag {tag.tag_mac}")
-            return "Max retries reached"
+            logger.warning(f"Max retries reached for tag {tag.tag_mac} (Final failure: {reason})")
+            return f"Max retries reached: {reason}"
     except Exception:
         logger.exception(f"Error in handle_tag_failure_task for {tag_id}")
         return "Failure handling failed"
@@ -412,7 +423,7 @@ def check_gateways_status_task():
 
         count_tag_timeouts = 0
         for tid in timed_out_tags:
-            handle_tag_failure_task.delay(tid)
+            handle_tag_failure_task.delay(tid, reason="Timeout")
             count_tag_timeouts += 1
 
         if count_tag_timeouts > 0:

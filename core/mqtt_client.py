@@ -279,7 +279,7 @@ class ESLMqttClient:
                             from .tasks import handle_tag_failure_task
                             if battery_pct is not None:
                                 ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
-                            handle_tag_failure_task.delay(tag.id)
+                            handle_tag_failure_task.delay(tag.id, reason=f"Hardware Status Code: {status_code}")
                             logger.warning(f"Tag {tag_mac} sync: FAILED (Retry: {received_retry_count}, Code: {status_code})")
                     else:
                         logger.warning(f"Token mismatch {tag_mac}: Exp {expected_token_id}, Got {received_token_id}")
