@@ -269,8 +269,6 @@ class ESLMqttClient:
                         if battery_pct is not None:
                              ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
 
-                        # In test mode, .delay() might not run immediately if Celery isn't configured for eager execution.
-                        # We use handle_tag_failure_task directly for tests, or .delay() for production.
                         handle_tag_failure_task.delay(tag.id)
                         logger.warning(f"Tag {tag_mac} sync result: FAILED (Status: {status_code}). Triggering retry.")
                 else:

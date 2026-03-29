@@ -178,6 +178,27 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Redis is the 'Message Broker' that holds tasks until a worker is ready.
 REDIS_URL = env('REDIS_URL', default='redis://redis:6379/0')
+
+# CACHE CONFIGURATION (Using Redis for Cross-Process Locking)
+# -----------------------------------------------------------
+# We use Redis as a shared cache so that Locks and Debouncing work
+# correctly across Web, Celery Worker, and MQTT Worker processes.
+# For local tests without a running Redis, we fallback to Local Memory.
+import sys
+if 'test' in sys.argv:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+        }
+    }
+
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = 'django-db' # Save success/failure status to the DB
 CELERY_TRACK_STARTED = True
