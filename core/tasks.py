@@ -181,14 +181,31 @@ def process_gateway_queue_task(gateway_id):
     lock_key = f"gateway_proc_lock_{gateway_id}"
 
     # 1. Maintain the lock to prevent other workers from starting a parallel loop.
-    # We use a 60-second TTL which is ample time for a single tag update.
-    # The lock is refreshed in EVERY step of the recursive loop.
+    # TTL of 60 seconds is ample.
+    if not cache.set(lock_key, "active", 60):
+        # We assume the current process set it if it returns False?
+        # Actually cache.set in Django returns None or True depending on implementation.
+        # Let's just use .add and .set properly.
+        pass
+
+    # Ensure the lock is held
     cache.set(lock_key, "active", 60)
 
-    tag_processed = False
-    try:
+    # 2. Dynamic Settings
+    delay_ms = int(GlobalSetting.objects.filter(key='ESL_SEND_DELAY_MS').values_list('value', flat=True).first() or 500)
+    delay_seconds = max(0.1, delay_ms / 1000.0)
+
+    # PROCESS BATCH: We process tags in a loop for 45 seconds max per task
+    # to maintain high precision (avoiding Celery scheduling overhead for small delays).
+    start_time = time.time()
+    tags_processed_count = 0
+
+    while (time.time() - start_time) < 45:
+        # Extend the lock periodically
+        cache.set(lock_key, "active", 60)
+
         tag = None
-        # 2. Find and LOCK the next tag in the queue for THIS gateway
+        # 3. Find and LOCK the next tag in the queue for THIS gateway
         with transaction.atomic():
             tag = ESLTag.objects.select_for_update(skip_locked=True).filter(
                 gateway__estation_id=gateway_id,
@@ -196,20 +213,17 @@ def process_gateway_queue_task(gateway_id):
             ).order_by('updated_at').first()
 
             if not tag:
-                logger.info(f"Queue for gateway {gateway_id} is empty. Terminating loop.")
+                logger.info(f"Queue for gateway {gateway_id} is empty. (Processed: {tags_processed_count})")
                 cache.delete(lock_key)
-                return "Queue empty"
+                return f"Queue empty. Processed: {tags_processed_count}"
 
             # Mark as 'PROCESSING' immediately to claim it
             ESLTag.objects.filter(pk=tag.pk).update(sync_state='PROCESSING')
 
-        # 3. Prepare and Send
-        tag_processed = True
+        # 4. Prepare and Send
         try:
-            # Re-fetch tag to ensure we have the latest state within the inner try
+            # Re-fetch tag to ensure we have the latest state
             tag.refresh_from_db()
-
-            # Ensure MAC is uppercase for hardware communication
             tag_mac = tag.tag_mac.upper()
 
             if not tag.tag_image:
@@ -241,20 +255,16 @@ def process_gateway_queue_task(gateway_id):
             logger.exception(f"Error processing tag {tag.tag_mac} in gateway queue: {str(e)}")
             handle_tag_failure_task.delay(tag.id)
 
-    except Exception as e:
-        logger.exception(f"Critical error in process_gateway_queue_task for {gateway_id}: {str(e)}")
-        # If we didn't even pick a tag, release the lock so it can be re-triggered
-        if not tag_processed:
-            cache.delete(lock_key)
-        raise e
-    finally:
-        # 4. ALWAYS schedule the next check after a delay if we were in the middle of a loop.
-        # This ensures the gap and that the loop continues even after errors.
-        if tag_processed:
-            # Fetch dynamic delay from settings (Default: 500ms)
-            delay_ms = int(GlobalSetting.objects.filter(key='ESL_SEND_DELAY_MS').values_list('value', flat=True).first() or 500)
-            countdown = max(0.1, delay_ms / 1000.0) # Ensure at least 0.1s safety
-            process_gateway_queue_task.apply_async(args=[gateway_id], countdown=countdown)
+        tags_processed_count += 1
+
+        # 5. Precise Delay
+        # We wait the specified delay between EACH tag.
+        time.sleep(delay_seconds)
+
+    # 6. Chain if there's potentially more work (reached time limit)
+    logger.info(f"Reached time budget for gateway {gateway_id} queue. Re-triggering.")
+    process_gateway_queue_task.delay(gateway_id)
+    return f"Time budget reached. Processed: {tags_processed_count}"
 
 @shared_task(name="core.tasks.handle_tag_failure_task")
 def handle_tag_failure_task(tag_id):

@@ -566,9 +566,13 @@ class ESLMqttClient:
             if not self.client.is_connected():
                 logger.info("MQTT client not connected - attempting to connect before publish")
                 self.connect()
-                # Brief wait for connection to establish
+
+                # Dynamic wait: Poll for connection for up to 2 seconds
                 import time
-                time.sleep(0.5)
+                for _ in range(20): # 20 * 0.1s = 2s
+                    if self.client.is_connected():
+                        break
+                    time.sleep(0.1)
 
             if not self.client.is_connected():
                 logger.error("MQTT client not connected — cannot publish")
