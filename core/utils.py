@@ -217,7 +217,8 @@ def template_v1(image, draw, product, width, height, color_scheme):
             icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
 
             sale_text = "SALE!"
-            sale_font = get_font_by_type(18, "bold") # Slightly smaller for V1's narrower price box
+            # Increased size from 18 to 26 for better visibility
+            sale_font = get_font_by_type(26, "bold")
             sale_bbox = draw.textbbox((0, 0), sale_text, font=sale_font)
             sale_w = sale_bbox[2] - sale_bbox[0]
             sale_h = sale_bbox[3] - sale_bbox[1]
@@ -228,11 +229,11 @@ def template_v1(image, draw, product, width, height, color_scheme):
                 icon_w = int(icon.width * (icon_h / icon.height))
                 icon = icon.resize((icon_w, icon_h), Image.Resampling.LANCZOS)
 
-                total_w = sale_w + icon_w + 3
+                total_w = sale_w + icon_w + 5
                 start_x = split_x + (width - split_x - total_w) // 2
 
                 image.paste(icon, (int(start_x), 8), icon)
-                draw.text((int(start_x + icon_w + 3), 8 + (icon_h // 2)), sale_text, fill=price_txt_col, font=sale_font, anchor="lm")
+                draw.text((int(start_x + icon_w + 5), 8 + (icon_h // 2)), sale_text, fill=price_txt_col, font=sale_font, anchor="lm")
         except Exception as e:
             logger.error(f"Error drawing pricetag icon (V1): {e}")
 
@@ -360,7 +361,8 @@ def template_v3(image, draw, product, width, height, color_scheme):
             icon_path = os.path.join(settings.BASE_DIR, 'core', 'static', 'core', 'img', 'templates', f'pricetag-{tag_color}.png')
 
             sale_text = "SALE!"
-            sale_font = get_font_by_type(32, "bold")
+            # Increased size from 32 to 38 for better visibility
+            sale_font = get_font_by_type(38, "bold")
             sale_bbox = draw.textbbox((0, 0), sale_text, font=sale_font)
             sale_w = sale_bbox[2] - sale_bbox[0]
             sale_h = sale_bbox[3] - sale_bbox[1]
