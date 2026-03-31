@@ -236,11 +236,12 @@ def process_gateway_queue_task(gateway_id):
 
             # Mark as 'PROCESSING' immediately to claim it
             ESLTag.objects.filter(pk=tag.pk).update(sync_state='PROCESSING')
+            # Update in-memory object to keep it consistent without an extra query
+            tag.sync_state = 'PROCESSING'
 
         # 4. Prepare and Send
         try:
-            # Re-fetch tag to ensure we have the latest state
-            tag.refresh_from_db()
+            # Redundant refresh_from_db() removed for performance ($O(1)$ query reduction per tag)
             tag_mac = tag.tag_mac.upper()
 
             if not tag.tag_image:
