@@ -278,11 +278,17 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """Renders a visual progress bar for battery life."""
         try:
             val = obj.battery_level or 0
-            color = "#059669" if val > 20 else "#dc2626"
+            if val > 20:
+                color = "#059669" # Good (Green)
+            elif val > 5:
+                color = "#d97706" # Low (Orange)
+            else:
+                color = "#dc2626" # Critical (Red)
+
             return format_html(
                 '<div role="progressbar" aria-valuenow="{}" aria-valuemin="0" aria-valuemax="100" title="Battery Level: {}%" '
                 'style="width: 80px; background: #eee; border-radius: 3px; height: 10px; display: inline-block; margin-right: 5px;">'
-                '<div style="width: {}%; background: {}; height: 10px; border-radius: 3px;"></div>'
+                '<div style="width: {}%; background: {}; height: 10px; border-radius: 3px; transition: width 0.5s ease, background-color 0.5s ease;"></div>'
                 '</div><small aria-hidden="true">{}%</small>',
                 val, val, val, color, val
             )
