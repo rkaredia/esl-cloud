@@ -447,7 +447,13 @@ class GlobalSettingAdmin(admin.ModelAdmin):
 # SECURITY & AUDIT MIXINS
 # =================================================================
 
-class AuditAdminMixin:
+class RequestCaptureMixin:
+    """Stores the current request in the instance for use in list_display methods."""
+    def get_queryset(self, request):
+        self.request = request
+        return super().get_queryset(request)
+
+class AuditAdminMixin(RequestCaptureMixin):
     """
     AUTOMATIC AUDIT LOGGING
     ----------------------
@@ -529,6 +535,10 @@ class UIHelperMixin:
     """
     def sync_button(self, obj):
         """Generates a Navy 'Sync' button to manually trigger a tag refresh."""
+        request = getattr(self, 'request', None)
+        if request and not request.user.has_perm('core.change_esltag'):
+            return ""
+
         try:
             try:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
