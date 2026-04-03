@@ -149,28 +149,42 @@ def dispatch_tag_image_task(tag_id):
             cache.delete(lock_id)
             return "No image to push"
 
+        # REAL-TIME CONNECTIVITY CHECK
+        # We fetch ALL gateways for this store and verify their heartbeat status
+        all_store_gateways = list(Gateway.objects.filter(store=tag.store))
+        online_gateways = [gw for gw in all_store_gateways if gw.is_currently_online()]
+
+        if not online_gateways:
+            # If NO gateways are online for the store, we mark it as a terminal failure
+            # or trigger a retry which will eventually land in PUSH_FAILED.
+            logger.warning(f"No online gateways found for store {tag.store.name}. Tag {tag.tag_mac} push aborted.")
+            cache.delete(lock_id)
+
+            # Update sync_state to PUSH_FAILED immediately for accurate reporting
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
+            return "Gateway push failed: All gateways offline"
+
         # FAILOVER ROTATION STRATEGY
+        # We prioritize the last successful gateway, then the assigned one,
+        # but ONLY if they are currently online.
+        online_ids = {gw.estation_id for gw in online_gateways}
         gateways_to_try = []
-        if tag.last_successful_gateway_id:
+
+        if tag.last_successful_gateway_id in online_ids:
             gateways_to_try.append(tag.last_successful_gateway_id)
 
-        if tag.gateway and tag.gateway.estation_id and tag.gateway.estation_id not in gateways_to_try:
+        if tag.gateway and tag.gateway.estation_id in online_ids and tag.gateway.estation_id not in gateways_to_try:
             gateways_to_try.append(tag.gateway.estation_id)
 
-        online_gateways = list(Gateway.objects.filter(
-            store=tag.store
-        ).exclude(
-            is_online='OFFLINE'
-        ).exclude(
-            estation_id__in=gateways_to_try
-        ).values_list('estation_id', flat=True))
-
-        gateways_to_try.extend(online_gateways)
+        # Add remaining online gateways to the rotation
+        for gw in online_gateways:
+            if gw.estation_id not in gateways_to_try:
+                gateways_to_try.append(gw.estation_id)
 
         if not gateways_to_try:
             cache.delete(lock_id)
-            handle_tag_failure_task.delay(tag_id, reason="No Online Gateways")
-            return "No online gateways found for store"
+            ESLTag.objects.filter(pk=tag_id).update(sync_state='PUSH_FAILED')
+            return "Gateway push failed: No available online gateways"
 
         # Assign the first available gateway and trigger processing
         best_gateway_id = gateways_to_try[0]
@@ -242,6 +256,13 @@ def process_gateway_queue_task(gateway_id):
             # Re-fetch tag to ensure we have the latest state
             tag.refresh_from_db()
             tag_mac = tag.tag_mac.upper()
+
+            # REAL-TIME CONNECTIVITY VERIFICATION
+            # If the gateway went offline since the task was queued, trigger a failure/retry
+            if not tag.gateway.is_currently_online():
+                 logger.warning(f"Gateway {gateway_id} is OFFLINE. Aborting push for tag {tag_mac}.")
+                 handle_tag_failure_task.delay(tag.id, reason="Gateway Offline during delivery")
+                 continue
 
             if not tag.tag_image:
                  logger.error(f"Tag {tag.tag_mac} in queue has no image.")
