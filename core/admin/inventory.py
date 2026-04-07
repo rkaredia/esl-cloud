@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -84,6 +85,8 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         Custom delete that prevents accidental deletion of thousands
         of items at once.
         """
+        if not request.user.has_perm('core.delete_product'):
+            raise PermissionDenied
         try:
             count = queryset.count()
             if count > 100:
@@ -100,6 +103,8 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """
         Triggers a refresh for every ESL Tag linked to the selected products.
         """
+        if not request.user.has_perm('core.change_product') or not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             from ..utils import trigger_bulk_sync
             count = queryset.count()
@@ -124,6 +129,8 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         """
         A 'Panic/Maintenance' button to refresh the entire store.
         """
+        if not request.user.has_perm('core.change_product') or not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)

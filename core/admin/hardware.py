@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -315,9 +316,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         except: return obj.last_image_task_id
     audit_log_link.short_description = "Audit Trail"
 
+
     # CUSTOM VIEW METHODS
     def manual_sync_view(self, request, object_id):
         """Logic for the 'Sync' button in the list view."""
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
+
         tag = self.get_queryset(request).filter(pk=object_id).first()
         if not tag:
             messages.error(request, "Permission denied.")
@@ -355,6 +360,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Refresh selected (Max 100)")
     def safe_regenerate_images(self, request, queryset):
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             count = queryset.count()
             if count > 100:
@@ -396,6 +403,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Refresh ALL Images")
     def refresh_all_store_tags(self, request, queryset):
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
@@ -411,6 +420,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Set ALL Image Template - V1")
     def set_all_template_v1(self, request, queryset):
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
@@ -428,6 +439,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Set ALL Image Template - V2")
     def set_all_template_v2(self, request, queryset):
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
@@ -444,6 +457,8 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Set ALL Image Template - V3")
     def set_all_template_v3(self, request, queryset):
+        if not request.user.has_perm('core.change_esltag'):
+            raise PermissionDenied
         try:
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)

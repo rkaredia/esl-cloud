@@ -3,9 +3,9 @@ import os
 from functools import wraps
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.db import transaction
 from django.core.files.storage import default_storage
@@ -133,6 +133,10 @@ def download_tag_template(request):
     Generates a sample Excel file on-the-fly using 'openpyxl' and
     sends it to the user's browser.
     """
+    # Security: Verify permission to add tags before allowing template download
+    if not request.user.has_perm('core.add_esltag'):
+        raise PermissionDenied
+
     try:
         wb = Workbook()
         ws = wb.active
@@ -156,6 +160,10 @@ def preview_tag_import(request):
     Parses a user-uploaded Excel file, identifies new vs. existing tags,
     and shows a preview table before committing any changes to the DB.
     """
+    # Security: Ensure user has permission to add or change tags before processing import
+    if not (request.user.has_perm('core.add_esltag') or request.user.has_perm('core.change_esltag')):
+        raise PermissionDenied
+
     if request.method != 'POST' or not request.FILES.get('file'):
         return redirect('admin:core_esltag_changelist')
     
@@ -232,6 +240,10 @@ def preview_product_import(request):
     Step 2: Preview changes (prices going up/down).
     Step 3: Click 'Confirm' to commit to Database.
     """
+    # Security: Ensure user has permission to add or change products
+    if not (request.user.has_perm('core.add_product') or request.user.has_perm('core.change_product')):
+        raise PermissionDenied
+
     active_store = getattr(request, 'active_store', None)
     if not active_store:
         messages.error(request, "Select a store first.")
@@ -301,6 +313,10 @@ def bulk_map_tags_view(request):
     Handles raw data from a barcode scanner.
     A typical scan pattern is: [SKU] -> [TAG ID] -> [SKU] -> [TAG ID].
     """
+    # Security: Mapping requires changing ESLTag records
+    if not request.user.has_perm('core.change_esltag'):
+        raise PermissionDenied
+
     opts = ESLTag._meta
     context = {'opts': opts, 'app_label': opts.app_label, 'title': "Bulk Product-Tag Mapping"}
 
