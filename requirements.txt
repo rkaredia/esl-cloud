@@ -1,4 +1,4 @@
-django==5.1.5           #Main app
+django==5.1.14          #Main app
 pillow==12.1.1          #Image processing
 openpyxl==3.1.5         #Read write XLX
 paho-mqtt==2.1.0        #MQTT brocker
