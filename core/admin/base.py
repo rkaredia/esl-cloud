@@ -137,6 +137,7 @@ class SAISAdminSite(admin.AdminSite):
             for gw in gateways:
                 status_code, status_label, status_color = gw.get_real_time_status()
                 count = gw.tag_count_ann
+                load_percent = min(int((count / 500) * 100), 100)
                 gateway_loads.append({
                     'gateway_mac': gw.gateway_mac,
                     'estation_id': gw.estation_id,
@@ -144,7 +145,8 @@ class SAISAdminSite(admin.AdminSite):
                     'status_label': status_label,
                     'status_color': status_color,
                     'tag_count': count,
-                    'load_percent': min(int((count / 500) * 100), 100) # Max 500 tags per gateway
+                    'load_percent': load_percent,
+                    'load_color': '#ef4444' if load_percent >= 90 else '#f59e0b' if load_percent >= 70 else '#3b82f6'
                 })
 
             context = {
@@ -534,7 +536,7 @@ class UIHelperMixin:
                 url = reverse('sais_admin:sync-tag-manual', args=[obj.pk])
             except NoReverseMatch:
                 url = reverse('admin:sync-tag-manual', args=[obj.pk])
-            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync 🔄</a>', url)
+            return format_html('<a class="btn-sync" href="{}" title="Manually trigger tag update" aria-label="Sync tag">Sync <span aria-hidden="true">🔄</span></a>', url)
         except NoReverseMatch:
             return ""
     sync_button.short_description = "Action"
