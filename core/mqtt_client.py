@@ -24,6 +24,19 @@ PROTOCOL DETAILS:
 
 logger = logging.getLogger(__name__)
 
+class BytesEncoder(json.JSONEncoder):
+    """
+    JSON Encoder that handles bytes by decoding them to UTF-8
+    or returning a placeholder for binary data.
+    """
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            try:
+                return obj.decode('utf-8')
+            except:
+                return f"<binary:{len(obj)} bytes>"
+        return super().default(obj)
+
 class ESLMqttClient:
     """
     SAIS MQTT CLIENT MANAGER
@@ -236,6 +249,9 @@ class ESLMqttClient:
                 for t in db_tags:
                     tags_map[t.clean_db_mac] = t
 
+            tags_to_bulk_update = []
+            now = timezone.now()
+
             for res in tag_results:
                 try:
                     tag_mac = res.get('tag_mac')
@@ -265,26 +281,34 @@ class ESLMqttClient:
                         received_retry_count = (received_token >> 14) & 0x03
 
                         battery_pct = self._calculate_battery_percentage(res.get('battery_raw'))
-                        update_fields = {'updated_at': timezone.now()}
+
+                        tag.updated_at = now
                         if battery_pct is not None:
-                            update_fields['battery_level'] = battery_pct
+                            tag.battery_level = battery_pct
 
                         if is_success:
-                            update_fields['sync_state'] = 'SUCCESS'
-                            update_fields['last_successful_gateway_id'] = estation_id
-                            update_fields['retry_count'] = 0
-                            ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                            tag.sync_state = 'SUCCESS'
+                            tag.last_successful_gateway_id = estation_id
+                            tag.retry_count = 0
+                            tags_to_bulk_update.append(tag)
                             logger.info(f"Tag {tag_mac} sync: SUCCESS (Retry: {received_retry_count}, Batt: {battery_pct}%)")
                         else:
+                            # Use direct update for failures to ensure consistent DB state before task dispatch
+                            tag.save(update_fields=['battery_level', 'updated_at'] if battery_pct is not None else ['updated_at'])
+
                             from .tasks import handle_tag_failure_task
-                            if battery_pct is not None:
-                                ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
                             handle_tag_failure_task.delay(tag.id, reason=f"Hardware Status Code: {status_code}")
                             logger.warning(f"Tag {tag_mac} sync: FAILED (Retry: {received_retry_count}, Code: {status_code})")
                     else:
                         logger.warning(f"Token mismatch {tag_mac}: Exp {expected_token_id}, Got {received_token_id}")
                 except Exception as e:
                     logger.error(f"Error processing single tag result {res.get('tag_mac')}: {str(e)}")
+
+            if tags_to_bulk_update:
+                ESLTag.objects.bulk_update(
+                    tags_to_bulk_update,
+                    ['sync_state', 'last_successful_gateway_id', 'retry_count', 'battery_level', 'updated_at']
+                )
 
         except Exception:
             logger.exception("Error handling MQTT result message")
@@ -691,15 +715,6 @@ class ESLMqttClient:
         try:
             # Security: Sanitize sensitive credentials before logging
             data = self._sanitize_data(data)
-
-            class BytesEncoder(json.JSONEncoder):
-                def default(self, obj):
-                    if isinstance(obj, bytes):
-                        try:
-                            return obj.decode('utf-8')
-                        except:
-                            return f"<binary:{len(obj)} bytes>"
-                    return super().default(obj)
 
             json_data = json.dumps(data, cls=BytesEncoder)
 
