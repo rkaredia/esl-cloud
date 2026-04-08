@@ -13,3 +13,7 @@
 ## 2026-03-09 - [Decorative Symbol Isolation & Admin Security]
 **Learning:** Decorative status symbols (dots, arrows) in list views and buttons are announced as literal characters (e.g., "bullet") by screen readers, cluttering the experience.
 **Action:** Always wrap decorative symbols in `<span aria-hidden="true">` when adjacent to meaningful status text. Favor `format_html` over `mark_safe` in Django Admin to ensure both security (XSS prevention) and accessibility.
+
+## 2026-03-10 - [Feedback Loops & Async Interaction]
+**Learning:** Users perceive long-running or redirect-heavy operations (like hardware syncs or gallery refreshes) as "broken" if there is no immediate visual state change. Pure CSS animations combined with simple JS class toggling provide the best balance of performance and responsiveness.
+**Action:** Implement `.btn-loading` and `.spinning` utility classes for all action-oriented buttons. Ensure `onload` and `onerror` event listeners are used to reset state for multi-asset loading operations like image galleries.

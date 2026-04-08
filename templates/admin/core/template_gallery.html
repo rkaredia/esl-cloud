@@ -116,8 +116,8 @@
             <strong style="display: block; margin-bottom: 4px;">Hardware Preview Engine</strong>
             <span style="color: #64748b; font-size: 13px;">Verify rendering across different screen sizes and color schemes.</span>
         </div>
-        <button class="btn-refresh" onclick="refreshImages()">
-            Force Refresh All Previews <span style="font-size: 16px;">🔄</span>
+        <button id="refresh-previews-btn" class="btn-refresh" onclick="refreshImages()" aria-label="Force refresh all previews">
+            Force Refresh All Previews <span aria-hidden="true" style="font-size: 16px;">🔄</span>
         </button>
     </div>
 
@@ -174,16 +174,59 @@
        FORCE REFRESH
        -------------
        Adds a random timestamp parameter to the image URLs to
-       bypass browser caching.
+       bypass browser caching and provides visual feedback.
     */
     function refreshImages() {
+        const btn = document.getElementById('refresh-previews-btn');
         const images = document.querySelectorAll('.esl-img');
         const timestamp = new Date().getTime();
-        images.forEach(img => {
-            const url = new URL(img.src);
-            url.searchParams.set('v', timestamp);
-            img.src = url.toString();
-        });
+
+        if (btn) {
+            btn.classList.add('btn-loading');
+            const icon = btn.querySelector('span[aria-hidden="true"]');
+            if (icon) icon.classList.add('spinning');
+
+            // Text feedback
+            const originalText = btn.childNodes[0].nodeValue;
+            btn.childNodes[0].nodeValue = 'Refreshing... ';
+
+            let loadedCount = 0;
+            const total = images.length;
+
+            const checkDone = () => {
+                loadedCount++;
+                if (loadedCount >= total) {
+                    btn.classList.remove('btn-loading');
+                    if (icon) icon.classList.remove('spinning');
+                    btn.childNodes[0].nodeValue = originalText;
+                }
+            };
+
+            images.forEach(img => {
+                // If image is already loaded (cached somehow even with timestamp), or fails
+                img.onload = checkDone;
+                img.onerror = checkDone;
+
+                const url = new URL(img.src);
+                url.searchParams.set('v', timestamp);
+                img.src = url.toString();
+            });
+
+            // Safety timeout in case some images never fire onload/onerror
+            setTimeout(() => {
+                if (btn.classList.contains('btn-loading')) {
+                    btn.classList.remove('btn-loading');
+                    if (icon) icon.classList.remove('spinning');
+                    btn.childNodes[0].nodeValue = originalText;
+                }
+            }, 5000);
+        } else {
+            images.forEach(img => {
+                const url = new URL(img.src);
+                url.searchParams.set('v', timestamp);
+                img.src = url.toString();
+            });
+        }
     }
 </script>
 {% endblock %}
