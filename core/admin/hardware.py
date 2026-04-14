@@ -390,6 +390,9 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
 
     @admin.action(description="Delete selected tags (Max 100)")
     def safe_delete(self, request, queryset):
+        # Security: Check for explicit delete permission before proceeding
+        if not request.user.has_perm('core.delete_esltag'):
+            raise PermissionDenied
         try:
             count = queryset.count()
             if count > 100:
