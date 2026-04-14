@@ -291,6 +291,23 @@
     background: var(--navy) !important; /* Use Navy for Sync to match 'Add' buttons */
 }
 
+/* 11. ANIMATIONS & LOADING STATES */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinning {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+.btn-loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
 .filter-hidden #changelist-filter {
     display: none !important;
 }
