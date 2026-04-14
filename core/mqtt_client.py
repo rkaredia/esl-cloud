@@ -24,6 +24,19 @@ PROTOCOL DETAILS:
 
 logger = logging.getLogger(__name__)
 
+class BytesEncoder(json.JSONEncoder):
+    """
+    JSON encoder that handles bytes objects.
+    Defined at module level for performance (avoiding re-definition).
+    """
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            try:
+                return obj.decode('utf-8')
+            except:
+                return f"<binary:{len(obj)} bytes>"
+        return super().default(obj)
+
 class ESLMqttClient:
     """
     SAIS MQTT CLIENT MANAGER
@@ -217,7 +230,8 @@ class ESLMqttClient:
                 return
 
             # 2. Identify which gateway sent this
-            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).first()
+            # PERFORMANCE: Add select_related('store') to avoid lazy-loading DB query
+            gateway = Gateway.objects.select_related('store').filter(estation_id__iexact=estation_id.strip()).first()
             if not gateway:
                 logger.error(f"Received result from unknown gateway {estation_id}")
                 return
@@ -225,6 +239,8 @@ class ESLMqttClient:
             # 3. Process each tag result
             from django.db.models.functions import Upper, Replace
             from django.db.models import Value
+            # PERFORMANCE: Move task import out of the loop
+            from .tasks import handle_tag_failure_task
 
             # Pre-fetch tags for efficiency (Bulk Lookup)
             macs_to_find = [r['tag_mac'].replace(':', '').upper() for r in tag_results if r.get('tag_mac')]
@@ -235,6 +251,9 @@ class ESLMqttClient:
                 ).filter(clean_db_mac__in=macs_to_find)
                 for t in db_tags:
                     tags_map[t.clean_db_mac] = t
+
+            # PERFORMANCE: Collect tags for bulk update of successful results
+            tags_to_bulk_update = []
 
             for res in tag_results:
                 try:
@@ -265,18 +284,17 @@ class ESLMqttClient:
                         received_retry_count = (received_token >> 14) & 0x03
 
                         battery_pct = self._calculate_battery_percentage(res.get('battery_raw'))
-                        update_fields = {'updated_at': timezone.now()}
+                        tag.updated_at = timezone.now()
                         if battery_pct is not None:
-                            update_fields['battery_level'] = battery_pct
+                            tag.battery_level = battery_pct
 
                         if is_success:
-                            update_fields['sync_state'] = 'SUCCESS'
-                            update_fields['last_successful_gateway_id'] = estation_id
-                            update_fields['retry_count'] = 0
-                            ESLTag.objects.filter(pk=tag.pk).update(**update_fields)
+                            tag.sync_state = 'SUCCESS'
+                            tag.last_successful_gateway_id = estation_id
+                            tag.retry_count = 0
+                            tags_to_bulk_update.append(tag)
                             logger.info(f"Tag {tag_mac} sync: SUCCESS (Retry: {received_retry_count}, Batt: {battery_pct}%)")
                         else:
-                            from .tasks import handle_tag_failure_task
                             if battery_pct is not None:
                                 ESLTag.objects.filter(pk=tag.pk).update(battery_level=battery_pct)
                             handle_tag_failure_task.delay(tag.id, reason=f"Hardware Status Code: {status_code}")
@@ -285,6 +303,13 @@ class ESLMqttClient:
                         logger.warning(f"Token mismatch {tag_mac}: Exp {expected_token_id}, Got {received_token_id}")
                 except Exception as e:
                     logger.error(f"Error processing single tag result {res.get('tag_mac')}: {str(e)}")
+
+            # PERFORMANCE: Execute bulk update for successful tags in O(1) query
+            if tags_to_bulk_update:
+                ESLTag.objects.bulk_update(
+                    tags_to_bulk_update,
+                    ['sync_state', 'last_successful_gateway_id', 'retry_count', 'battery_level', 'updated_at']
+                )
 
         except Exception:
             logger.exception("Error handling MQTT result message")
@@ -691,15 +716,6 @@ class ESLMqttClient:
         try:
             # Security: Sanitize sensitive credentials before logging
             data = self._sanitize_data(data)
-
-            class BytesEncoder(json.JSONEncoder):
-                def default(self, obj):
-                    if isinstance(obj, bytes):
-                        try:
-                            return obj.decode('utf-8')
-                        except:
-                            return f"<binary:{len(obj)} bytes>"
-                    return super().default(obj)
 
             json_data = json.dumps(data, cls=BytesEncoder)
 

@@ -29,3 +29,7 @@
 ## 2026-03-12 - [State Timeout Consolidation in Periodic Tasks]
 **Learning:** Implementing individual 'timeout' timers for thousands of hardware transactions (like ESL tag updates) creates massive task queue overhead. Consolidating these checks into an existing 60-second periodic "Gateway Heartbeat" task allows for efficient batch-processing of stale states (`PUSHED` -> `PUSH_FAILED`) with a single database query.
 **Action:** Avoid per-transaction timeout tasks. Instead, add a `last_pushed_at` timestamp and use a single periodic "cleaner" task to bulk-update records that have exceeded the timeout threshold, reducing Celery/Redis load.
+
+## 2026-04-14 - [MQTT Result Processing & Hot Path Optimization]
+**Learning:** Processing batch results from hardware via individual `.update()` calls creates an $O(N)$ database bottleneck. Shifting to `bulk_update()` for successful results consolidates these into a single query. Additionally, defining helper classes (like JSON encoders) or performing imports inside high-frequency loops/methods adds avoidable CPU overhead.
+**Action:** Always use batch database operations for hardware response handlers and move static class/import definitions to the module scope to keep the hot path as lean as possible.

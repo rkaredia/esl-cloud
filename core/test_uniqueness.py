@@ -19,19 +19,19 @@ class ESLTagUniquenessTest(TestCase):
 
     def test_same_tag_different_stores(self):
         """Verify that the same tag_mac can exist in different stores."""
-        tag1 = ESLTag.objects.create(tag_mac="390000f41f5f", gateway=self.gw1, hardware_spec=self.hw)
-        tag2 = ESLTag.objects.create(tag_mac="390000f41f5f", gateway=self.gw2, hardware_spec=self.hw)
+        tag1 = ESLTag.objects.create(tag_mac="390000F41F5F", gateway=self.gw1, hardware_spec=self.hw)
+        tag2 = ESLTag.objects.create(tag_mac="390000F41F5F", gateway=self.gw2, hardware_spec=self.hw)
 
         self.assertEqual(tag1.store, self.store1)
         self.assertEqual(tag2.store, self.store2)
-        self.assertEqual(ESLTag.objects.filter(tag_mac="390000f41f5f").count(), 2)
+        self.assertEqual(ESLTag.objects.filter(tag_mac="390000F41F5F").count(), 2)
 
     def test_same_tag_same_store_fails(self):
         """Verify that the same tag_mac cannot exist twice in the same store."""
-        ESLTag.objects.create(tag_mac="390000f41f5f", gateway=self.gw1, hardware_spec=self.hw)
+        ESLTag.objects.create(tag_mac="390000F41F5F", gateway=self.gw1, hardware_spec=self.hw)
 
         with self.assertRaises(ValidationError):
-            ESLTag.objects.create(tag_mac="390000f41f5f", gateway=self.gw1, hardware_spec=self.hw)
+            ESLTag.objects.create(tag_mac="390000F41F5F", gateway=self.gw1, hardware_spec=self.hw)
 
     def test_store_auto_population(self):
         """Verify that the store is automatically populated from the gateway."""
