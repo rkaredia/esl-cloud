@@ -282,6 +282,7 @@ class ESLMqttClient:
 
                         battery_pct = self._calculate_battery_percentage(res.get('battery_raw'))
 
+
                         tag.updated_at = now
                         if battery_pct is not None:
                             tag.battery_level = battery_pct
@@ -295,6 +296,7 @@ class ESLMqttClient:
                         else:
                             # Use direct update for failures to ensure consistent DB state before task dispatch
                             tag.save(update_fields=['battery_level', 'updated_at'] if battery_pct is not None else ['updated_at'])
+
 
                             from .tasks import handle_tag_failure_task
                             handle_tag_failure_task.delay(tag.id, reason=f"Hardware Status Code: {status_code}")
