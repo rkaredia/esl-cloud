@@ -76,12 +76,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const updateToggleButton = (btn, isVisible) => {
             if (!btn) return;
-            btn.innerHTML = isVisible ? 'Hide Filters 👁 [F]' : 'Show Filters 👁 [F]';
+            const text = isVisible ? 'Hide Filters' : 'Show Filters';
+            const icon = ' <span aria-hidden="true">👁</span> [F]';
+            btn.innerHTML = text + icon;
             btn.setAttribute('aria-expanded', isVisible);
 
             // Sync all toggle buttons if multiple exist
             document.querySelectorAll('#filter-toggle-btn').forEach(b => {
-                b.innerHTML = isVisible ? 'Hide Filters 👁 [F]' : 'Show Filters 👁 [F]';
+                b.innerHTML = text + icon;
             });
         };
 
@@ -225,6 +227,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1000);
                 });
             }
+        }
+    });
+
+    // 7. SYNC BUTTON LOADING FEEDBACK
+    document.addEventListener('click', function(e) {
+        const syncBtn = e.target.closest('.btn-sync');
+        if (syncBtn && !syncBtn.classList.contains('btn-loading')) {
+            syncBtn.classList.add('btn-loading');
+            const icon = syncBtn.querySelector('span[aria-hidden="true"]');
+            if (icon) {
+                icon.classList.add('spinning');
+            }
+            // Add a small delay for visual feedback before navigation if it's too fast
+            // but usually redirects take enough time.
+            // We just let the default navigation happen.
         }
     });
 

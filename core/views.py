@@ -198,16 +198,31 @@ def preview_tag_import(request):
                 continue
 
             # 4. Save: Get or Create the record in the DB
-            tag, created = ESLTag.objects.get_or_create(
-                tag_mac=sanitized_id,
-                store=active_store,
-                defaults={'gateway': gateway, 'hardware_spec': spec, 'updated_by': request.user}
-            )
+            tag = ESLTag.objects.filter(tag_mac=sanitized_id, store=active_store).first()
 
-            if created:
+            if not tag:
+                # Security: Explicitly check for 'add' permission before creating new tag
+                if not request.user.has_perm('core.add_esltag'):
+                    summary['rejected'] += 1
+                    results.append({'mac': sanitized_id, 'status': 'rejected', 'message': 'Permission denied: Cannot create new tags.'})
+                    continue
+
+                tag = ESLTag.objects.create(
+                    tag_mac=sanitized_id,
+                    store=active_store,
+                    gateway=gateway,
+                    hardware_spec=spec,
+                    updated_by=request.user
+                )
                 summary['added'] += 1
                 status, msg = 'added', "New tag registered."
             elif tag.gateway != gateway or tag.hardware_spec != spec:
+                # Security: Explicitly check for 'change' permission before updating
+                if not request.user.has_perm('core.change_esltag'):
+                    summary['rejected'] += 1
+                    results.append({'mac': sanitized_id, 'status': 'rejected', 'message': 'Permission denied: Cannot update tag metadata.'})
+                    continue
+
                 # Update existing record if something changed
                 tag.gateway, tag.hardware_spec, tag.updated_by = gateway, spec, request.user
                 tag.save()
