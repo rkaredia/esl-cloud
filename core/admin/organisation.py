@@ -109,7 +109,13 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         """Security: Prevent non-superusers from creating 'Global Admin' roles."""
         if db_field.name == "role" and not request.user.is_superuser:
-            kwargs["choices"] = [c for c in User.ROLE_CHOICES if c[0] != 'admin']
+            # Stricter role restrictions to prevent privilege escalation
+            if request.user.role == 'manager':
+                # Managers can only assign manager, staff, or readonly
+                kwargs["choices"] = [c for c in User.ROLE_CHOICES if c[0] in ['manager', 'staff', 'readonly']]
+            else:
+                # Other non-superusers (Owners) can assign everything except 'admin'
+                kwargs["choices"] = [c for c in User.ROLE_CHOICES if c[0] != 'admin']
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -121,7 +127,13 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         """Security: Restrict store selection to the user's company."""
         if db_field.name == "managed_stores" and not request.user.is_superuser:
-            kwargs["queryset"] = Store.objects.filter(company_id=request.user.company_id)
+            if request.user.role == 'manager':
+                # Security: Managers can ONLY assign stores they already manage.
+                # This prevents them from accessing data in other stores of the same company.
+                kwargs["queryset"] = request.user.managed_stores.all()
+            else:
+                # Owners can see all stores within their company.
+                kwargs["queryset"] = Store.objects.filter(company_id=request.user.company_id)
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def get_queryset(self, request):
