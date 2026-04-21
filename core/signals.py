@@ -29,26 +29,21 @@ def update_tags_on_product_change(sender, instance, **kwargs):
     When a Product changes (Price, Name, etc.), trigger updates 
     for all ESL tags linked to this product.
     """
-    from core.tasks import update_tag_image_task
+    # Performance: Use model-level change detection to skip unnecessary processing
+    if not getattr(instance, '_needs_refresh', True):
+        return
+
+    from .utils import trigger_bulk_sync
     
     # 1. Look up all Tags currently displaying this product
     tag_ids = list(instance.esl_tags.values_list('id', flat=True))
 
-    for t_id in tag_ids:
-        # 2. DEBOUNCING:
-        # Prevents triggering the same update multiple times in a row
-        # (e.g. if the user clicks 'Save' twice quickly).
-        debounce_key = f"signal_debounce_{t_id}"
-
-        # cache.add only returns True if the key didn't exist before.
-        # This acts as a 5-second lock.
-        if cache.add(debounce_key, "locked", timeout=5):
-            # 3. ON COMMIT:
-            # We only queue the background task if the database successfully
-            # writes the product change.
-            transaction.on_commit(
-                lambda current_tid=t_id: update_tag_image_task.delay(current_tid)
-            )
+    if tag_ids:
+        # Performance: Use trigger_bulk_sync to batch dispatch tasks in one transaction hook.
+        # This also removes the O(N) cache.add (Redis) overhead from the signal handler.
+        transaction.on_commit(
+            lambda: trigger_bulk_sync(tag_ids)
+        )
 
 @receiver(post_save, sender=ESLTag)
 def trigger_image_update_on_tag_save(sender, instance, **kwargs):
@@ -58,24 +53,17 @@ def trigger_image_update_on_tag_save(sender, instance, **kwargs):
     Triggers an update when the Tag itself is changed (e.g., paired
     with a different product or switched to a new Template).
     """
+    # Performance: Use model-level change detection. This handles both 'update_fields' saves
+    # and full-object saves (common in Django Admin) without redundant task triggering.
+    if not getattr(instance, '_needs_refresh', True):
+        return
 
-    # 1. PREVENT INFINITE LOOPS:
-    # The 'update_tag_image_task' saves the BMP image back to the Tag model.
-    # We must IGNORE that specific save, otherwise we would trigger
-    # another task, which would save again, forever.
-    update_fields = kwargs.get('update_fields')
-    if update_fields is not None:
-        # Only trigger if these SPECIFIC fields were edited
-        trigger_fields = {'paired_product', 'gateway', 'hardware_spec','template_id'}
-        if not any(field in update_fields for field in trigger_fields):
-            return
-
-    # 2. Debouncing (Same logic as above)
+    # 1. Debouncing: Prevents triggering multiple tasks for the same tag in rapid succession
     debounce_key = f"signal_debounce_{instance.id}"
     if not cache.add(debounce_key, "locked", timeout=5):
         return
 
-    # 3. Trigger Task if the tag has enough info to render
+    # 2. Trigger Task if the tag has enough info to render
     if instance.paired_product and instance.hardware_spec:
         from core.tasks import update_tag_image_task
         transaction.on_commit(
