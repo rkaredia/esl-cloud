@@ -155,29 +155,45 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     if not product: return
 
-    # 3. DRAW PRODUCT NAME (Left Top)
+    # 3. BARCODE GEOMETRY (Needed for name spacing)
+    barcode_h = int(height * 0.25)
+    barcode_y = height - barcode_h - 15
+
+    # 4. DRAW PRODUCT NAME (Left Top)
     name_text = product.name.upper()
     wrapper = textwrap.TextWrapper(width=14) # Wrap text to prevent overflow
     lines = wrapper.wrap(text=name_text)[:4] # Max 4 lines
 
     if lines:
-        # Start with a larger font size and let it scale down to fit the zone
-        initial_font_size = 30
-        longest_line = max(lines, key=len)
-        max_h_total = height * 0.45
-        max_h_per_line = max_h_total / len(lines)
-
-        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "condensed")
-
-        bbox = draw.textbbox((0, 0), "Ay", font=n_font)
-        line_height = bbox[3] - bbox[1] + 2
-
         curr_y = 4
+        # Calculate available height for name, ensuring a 5px gap before barcode
+        max_h_total = barcode_y - curr_y - 5
+
+        initial_font_size = 30
+        best_font = get_font_by_type(8, "condensed")
+
+        # Manually find the best font size that fits the total height for all lines
+        for size in range(8, initial_font_size + 1):
+            font = get_font_by_type(size, "condensed")
+            # Measure width of longest line
+            longest_line = max(lines, key=len)
+            w = draw.textbbox((0, 0), longest_line, font=font)[2]
+            # Measure height of a standard line with our +2px padding
+            h = draw.textbbox((0, 0), "Ay", font=font)[3] - draw.textbbox((0, 0), "Ay", font=font)[1]
+            total_h = (h + 2) * len(lines)
+
+            if w <= left_zone_w and total_h <= max_h_total:
+                best_font = font
+            else:
+                break
+
+        line_height = (draw.textbbox((0, 0), "Ay", font=best_font)[3] - draw.textbbox((0, 0), "Ay", font=best_font)[1]) + 2
+
         for line in lines:
-            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=n_font)
+            draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=best_font)
             curr_y += line_height
 
-    # 4. DRAW PRICE & SUPPLIER (Right Box)
+    # 5. DRAW PRICE & SUPPLIER (Right Box)
     try:
         price_val = float(product.price)
         p_parts = f"{price_val:.2f}".split('.')
@@ -241,9 +257,8 @@ def template_v1(image, draw, product, width, height, color_scheme):
     draw.text((p_x, y_center), dollars, fill=price_txt_col, font=d_font, anchor="lm")
     draw.text((p_x + d_w + 2, (y_center) - int(d_font.size * 0.15)), cents, fill=price_txt_col, font=c_font, anchor="lm")
 
-    # 5. DRAW BARCODE (Left Bottom)
+    # 6. DRAW BARCODE (Left Bottom)
     try:
-        barcode_h = int(height * 0.25)
         # Use pixel-perfect barcode renderer with 10px quiet zone (approx 0.85mm at 300dpi)
         # We increase the default to 10px to meet the "quiet zone" requirement
         b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
@@ -251,7 +266,6 @@ def template_v1(image, draw, product, width, height, color_scheme):
         if b_img:
             # Center the barcode in the left zone, but ensure it doesn't spill into the left buffer
             barcode_x = safe_pad + max(0, (left_zone_w - b_img.width) // 2)
-            barcode_y = height - barcode_h - 15
             image.paste(b_img, (barcode_x, barcode_y), b_img)
 
             display_text = f"{product.sku}"
