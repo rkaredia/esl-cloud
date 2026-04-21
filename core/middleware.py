@@ -153,12 +153,12 @@ class InputSanitizationMiddleware:
         if not raw_id:
             return None
 
-        # Regex: Keep only numbers 0-9 and letters A-Z
-        cleaned = re.sub(r'[^0-9A-Za-z]', '', str(raw_id).strip())
+        from .utils import normalize_mac
+        cleaned = normalize_mac(raw_id)
 
         # Business Rule: Physical IDs are typically between 8 and 15 characters.
         if 8 <= len(cleaned) <= 15:
-            return cleaned.upper()
+            return cleaned
 
         return None
 

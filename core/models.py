@@ -442,7 +442,8 @@ class ESLTag(AuditModel):
     last_successful_gateway_id = models.CharField(max_length=4, blank=True, null=True, verbose_name="Last Successful Gateway ID")
 
     # The physical Hardware ID (MAC Address)
-    tag_mac = models.CharField(max_length=50, verbose_name="Tag ID/MAC")
+    # db_index=True ensures O(1) lookups during high-frequency MQTT results processing
+    tag_mac = models.CharField(max_length=50, verbose_name="Tag ID/MAC", db_index=True)
 
     # Link to hardware specs (Width/Height)
     hardware_spec = models.ForeignKey(TagHardware, on_delete=models.SET_NULL, null=True)
@@ -509,9 +510,10 @@ class ESLTag(AuditModel):
         ------------------
         Ensures data integrity (Store inheritance) and detects pairing changes.
         """
-        # Normalize MAC Address to UPPERCASE (Fixes Case Sensitivity issues)
+        # Normalize MAC Address (Removes colons/dashes and converts to UPPERCASE)
         if self.tag_mac:
-            self.tag_mac = self.tag_mac.strip().upper()
+            from .utils import normalize_mac
+            self.tag_mac = normalize_mac(self.tag_mac)
 
         # Rule: If a tag is assigned to a gateway, it must inherit that gateway's store.
         if self.gateway and not self.store:

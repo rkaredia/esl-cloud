@@ -23,6 +23,17 @@ Key Components:
 
 logger = logging.getLogger('core')
 
+def normalize_mac(raw_mac):
+    """
+    Standardizes a MAC address or hardware ID.
+    Removes all punctuation (colons, dashes) and spaces,
+    returning a clean uppercase alphanumeric string.
+    """
+    if not raw_mac:
+        return ""
+    import re
+    return re.sub(r'[^0-9A-Za-z]', '', str(raw_mac)).strip().upper()
+
 # Module-level cache to prevent redundant font loading from disk (Performance)
 _FONT_CACHE = {}
 

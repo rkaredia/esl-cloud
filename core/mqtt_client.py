@@ -236,18 +236,15 @@ class ESLMqttClient:
                 return
 
             # 3. Process each tag result
-            from django.db.models.functions import Upper, Replace
-            from django.db.models import Value
+            from .utils import normalize_mac
 
-            # Pre-fetch tags for efficiency (Bulk Lookup)
-            macs_to_find = [r['tag_mac'].replace(':', '').upper() for r in tag_results if r.get('tag_mac')]
+            # Pre-fetch tags for efficiency (Bulk Lookup - now O(1) via index)
+            macs_to_find = [normalize_mac(r['tag_mac']) for r in tag_results if r.get('tag_mac')]
             tags_map = {}
             if macs_to_find:
-                db_tags = ESLTag.objects.filter(store=gateway.store).annotate(
-                    clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
-                ).filter(clean_db_mac__in=macs_to_find)
+                db_tags = ESLTag.objects.filter(store=gateway.store, tag_mac__in=macs_to_find)
                 for t in db_tags:
-                    tags_map[t.clean_db_mac] = t
+                    tags_map[t.tag_mac] = t
 
             tags_to_bulk_update = []
             now = timezone.now()
@@ -257,7 +254,7 @@ class ESLMqttClient:
                     tag_mac = res.get('tag_mac')
                     if not tag_mac: continue
 
-                    clean_mac = tag_mac.replace(':', '').upper()
+                    clean_mac = normalize_mac(tag_mac)
                     tag = tags_map.get(clean_mac)
 
                     if not tag:
@@ -507,6 +504,7 @@ class ESLMqttClient:
             gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).select_related('store').first()
             if not gateway: return
 
+            from .utils import normalize_mac
             normalized_macs = []
             tag_data_map = {}
 
@@ -519,19 +517,14 @@ class ESLMqttClient:
                     battery = tag_entry.get('Battery')
 
                 if raw_mac:
-                    clean_mac = raw_mac.replace(':', '').upper()
+                    clean_mac = normalize_mac(raw_mac)
                     normalized_macs.append(clean_mac)
                     tag_data_map[clean_mac] = {'battery': battery, 'original_mac': raw_mac}
 
-            # Flexible database matching
-            from django.db.models.functions import Upper, Replace
-            from django.db.models import Value
+            # Flexible database matching (now O(1) via index)
+            existing_tags_list = ESLTag.objects.filter(store=gateway.store, tag_mac__in=normalized_macs)
 
-            existing_tags_list = ESLTag.objects.filter(store=gateway.store).annotate(
-                clean_db_mac=Upper(Replace('tag_mac', Value(':'), Value('')))
-            ).filter(clean_db_mac__in=normalized_macs)
-
-            existing_tags = {t.clean_db_mac: t for t in existing_tags_list}
+            existing_tags = {t.tag_mac: t for t in existing_tags_list}
 
             from .models import TagHardware
             default_hw = None
@@ -607,7 +600,8 @@ class ESLMqttClient:
             import base64
             # 0. Clean Tag MAC (Remove colons and UPPERCASE to match hardware expectation)
             # STRIP WHITESPACE to prevent incorrect ID lengths
-            clean_mac = tag_mac.replace(':', '').strip().upper()
+            from .utils import normalize_mac
+            clean_mac = normalize_mac(tag_mac)
 
             # 1. Base64 encode the BMP image
             image_b64 = base64.b64encode(image_bytes).decode('utf-8')
