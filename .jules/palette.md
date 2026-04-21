@@ -13,3 +13,7 @@
 ## 2026-03-09 - [Decorative Symbol Isolation & Admin Security]
 **Learning:** Decorative status symbols (dots, arrows) in list views and buttons are announced as literal characters (e.g., "bullet") by screen readers, cluttering the experience.
 **Action:** Always wrap decorative symbols in `<span aria-hidden="true">` when adjacent to meaningful status text. Favor `format_html` over `mark_safe` in Django Admin to ensure both security (XSS prevention) and accessibility.
+
+## 2026-04-21 - [Aria-Label Masking & Interactive Text A11y]
+**Learning:** Applying an `aria-label` to an anchor tag overrides its internal text content for screen readers. In dashboards with dynamic metrics (e.g., tag counts), this can accidentally hide critical data. Additionally, custom "Click-to-copy" features on static text (like MAC addresses) are invisible to keyboard users and screen readers unless enhanced with proper roles and keyboard listeners.
+**Action:** When using `aria-label`, always include any dynamic data present in the element's children. For custom interactions on non-interactive elements, always inject `role="button"`, `tabindex="0"`, and implement keyboard parity for 'Enter' and 'Space'.
