@@ -15,5 +15,5 @@ class Migration(migrations.Migration):
         ('core', '0046_alter_esltag_tag_mac'),
     ]
     operations = [
-        migrations.RunPython(normalize_macs),
+        migrations.RunPython(normalize_macs, reverse_code=migrations.RunPython.noop),
     ]

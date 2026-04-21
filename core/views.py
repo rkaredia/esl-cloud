@@ -395,10 +395,13 @@ def configure_gateway_view(request, gateway_id):
     gateway = get_object_or_404(Gateway, pk=gateway_id)
     opts = Gateway._meta
 
+    # Fetch default configuration once
+    default_server = GlobalSetting.objects.filter(key='DEFAULT_GATEWAY_SERVER').values_list('value', flat=True).first() or "192.168.1.92:9081"
+
     if request.method == "POST":
         # Collect parameters from the form
         alias = request.POST.get('alias')
-        server = request.POST.get('server') or "192.168.1.92:9081"
+        server = request.POST.get('server') or default_server
         username = request.POST.get('username') or "test"
         password = request.POST.get('password')
         if not password:
@@ -461,7 +464,7 @@ def configure_gateway_view(request, gateway_id):
         return redirect('admin:core_gateway_changelist')
 
     # Default values for the form
-    server_display = "192.168.1.92:9081"
+    server_display = default_server
     if gateway.app_server_ip:
         server_display = f"{gateway.app_server_ip}:{gateway.app_server_port or 9081}"
 

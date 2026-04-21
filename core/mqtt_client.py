@@ -3,6 +3,7 @@ import msgpack
 import json
 import logging
 import os
+import random
 import gzip
 import io
 from datetime import datetime, timedelta
@@ -707,8 +708,19 @@ class ESLMqttClient:
         """
         AUDIT LOGGING
         -------------
+        Optimized: Successful heartbeats are sampled (10%) to reduce DB volume.
         """
         try:
+            # PERFORMANCE: Sample successful heartbeats to reduce DB noise
+            if topic.endswith("/heartbeat") and force_success is not False:
+                # Always log errors (MsgCode > 4)
+                is_error = False
+                if isinstance(data, list) and len(data) >= 5:
+                    is_error = data[4] > 4
+
+                if not is_error and random.random() > 0.1:
+                    return
+
             # Security: Sanitize sensitive credentials before logging
             data = self._sanitize_data(data)
 

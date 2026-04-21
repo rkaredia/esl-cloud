@@ -1,6 +1,7 @@
 import logging
 import os
 import textwrap
+import re
 from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 import barcode
@@ -31,7 +32,6 @@ def normalize_mac(raw_mac):
     """
     if not raw_mac:
         return ""
-    import re
     return re.sub(r'[^0-9A-Za-z]', '', str(raw_mac)).strip().upper()
 
 # Module-level cache to prevent redundant font loading from disk (Performance)
@@ -39,6 +39,40 @@ _FONT_CACHE = {}
 
 # Reusable Draw object for measurement to avoid creating new Image instances (Performance)
 _MEASURE_DRAW = ImageDraw.Draw(Image.new('RGB', (1, 1)))
+
+class LayoutEngine:
+    """
+    CENTRALIZED GEOMETRY & MEASUREMENT ENGINE
+    -----------------------------------------
+    Provides consistent padding, font sizing, and text bounding box
+    calculations across all templates and the Design Lab.
+    """
+    SAFE_PAD = 8
+    QUIET_ZONE_PX = 10
+
+    @staticmethod
+    def get_text_size(text, font):
+        bbox = _MEASURE_DRAW.textbbox((0, 0), text, font=font)
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    @classmethod
+    def get_dynamic_font(cls, text, max_w, max_h, initial_size, font_type="bold"):
+        low = 8
+        high = initial_size
+        best_size = 8
+
+        while low <= high:
+            mid = (low + high) // 2
+            font = get_font_by_type(mid, font_type)
+            w, h = cls.get_text_size(text, font)
+
+            if w <= max_w and h <= max_h:
+                best_size = mid
+                low = mid + 1
+            else:
+                high = mid - 1
+
+        return get_font_by_type(best_size, font_type)
 
 def get_font_by_type(size, font_type="bold"):
     """
@@ -66,30 +100,9 @@ def get_font_by_type(size, font_type="bold"):
 
 def get_dynamic_font_size(text, max_w, max_h, initial_size, font_type="bold"):
     """
-    AUTO-FIT LOGIC
-    --------------
-    Uses 'Binary Search' to find the largest font size that fits within
-    the given width (max_w) and height (max_h).
-    Ensures long product names don't spill off the edge of the tag.
+    AUTO-FIT LOGIC (Deprecated: Use LayoutEngine.get_dynamic_font instead)
     """
-    low = 8
-    high = initial_size
-    best_size = 8
-
-    while low <= high:
-        mid = (low + high) // 2
-        font = get_font_by_type(mid, font_type)
-        # textbbox calculates the pixel dimensions of the text
-        bbox = _MEASURE_DRAW.textbbox((0, 0), text, font=font)
-        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-        if w <= max_w and h <= max_h:
-            best_size = mid
-            low = mid + 1
-        else:
-            high = mid - 1
-
-    return get_font_by_type(best_size, font_type)
+    return LayoutEngine.get_dynamic_font(text, max_w, max_h, initial_size, font_type)
 
 def render_sharp_barcode(sku, max_w, max_h, quiet_zone_px=10):
     """
@@ -160,7 +173,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     # 2. Split Screen
     split_x = int(width * 0.62)
-    safe_pad = 8
+    safe_pad = LayoutEngine.SAFE_PAD
     left_zone_w = split_x - (safe_pad * 2)
     draw.rectangle([split_x, 0, width, height], fill=price_bg)
 
@@ -272,7 +285,7 @@ def template_v1(image, draw, product, width, height, color_scheme):
     try:
         # Use pixel-perfect barcode renderer with 10px quiet zone (approx 0.85mm at 300dpi)
         # We increase the default to 10px to meet the "quiet zone" requirement
-        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
+        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=LayoutEngine.QUIET_ZONE_PX)
 
         if b_img:
             # Center the barcode in the left zone, but ensure it doesn't spill into the left buffer
@@ -327,14 +340,14 @@ def template_v3(image, draw, product, width, height, color_scheme):
     draw.rectangle([split_x, 0, width, height], fill=right_bg)
     if not product: return
 
-    safe_pad = 8
+    safe_pad = LayoutEngine.SAFE_PAD
     left_zone_w = split_x - (safe_pad * 2)
 
     # 1. DRAW BARCODE & SKU (Left Bottom First - to calculate remaining space)
     barcode_h = int(height * 0.18)
     try:
         # Use pixel-perfect barcode renderer with 10px quiet zone
-        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=10)
+        b_img = render_sharp_barcode(product.sku, left_zone_w, barcode_h, quiet_zone_px=LayoutEngine.QUIET_ZONE_PX)
 
         barcode_y = height - barcode_h - 22 # Default fallback position
 

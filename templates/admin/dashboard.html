@@ -238,5 +238,44 @@
             </div>
         </div>
     </div>
+
+    <!-- TASK OBSERVABILITY: RECENT FAILURES -->
+    <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 24px;">
+        <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+            <span aria-hidden="true">⚠️</span> Recent Background Task Failures (Last 24h)
+        </h3>
+
+        {% if recent_failures %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #e2e8f0; text-align: left; color: #64748b;">
+                        <th style="padding: 12px;">Task ID</th>
+                        <th style="padding: 12px;">Task Name</th>
+                        <th style="padding: 12px;">Time</th>
+                        <th style="padding: 12px;">Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for failure in recent_failures %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px; font-family: monospace; color: #64748b;">{{ failure.task_id|truncatechars:8 }}</td>
+                        <td style="padding: 12px; font-weight: 600; color: #1e293b;">{{ failure.task_name|default:"Unknown Task" }}</td>
+                        <td style="padding: 12px; color: #475569;">{{ failure.date_done|date:"H:i:s" }}</td>
+                        <td style="padding: 12px; color: #be123c;">{{ failure.result|truncatechars:100 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 16px; text-align: right;">
+            <a href="{% url 'admin:django_celery_results_taskresult_changelist' %}" style="font-size: 12px; color: var(--primary-blue, #2563eb); font-weight: 600; text-decoration: none;">View all results →</a>
+        </div>
+        {% else %}
+        <div style="padding: 40px; text-align: center; color: #94a3b8; font-style: italic;">
+            No background task failures detected in the last 24 hours.
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -165,6 +165,7 @@ class Command(BaseCommand):
             {'key': 'OFFLINE_TIMEOUT_MULTIPLIER', 'value': '4', 'description': 'Multiply heartbeat interval by this to determine offline status'},
             {'key': 'LOG_RETENTION_DAYS', 'value': '15', 'description': 'Number of days to keep MQTT communication logs'},
             {'key': 'ESL_SEND_DELAY_MS', 'value': '500', 'description': 'Delay in milliseconds between sending individual tags to a gateway'},
+            {'key': 'DEFAULT_GATEWAY_SERVER', 'value': '192.168.1.92:9081', 'description': 'Default server address (IP:Port) for hardware configuration'},
         ]
         for s in settings_to_seed:
             GlobalSetting.objects.get_or_create(key=s['key'], defaults={'value': s['value'], 'description': s['description']})

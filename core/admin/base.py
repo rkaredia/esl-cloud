@@ -149,8 +149,16 @@ class SAISAdminSite(admin.AdminSite):
                     'load_color': '#ef4444' if load_percent >= 90 else '#f59e0b' if load_percent >= 70 else '#3b82f6'
                 })
 
+            # TASK OBSERVABILITY: Fetch recent background task failures
+            from django_celery_results.models import TaskResult
+            recent_failures = TaskResult.objects.filter(
+                status='FAILURE',
+                date_done__gte=timezone.now() - timezone.timedelta(days=1)
+            ).order_by('-date_done')[:10]
+
             context = {
                 'active_store': active_store,
+                'recent_failures': recent_failures,
                 'gateway_count': gateway_count,
                 'active_gateways': active_gateways,
                 'tag_count': tag_count,
