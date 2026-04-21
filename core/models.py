@@ -370,9 +370,14 @@ class Product(AuditModel):
         changed when save() is called.
         """
         super().__init__(*args, **kwargs)
+        self._set_original_data()
+
+    def _set_original_data(self):
+        """Snapshots current values for change detection."""
         self._original_data = {
             'price': self.__dict__.get('price'),
             'name': self.__dict__.get('name'),
+            'sku': self.__dict__.get('sku'),
             'is_on_special': self.__dict__.get('is_on_special'),
             'preferred_supplier_id': self.__dict__.get('preferred_supplier_id'),
         }
@@ -388,17 +393,20 @@ class Product(AuditModel):
         if fields that appear on the label (Price, Name, Promo status)
         have actually been modified.
         """
-        trigger_refresh = False
-        if self.pk: # If updating existing record
+        self._needs_refresh = False
+        if not self.pk:
+            self._needs_refresh = True
+        else:
             if (self._original_data['price'] != self.price or
                 self._original_data['name'] != self.name or
+                self._original_data['sku'] != self.sku or
                 self._original_data['is_on_special'] != self.is_on_special or
                 self._original_data['preferred_supplier_id'] != self.preferred_supplier_id):
-                trigger_refresh = True
-        else: # If creating new record
-            trigger_refresh = True
+                self._needs_refresh = True
 
         super().save(*args, **kwargs)
+        # Performance: Refresh snapshot after save to allow multi-save cycles in one process
+        self._set_original_data()
         
         # NOTE: Task triggering is handled by 'signals.py' post_save receivers
         # to keep this model code lean and avoid circular imports.
@@ -473,6 +481,10 @@ class ESLTag(AuditModel):
     def __init__(self, *args, **kwargs):
         # Snapshot state for change detection (same pattern as Product model)
         super().__init__(*args, **kwargs)
+        self._set_original_data()
+
+    def _set_original_data(self):
+        """Snapshots current values for change detection."""
         self._original_data = {
             'paired_product_id': self.__dict__.get('paired_product_id'),
             'template_id': self.__dict__.get('template_id'),
@@ -506,25 +518,27 @@ class ESLTag(AuditModel):
             self.store = self.gateway.store
 
         # Detect changes that require a physical refresh of the ESL screen.
-        trigger_refresh = False
-        if self.pk:
+        self._needs_refresh = False
+        if not self.pk:
+            if self.paired_product_id:
+                self._needs_refresh = True
+        else:
             if (self._original_data['paired_product_id'] != self.paired_product_id or
                 self._original_data['template_id'] != self.template_id or
                 self._original_data['hardware_spec_id'] != self.hardware_spec_id):
-                trigger_refresh = True
+                self._needs_refresh = True
 
             # Reset image and status if product is removed
             if self._original_data['paired_product_id'] and not self.paired_product_id:
                 self.tag_image = None
                 self.sync_state = 'IDLE'
                 self.last_image_gen_success = None
-        else:
-            if self.paired_product_id:
-                trigger_refresh = True
 
         # Run full_clean() manually as Django models don't call it automatically on save()
         self.full_clean()
         super().save(*args, **kwargs)
+        # Performance: Refresh snapshot after save to allow multi-save cycles in one process
+        self._set_original_data()
 
     def __str__(self):
         return f"{self.tag_mac} ({self.store.name if self.store else 'No Store'}) -> {self.paired_product.name if self.paired_product else 'Unpaired'}"
