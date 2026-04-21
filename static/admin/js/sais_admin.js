@@ -211,22 +211,25 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.placeholder += ' [/]';
     }
 
-    // 6. MAC ADDRESS CLICK-TO-COPY
-    // Streamlines hardware management by allowing users to quickly copy IDs.
+    // 6. MAC ADDRESS CLICK-TO-COPY (Enhanced with Keyboard A11y)
+    const copyMacToClipboard = (macField) => {
+        const macAddress = macField.innerText.trim();
+        if (macAddress && macAddress !== '-') {
+            navigator.clipboard.writeText(macAddress).then(() => {
+                const originalContent = macField.innerHTML;
+                macField.style.width = macField.offsetWidth + 'px'; // Prevent layout shift
+                macField.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+                setTimeout(() => {
+                    macField.innerHTML = originalContent;
+                }, 1000);
+            });
+        }
+    };
+
     document.addEventListener('click', function(e) {
         const macField = e.target.closest('.field-tag_mac, .field-gateway_mac');
         if (macField && !e.target.closest('a')) {
-            const macAddress = macField.innerText.trim();
-            if (macAddress && macAddress !== '-') {
-                navigator.clipboard.writeText(macAddress).then(() => {
-                    const originalContent = macField.innerHTML;
-                    macField.style.width = macField.offsetWidth + 'px'; // Prevent layout shift
-                    macField.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
-                    setTimeout(() => {
-                        macField.innerHTML = originalContent;
-                    }, 1000);
-                });
-            }
+            copyMacToClipboard(macField);
         }
     });
 
@@ -246,12 +249,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add visual cue for copyable fields
+    document.querySelectorAll('.field-tag_mac, .field-gateway_mac').forEach(el => {
+        el.title = 'Click or press Enter/Space to copy MAC address';
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('aria-label', `Copy MAC address: ${el.innerText.trim()}`);
+    });
+
     const style = document.createElement('style');
     style.textContent = `
         .field-tag_mac, .field-gateway_mac {
             cursor: pointer;
             position: relative;
             transition: background-color 0.2s;
+        }
+        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible {
+            outline: 2px solid var(--primary-blue, #2563eb);
+            outline-offset: -2px;
         }
         .field-tag_mac:hover, .field-gateway_mac:hover {
             background-color: #f1f5f9 !important;
@@ -283,6 +297,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 toggleBtn.click();
             }
+        }
+
+        // Enter or Space for MAC address copy
+        const macField = e.target.closest('.field-tag_mac, .field-gateway_mac');
+        if (macField && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            copyMacToClipboard(macField);
         }
     });
 });
