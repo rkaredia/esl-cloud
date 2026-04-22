@@ -305,5 +305,34 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             copyMacToClipboard(macField);
         }
+
+        // Enter or Space for Task ID copy
+        const taskIdField = e.target.closest('.copy-task-id');
+        if (taskIdField && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            copyTaskIdToClipboard(taskIdField);
+        }
     });
+});
+
+// 8. TASK ID CLICK-TO-COPY
+const copyTaskIdToClipboard = (field) => {
+    const taskId = field.getAttribute('data-task-id');
+    if (taskId) {
+        navigator.clipboard.writeText(taskId).then(() => {
+            const originalContent = field.innerHTML;
+            field.style.width = field.offsetWidth + 'px';
+            field.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+            setTimeout(() => {
+                field.innerHTML = originalContent;
+            }, 1000);
+        });
+    }
+};
+
+document.addEventListener('click', function(e) {
+    const taskIdField = e.target.closest('.copy-task-id');
+    if (taskIdField) {
+        copyTaskIdToClipboard(taskIdField);
+    }
 });

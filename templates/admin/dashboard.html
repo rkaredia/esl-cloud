@@ -259,7 +259,15 @@
                 <tbody>
                     {% for failure in recent_failures %}
                     <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 12px; font-family: monospace; color: #64748b;">{{ failure.task_id|truncatechars:8 }}</td>
+                        <td class="copy-task-id"
+                            data-task-id="{{ failure.task_id }}"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Copy Task ID: {{ failure.task_id }}"
+                            title="Click or press Enter/Space to copy full Task ID"
+                            style="padding: 12px; font-family: monospace; color: #64748b; cursor: pointer;">
+                            {{ failure.task_id|truncatechars:8 }}
+                        </td>
                         <td style="padding: 12px; font-weight: 600; color: #1e293b;">{{ failure.task_name|default:"Unknown Task" }}</td>
                         <td style="padding: 12px; color: #475569;">{{ failure.date_done|date:"H:i:s" }}</td>
                         <td style="padding: 12px; color: #be123c;">{{ failure.result|truncatechars:100 }}</td>
