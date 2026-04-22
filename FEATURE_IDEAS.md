@@ -40,3 +40,29 @@ This document outlines three high-value features for the SAIS Platform based on 
 - Update `LayoutEngine` in `core/utils.py` to generate QR codes (e.g., using `python-qrcode`).
 - Enhance templates (e.g., V3) to include the QR code.
 **Value:** Connects physical retail to digital content and services.
+
+## 4. Visual Picking & Stock-Find Assistance (LED Signaling)
+**Problem:** Store staff often lose time physically locating specific products during "Click & Collect" picking or inventory restocking, especially in large aisles.
+**Feature:** Implement a "Locate Product" action in the admin. When triggered, the system sends an MQTT command to the tag to flash its onboard LED for a defined duration (e.g., 30 seconds).
+**Implementation:**
+- Modify `ESLMqttClient.publish_tag_update` to accept an `led_pattern` parameter (utilizing the `Pattern` and `Times` fields in the `taskESL` protocol).
+- Add a custom Admin Action to the `ESLTagAdmin` called "Flash LED to Locate".
+**Value:** Significantly reduces "Mean Time to Locate" for staff, improving operational efficiency.
+
+## 5. Predictive Battery Lifecycle Analytics
+**Problem:** While the system tracks current battery percentage, it doesn't account for the *rate* of discharge. Tags in high-traffic aisles (updated more frequently) will fail sooner than others, leading to unexpected "dead zones" on the shelf.
+**Feature:** A "Maintenance Forecast" dashboard that predicts "Estimated End of Life" for tag batteries.
+**Implementation:**
+- Create a `BatteryHistory` model to periodically snapshot tag levels.
+- Use a background task to calculate the average discharge rate per tag based on update frequency.
+- Generate a "Replacement Batch" report in the Analytics Dashboard for upcoming battery swaps.
+**Value:** Shifts maintenance from reactive to proactive, ensuring 100% shelf-edge visibility.
+
+## 6. Integrated Stock-Level & "Restocking" Templates
+**Problem:** E-ink tags currently only show customer-facing info (Price/Name). Floor staff have no immediate visual indicator of inventory levels without checking a separate handheld device.
+**Feature:** Dynamic "Stock-Aware" templates that automatically display inventory badges or "Restocking" alerts when levels fall below a threshold.
+**Implementation:**
+- Add `stock_quantity` and `low_stock_threshold` to the `Product` model.
+- Update `LayoutEngine` (e.g., Template V3) to render a "Low Stock" icon or "Back-ordered" text if the threshold is met.
+- Trigger tag refreshes via existing signals on inventory updates.
+**Value:** Enhances customer transparency and prioritizes restocking tasks for staff directly at the shelf edge.
