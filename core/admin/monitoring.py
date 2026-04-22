@@ -50,10 +50,52 @@ class CustomGroupResultAdmin(GroupResultAdmin):
 
 class CustomTaskResultAdmin(TaskResultAdmin):
     """
-    CELERY TASK MONITORING
-    ----------------------
+    CELERY TASK MONITORING (ENHANCED)
+    ---------------------------------
     Restricted to read-only access to prevent manual task creation.
+    Added columns to make background operations more transparent.
     """
+    list_display = (
+        'task_id', 'task_name', 'target_entity', 'status',
+        'date_done', 'worker'
+    )
+    list_filter = ('status', 'task_name', 'date_done', 'worker')
+
+    def target_entity(self, obj):
+        """
+        EXTRACT TARGET (e.g., Tag MAC)
+        -----------------------------
+        Parses the task arguments to identify WHICH physical device
+        or product this task was operating on.
+        """
+        try:
+            # 1. Parse Args (usually stored as a stringified list/tuple)
+            import ast
+            args = ast.literal_eval(obj.task_args)
+            if not args: return "-"
+
+            # 2. Logic based on Task Name
+            name = obj.task_name or ""
+
+            # Pattern: core.tasks.update_tag_image_task(tag_id, ...)
+            if 'update_tag_image_task' in name or 'dispatch_tag_image_task' in name:
+                from ..models import ESLTag
+                tag_id = args[0]
+                tag = ESLTag.objects.filter(id=tag_id).values_list('tag_mac', flat=True).first()
+                return format_html('<code style="font-weight: bold;">{}</code>', tag or f"ID:{tag_id}")
+
+            # Pattern: core.tasks.refresh_store_products_task(store_id)
+            if 'refresh_store_products_task' in name:
+                from ..models import Store
+                store_id = args[0]
+                store = Store.objects.filter(id=store_id).values_list('name', flat=True).first()
+                return f"Store: {store or store_id}"
+
+            return str(args[0])
+        except:
+            return "-"
+    target_entity.short_description = "Target (Tag/Entity)"
+
     def has_add_permission(self, request): return False
 
 # Register custom task monitoring

@@ -513,3 +513,25 @@ def cleanup_old_logs_task():
     except Exception:
         logger.exception("Error in cleanup_old_logs_task")
         return "Cleanup failed"
+
+@shared_task(name="core.tasks.report_service_status_task")
+def report_service_status_task():
+    """
+    HEARTBEAT TASK: CELERY WORKER
+    -----------------------------
+    Updates the ServiceStatus table so the dashboard knows the Celery
+    worker is alive.
+    """
+    from .models import ServiceStatus
+    import os
+    import socket
+
+    ServiceStatus.objects.update_or_create(
+        service_name="celery_worker",
+        defaults={
+            'pid': os.getpid(),
+            'hostname': socket.gethostname(),
+            'is_active': True
+        }
+    )
+    return "Heartbeat reported"
