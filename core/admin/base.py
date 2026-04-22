@@ -177,17 +177,23 @@ class SAISAdminSite(admin.AdminSite):
                 })
 
             # SYSTEM HEALTH: Fetch background service statuses
-            services = ServiceStatus.objects.all()
+            mandatory_services = ['celery_worker', 'mqtt_worker']
             service_health = []
-            for s in services:
-                is_online = s.is_online()
+
+            # Fetch existing statuses
+            status_map = {s.service_name: s for s in ServiceStatus.objects.filter(service_name__in=mandatory_services)}
+
+            for s_name in mandatory_services:
+                s = status_map.get(s_name)
+                is_online = s.is_online() if s else False
+
                 service_health.append({
-                    'name': s.service_name.replace('_', ' ').title(),
-                    'slug': s.service_name,
+                    'name': s_name.replace('_', ' ').title(),
+                    'slug': s_name,
                     'status': 'ONLINE' if is_online else 'OFFLINE',
                     'color': '#059669' if is_online else '#dc2626',
-                    'last_seen': s.last_heartbeat,
-                    'pid': s.pid
+                    'last_seen': s.last_heartbeat if s else None,
+                    'pid': s.pid if s else None
                 })
 
             # TASK OBSERVABILITY: Fetch recent background task failures
