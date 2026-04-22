@@ -222,6 +222,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.cleanup_old_logs_task',
         'schedule': crontab(hour=0, minute=0),
     },
+    # Every minute: Report Celery worker heartbeat
+    'celery-worker-heartbeat': {
+        'task': 'core.tasks.report_service_status_task',
+        'schedule': crontab(minute='*'),
+    },
 }
 
 # =================================================================

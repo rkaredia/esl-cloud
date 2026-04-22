@@ -552,6 +552,28 @@ class ESLTag(AuditModel):
         verbose_name_plural = "ESL Tags"
 
 
+class ServiceStatus(models.Model):
+    """
+    SYSTEM HEALTH HEARTBEAT
+    -----------------------
+    Tracks the status of background processes (Celery, MQTT Worker).
+    Allows the dashboard to show if the "Engine" of the app is running.
+    """
+    service_name = models.CharField(max_length=100, unique=True)
+    last_heartbeat = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    hostname = models.CharField(max_length=255, blank=True, null=True)
+    pid = models.IntegerField(null=True, blank=True)
+
+    def is_online(self):
+        """Service is considered online if heartbeat is within last 2 minutes."""
+        if not self.is_active: return False
+        return self.last_heartbeat >= (timezone.now() - timezone.timedelta(minutes=2))
+
+    class Meta:
+        verbose_name = "Service Status"
+        verbose_name_plural = "Service Statuses"
+
 class MQTTMessage(models.Model):
     """
     COMMUNICATION LOG (EVENT LOG)

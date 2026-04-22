@@ -33,8 +33,21 @@ class Command(BaseCommand):
             # The MQTT client (Paho) runs in its own background thread.
             # We need to keep this main thread alive, otherwise the
             # entire script will exit immediately.
+            from core.models import ServiceStatus
+            import os
+            import socket
+
             while True:
-                time.sleep(1)
+                # Update Service Status (Heartbeat)
+                ServiceStatus.objects.update_or_create(
+                    service_name="mqtt_worker",
+                    defaults={
+                        'pid': os.getpid(),
+                        'hostname': socket.gethostname(),
+                        'is_active': True
+                    }
+                )
+                time.sleep(30) # Heartbeat every 30 seconds
         except KeyboardInterrupt:
             # Graceful shutdown when user presses Ctrl+C
             self.stdout.write(self.style.WARNING("Stopping MQTT Worker..."))

@@ -147,6 +147,37 @@
             </div>
             {% endfor %}
         </div>
+
+        <!-- CARD 4: SYSTEM SERVICES -->
+        <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.12; pointer-events: none;" aria-hidden="true">⚙️</div>
+            <h3 style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <span aria-hidden="true">⚙️</span> System Services
+            </h3>
+
+            {% if service_health %}
+                {% for service in service_health %}
+                <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 14px; font-weight: 800; color: #1e293b;">{{ service.name }}</div>
+                        <div style="font-size: 10px; color: #94a3b8;">PID: {{ service.pid|default:"N/A" }} | Seen: {{ service.last_seen|date:"H:i:s" }}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 10px; font-weight: 800; color: {{ service.color }}; background: {{ service.color }}22; padding: 2px 8px; border-radius: 20px;">
+                            {{ service.status }}
+                        </span>
+                        {% if user.is_superuser %}
+                        <a href="{% url 'sais_admin:service-restart' service.slug %}" class="btn-loading" title="Restart Service" style="text-decoration: none; font-size: 16px;">🔄</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic; font-size: 13px;">
+                    No services reporting status.
+                </div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- BOTTOM SECTION: SYNC PIPELINE (The "State Machine" of updates) -->
