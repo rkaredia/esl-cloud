@@ -17,3 +17,7 @@
 ## 2026-04-21 - [Aria-Label Masking & Interactive Text A11y]
 **Learning:** Applying an `aria-label` to an anchor tag overrides its internal text content for screen readers. In dashboards with dynamic metrics (e.g., tag counts), this can accidentally hide critical data. Additionally, custom "Click-to-copy" features on static text (like MAC addresses) are invisible to keyboard users and screen readers unless enhanced with proper roles and keyboard listeners.
 **Action:** When using `aria-label`, always include any dynamic data present in the element's children. For custom interactions on non-interactive elements, always inject `role="button"`, `tabindex="0"`, and implement keyboard parity for 'Enter' and 'Space'.
+
+## 2026-05-20 - [Contextual Clipboard Utility for Machine Identifiers]
+**Learning:** Machine-generated identifiers (like UUIDs) in dashboards are often truncated for layout but remain critical for troubleshooting. Providing a "Click-to-copy" utility without full ARIA roles and keyboard listeners makes this utility inaccessible and non-discoverable.
+**Action:** For machine identifiers, use visual truncation but provide the full value via `data-*` attributes. Always implement `role="button"`, `tabindex="0"`, and keyboard parity (Enter/Space) to ensure these utilities are accessible to all users.
