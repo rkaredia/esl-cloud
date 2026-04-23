@@ -1,13 +1,13 @@
-django==5.1.14          #Main app
-pillow==12.1.1          #Image processing
-openpyxl==3.1.5         #Read write XLX
-paho-mqtt==2.1.0        #MQTT brocker
-psycopg2-binary==2.9.10 #PostgreSQL database adapter 
+django==5.1.14
+pillow==12.1.1
+openpyxl==3.1.5
+paho-mqtt==2.1.0
+psycopg2-binary==2.9.10
 django-environ==0.11.2
-gunicorn==23.0.0        #pure-Python HTTP server for UNIX 
-celery==5.4.0           #background image processing engine
-redis==5.2.1            #mailman to connect Celery and Django
+gunicorn==23.0.0
+celery==5.4.0
+redis==5.2.1
 python-barcode==0.15.1
-msgpack==1.1.0         # Added for GooDisplay communication
+msgpack==1.1.0
 django-celery-results==2.5.1
 markdown2==2.5.5
