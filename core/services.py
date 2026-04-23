@@ -154,11 +154,19 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
                 if product:
                     # If data is different, mark for update
                     if product.price != price_decimal or product.name != raw_name:
+                        # Security Check: Ensure user has permission to change products
+                        if not user.has_perm('core.change_product'):
+                            results['rejected'].append({'row': idx, 'sku': raw_sku, 'name': raw_name, 'price': raw_price, 'reason': "Permission Denied: Cannot update existing products"})
+                            continue
                         results['update'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal, 'old_price': product.price})
                     else:
                         results['unchanged_count'] += 1
                 else:
                     # Otherwise, mark as new
+                    # Security Check: Ensure user has permission to add products
+                    if not user.has_perm('core.add_product'):
+                        results['rejected'].append({'row': idx, 'sku': raw_sku, 'name': raw_name, 'price': raw_price, 'reason': "Permission Denied: Cannot add new products"})
+                        continue
                     results['new'].append({'sku': raw_sku, 'name': raw_name, 'new_price': price_decimal})
 
             except Exception as row_error:

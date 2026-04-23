@@ -12,3 +12,8 @@
 **Vulnerability:** Store Managers could escalate their own or others' privileges to 'Company Owner' and expand their store assignments to any store within their company via the Django Admin user edit form.
 **Learning:** Overriding `get_queryset` is sufficient for row-level isolation but does not protect the dropdown choices in form fields. Security-sensitive fields like 'role' and 'managed_stores' (M2M) must have their querysets or choices explicitly restricted in `formfield_for_choice_field` and `formfield_for_manytomany` based on the *requesting* user's own role and assignments.
 **Prevention:** Implement hierarchical restrictions on form field choices in User Admin to ensure users cannot grant permissions or access they do not themselves possess.
+
+## 2026-04-23 - Enforcing Granular Permissions in Service-Layer Bulk Imports
+**Vulnerability:** The product import service (`process_modisoft_file_logic`) was only checking for general access to the import view but was not verifying granular `add_product` vs. `change_product` permissions for individual rows in the Excel file. This allowed users with only 'Change' permissions to create new products.
+**Learning:** Bulk data processing logic in the service layer must re-verify granular permissions for each operation (create vs. update). Relying on view-level decorators or mixins is insufficient when a single entry point handles multiple types of data modifications.
+**Prevention:** Always implement granular permission checks within loops that handle bulk creation and updates, specifically checking for `add` vs. `change` permissions before performing the respective database operations. Move unauthorized rows to a 'rejected' list with an explicit error message.
