@@ -192,26 +192,16 @@ def template_v1(image, draw, product, width, height, color_scheme):
         curr_y = 4
         # Calculate available height for name, ensuring a 5px gap before barcode
         max_h_total = barcode_y - curr_y - 5
+        max_h_per_line = max_h_total / len(lines)
 
         initial_font_size = 30
-        best_font = get_font_by_type(8, "condensed")
+        longest_line = max(lines, key=len)
 
-        # Manually find the best font size that fits the total height for all lines
-        for size in range(8, initial_font_size + 1):
-            font = get_font_by_type(size, "condensed")
-            # Measure width of longest line
-            longest_line = max(lines, key=len)
-            w = draw.textbbox((0, 0), longest_line, font=font)[2]
-            # Measure height of a standard line with our +2px padding
-            h = draw.textbbox((0, 0), "Ay", font=font)[3] - draw.textbbox((0, 0), "Ay", font=font)[1]
-            total_h = (h + 2) * len(lines)
+        # Performance: Use binary search (get_dynamic_font_size) instead of linear loop
+        best_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "condensed")
 
-            if w <= left_zone_w and total_h <= max_h_total:
-                best_font = font
-            else:
-                break
-
-        line_height = (draw.textbbox((0, 0), "Ay", font=best_font)[3] - draw.textbbox((0, 0), "Ay", font=best_font)[1]) + 2
+        bbox = draw.textbbox((0, 0), "Ay", font=best_font)
+        line_height = bbox[3] - bbox[1] + 2
 
         for line in lines:
             draw.text((safe_pad, curr_y), line, fill=(0,0,0), font=best_font)

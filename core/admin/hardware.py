@@ -363,18 +363,24 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         if not request.user.has_perm('core.change_esltag'):
             raise PermissionDenied
         try:
-            count = queryset.count()
+            from ..utils import trigger_bulk_sync
+
+            tag_ids = []
+            offline_gateways = set()
+            # Performance: Iterate once to collect IDs and check gateway status
+            # Uses prefetched 'gateway' from get_queryset()
+            for tag in queryset[:101]:
+                tag_ids.append(tag.id)
+                if tag.gateway and not tag.gateway.is_currently_online():
+                    offline_gateways.add(tag.gateway.estation_id)
+
+            count = len(tag_ids)
             if count > 100:
                 self.message_user(request, "Error: Max 100 tags allowed.", messages.ERROR)
                 return
 
-            offline_gateways = set()
-            for tag in queryset:
-                if tag.gateway:
-                    status, _, _ = tag.gateway.get_real_time_status()
-                    if status == 'OFFLINE':
-                        offline_gateways.add(tag.gateway.estation_id)
-                update_tag_image_task.delay(tag.id)
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
 
             if offline_gateways:
                 self.message_user(
@@ -412,10 +418,13 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
+            from ..utils import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store).filter(paired_product__isnull=False)
             count = tags.count()
             # Safety limit: max 500 for ALL refresh to prevent queue flooding
-            for tag in tags[:500]: update_tag_image_task.delay(tag.id)
+            tag_ids = list(tags.values_list('id', flat=True)[:500])
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
             self.message_user(request, f"Queued refresh for {min(count, 500)} tags in {request.active_store.name}.")
         except Exception as e:
             logger.exception("Error in refresh_all_store_tags")
@@ -429,12 +438,14 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
+            from ..utils import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=1)
-            # Sync only tags with products
-            sync_tags = tags.filter(paired_product__isnull=False)
-            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            # Sync only tags with products (Max 500)
+            tag_ids = list(tags.filter(paired_product__isnull=False).values_list('id', flat=True)[:500])
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
             self.message_user(request, f"Updated {count} tags to V1 and queued sync for paired tags.")
         except Exception as e:
             logger.exception("Error in set_all_template_v1")
@@ -448,11 +459,14 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
+            from ..utils import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=2)
-            sync_tags = tags.filter(paired_product__isnull=False)
-            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            # Sync only tags with products (Max 500)
+            tag_ids = list(tags.filter(paired_product__isnull=False).values_list('id', flat=True)[:500])
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
             self.message_user(request, f"Updated {count} tags to V2 and queued sync for paired tags.")
         except Exception as e:
             logger.exception("Error in set_all_template_v2")
@@ -466,11 +480,14 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
+            from ..utils import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=3)
-            sync_tags = tags.filter(paired_product__isnull=False)
-            for tag in sync_tags[:500]: update_tag_image_task.delay(tag.id)
+            # Sync only tags with products (Max 500)
+            tag_ids = list(tags.filter(paired_product__isnull=False).values_list('id', flat=True)[:500])
+            if tag_ids:
+                trigger_bulk_sync(tag_ids)
             self.message_user(request, f"Updated {count} tags to V3 and queued sync for paired tags.")
         except Exception as e:
             logger.exception("Error in set_all_template_v3")
