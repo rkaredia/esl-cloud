@@ -211,40 +211,38 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.placeholder += ' [/]';
     }
 
-    // 6. MAC ADDRESS CLICK-TO-COPY (Enhanced with Keyboard A11y)
-    const copyMacToClipboard = (macField) => {
-        const macAddress = macField.innerText.trim();
-        if (macAddress && macAddress !== '-') {
-            navigator.clipboard.writeText(macAddress).then(() => {
-                const originalContent = macField.innerHTML;
-                macField.style.width = macField.offsetWidth + 'px'; // Prevent layout shift
-                macField.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+    // 6. GLOBAL CLICK-TO-COPY (Enhanced with Keyboard A11y)
+    const copyToClipboard = (el) => {
+        // Preference: data-task-id, then data-copy-text, then innerText
+        const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.innerText.trim();
+        if (text && text !== '-') {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalContent = el.innerHTML;
+                el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
+                el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
                 setTimeout(() => {
-                    macField.innerHTML = originalContent;
+                    el.innerHTML = originalContent;
                 }, 1000);
             });
         }
     };
 
     document.addEventListener('click', function(e) {
-        const macField = e.target.closest('.field-tag_mac, .field-gateway_mac');
-        if (macField && !e.target.closest('a')) {
-            copyMacToClipboard(macField);
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        if (copyable && !e.target.closest('a')) {
+            copyToClipboard(copyable);
         }
     });
 
-    // 7. SYNC BUTTON LOADING FEEDBACK
+    // 7. ACTION BUTTON LOADING FEEDBACK
     document.addEventListener('click', function(e) {
-        const syncBtn = e.target.closest('.btn-sync');
-        if (syncBtn && !syncBtn.classList.contains('btn-loading')) {
-            syncBtn.classList.add('btn-loading');
-            const icon = syncBtn.querySelector('span[aria-hidden="true"]');
+        const btn = e.target.closest('.btn-sync, .manage-tags-btn');
+        if (btn && !btn.classList.contains('btn-loading')) {
+            btn.classList.add('btn-loading');
+            const icon = btn.querySelector('span[aria-hidden="true"]');
             if (icon) {
                 icon.classList.add('spinning');
             }
-            // Add a small delay for visual feedback before navigation if it's too fast
-            // but usually redirects take enough time.
-            // We just let the default navigation happen.
         }
     });
 
@@ -258,19 +256,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const style = document.createElement('style');
     style.textContent = `
-        .field-tag_mac, .field-gateway_mac {
+        .field-tag_mac, .field-gateway_mac, .copy-task-id {
             cursor: pointer;
             position: relative;
             transition: background-color 0.2s;
         }
-        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible {
+        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible, .copy-task-id:focus-visible {
             outline: 2px solid var(--primary-blue, #2563eb);
             outline-offset: -2px;
         }
-        .field-tag_mac:hover, .field-gateway_mac:hover {
+        .field-tag_mac:hover, .field-gateway_mac:hover, .copy-task-id:hover {
             background-color: #f1f5f9 !important;
         }
-        .field-tag_mac:active, .field-gateway_mac:active {
+        .field-tag_mac:active, .field-gateway_mac:active, .copy-task-id:active {
             background-color: #e2e8f0 !important;
         }
     `;
@@ -299,11 +297,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Enter or Space for MAC address copy
-        const macField = e.target.closest('.field-tag_mac, .field-gateway_mac');
-        if (macField && (e.key === 'Enter' || e.key === ' ')) {
+        // Enter or Space for element copy
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        if (copyable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
-            copyMacToClipboard(macField);
+            copyToClipboard(copyable);
         }
     });
 });

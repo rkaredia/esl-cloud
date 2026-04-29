@@ -17,3 +17,7 @@
 ## 2026-04-21 - [Aria-Label Masking & Interactive Text A11y]
 **Learning:** Applying an `aria-label` to an anchor tag overrides its internal text content for screen readers. In dashboards with dynamic metrics (e.g., tag counts), this can accidentally hide critical data. Additionally, custom "Click-to-copy" features on static text (like MAC addresses) are invisible to keyboard users and screen readers unless enhanced with proper roles and keyboard listeners.
 **Action:** When using `aria-label`, always include any dynamic data present in the element's children. For custom interactions on non-interactive elements, always inject `role="button"`, `tabindex="0"`, and implement keyboard parity for 'Enter' and 'Space'.
+
+## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
+**Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
+**Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").

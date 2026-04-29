@@ -115,7 +115,7 @@
             
             <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
-                <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);">
+                <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);" aria-label="{{ active_gateways }} of {{ gateway_count }} gateways are currently online">
                     {{ active_gateways }} / {{ gateway_count }}
                 </span>
             </div>
@@ -259,7 +259,7 @@
                 <tbody>
                     {% for failure in recent_failures %}
                     <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 12px; font-family: monospace; color: #64748b;">{{ failure.task_id|truncatechars:8 }}</td>
+                        <td class="copy-task-id" data-task-id="{{ failure.task_id }}" role="button" tabindex="0" aria-label="Click or press Enter/Space to copy Task ID: {{ failure.task_id }}" title="Click to copy full Task ID" style="padding: 12px; font-family: monospace; color: #64748b; cursor: pointer;">{{ failure.task_id|truncatechars:8 }}</td>
                         <td style="padding: 12px; font-weight: 600; color: #1e293b;">{{ failure.task_name|default:"Unknown Task" }}</td>
                         <td style="padding: 12px; color: #475569;">{{ failure.date_done|date:"H:i:s" }}</td>
                         <td style="padding: 12px; color: #be123c;">{{ failure.result|truncatechars:100 }}</td>
@@ -273,7 +273,7 @@
         </div>
         {% else %}
         <div style="padding: 40px; text-align: center; color: #94a3b8; font-style: italic;">
-            No background task failures detected in the last 24 hours.
+            <span aria-hidden="true">✅</span> No background task failures detected in the last 24 hours.
         </div>
         {% endif %}
     </div>
