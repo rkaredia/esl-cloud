@@ -74,6 +74,36 @@ class LayoutEngine:
 
         return get_font_by_type(best_size, font_type)
 
+    @classmethod
+    def get_dynamic_multiline_font(cls, lines, max_w, max_h_total, initial_size, font_type="bold", line_spacing=2):
+        """
+        Calculates the best font size for a block of text, ensuring
+        no line exceeds max_w and the total block height exceeds max_h_total.
+        """
+        low = 8
+        high = initial_size
+        best_size = 8
+        longest_line = max(lines, key=len) if lines else ""
+
+        while low <= high:
+            mid = (low + high) // 2
+            font = get_font_by_type(mid, font_type)
+
+            # Width check
+            w = cls.get_text_size(longest_line, font)[0]
+
+            # Height check (using "Ay" for consistent line height)
+            h = cls.get_text_size("Ay", font)[1]
+            total_h = (h + line_spacing) * len(lines)
+
+            if w <= max_w and total_h <= max_h_total:
+                best_size = mid
+                low = mid + 1
+            else:
+                high = mid - 1
+
+        return get_font_by_type(best_size, font_type)
+
 def get_font_by_type(size, font_type="bold"):
     """
     FONT LOADER
@@ -190,15 +220,11 @@ def template_v1(image, draw, product, width, height, color_scheme):
 
     if lines:
         curr_y = 4
-        # Calculate available height for name, ensuring a 5px gap before barcode
-        max_h_total = barcode_y - curr_y - 5
-        max_h_per_line = max_h_total / len(lines)
+        # Calculate available height for name, ensuring an 8px gap before barcode
+        max_h_total = barcode_y - curr_y - 8
 
-        initial_font_size = 30
-        longest_line = max(lines, key=len)
-
-        # Performance: Use binary search (get_dynamic_font_size) instead of linear loop
-        best_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "condensed")
+        # Performance: Use multiline binary search for speed and correctness (O(log N))
+        best_font = LayoutEngine.get_dynamic_multiline_font(lines, left_zone_w, max_h_total, 30, "condensed", line_spacing=2)
 
         bbox = draw.textbbox((0, 0), "Ay", font=best_font)
         line_height = bbox[3] - bbox[1] + 2
@@ -363,13 +389,11 @@ def template_v3(image, draw, product, width, height, color_scheme):
     lines = wrapper.wrap(text=full_name_text)[:4]
 
     if lines:
-        # Utilize the space from top till the barcode
-        max_h_total = barcode_y - 10
-        max_h_per_line = max_h_total / len(lines)
-        initial_font_size = 28
-        longest_line = max(lines, key=len)
+        # Utilize the space from top till the barcode, with 12px safety gap
+        max_h_total = barcode_y - 12
 
-        n_font = get_dynamic_font_size(longest_line, left_zone_w, max_h_per_line, initial_font_size, "bold")
+        # Performance: Use multiline binary search for speed and correctness (O(log N))
+        n_font = LayoutEngine.get_dynamic_multiline_font(lines, left_zone_w, max_h_total, 28, "bold", line_spacing=2)
 
         bbox = draw.textbbox((0, 0), "Ay", font=n_font)
         line_height = bbox[3] - bbox[1] + 2
