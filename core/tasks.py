@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.core.cache import cache
 from .models import ESLTag, Store, Gateway, GlobalSetting, MQTTMessage
-from .utils import generate_esl_image
+from .utils import generate_esl_image, trigger_bulk_sync
 from .mqtt_client import mqtt_service
 
 """
@@ -374,8 +374,10 @@ def refresh_store_products_task(store_id):
             paired_product__isnull=False
         ).values_list('id', flat=True))
 
-        for tid in tag_ids:
-            update_tag_image_task.delay(tid)
+        if tag_ids:
+            # Performance: Use trigger_bulk_sync (O(1) Redis round-trips via Celery group)
+            # instead of a manual O(N) loop of .delay() calls.
+            trigger_bulk_sync(tag_ids)
 
         return f"Queued {len(tag_ids)} tags for store {store_id}"
     except Exception as e:
