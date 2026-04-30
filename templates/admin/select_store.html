@@ -64,10 +64,13 @@
             <div class="store-meta">Location Code: {{ store.location_code|default:"N/A" }}</div>
             
             {% comment %}
-               When clicked, this link calls 'views.set_active_store'
-               which saves the selection to the session.
+               When submitted, this form calls 'views.set_active_store' via POST
+               which saves the selection to the session securely.
             {% endcomment %}
-            <a href="{% url 'set_active_store' store.id %}" class="btn-select" aria-label="Manage store {{ store.name }}">Manage Store</a>
+            <form action="{% url 'set_active_store' store.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn-select" style="border:none; cursor:pointer;" aria-label="Manage store {{ store.name }}">Manage Store</button>
+            </form>
         </div>
 
         {% empty %}
