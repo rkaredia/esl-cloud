@@ -103,6 +103,9 @@ def set_active_store(request, store_id):
     --------------------
     Updates the 'active_store_id' in the user's Session cookie.
     """
+    if request.method != "POST":
+        return redirect('select_store')
+
     try:
         # Security: Verify they actually have permission for the store they are trying to select
         if request.user.is_superuser:
@@ -340,14 +343,25 @@ def bulk_map_tags_view(request):
             # ACTION: COMMIT MAPPINGS
             if 'confirm_mapping' in request.POST:
                 proposed_data = request.session.get('pending_bulk_maps', [])
+                active_store = getattr(request, 'active_store', None)
+
                 # Use a TRANSACTION to ensure all updates happen together (all or nothing)
                 with transaction.atomic():
                     for item in proposed_data:
-                        # Update the database
-                        ESLTag.objects.filter(id=item['tag_id']).update(
-                            paired_product_id=item['product_id'],
-                            updated_by=request.user
-                        )
+                        # SECURITY: Verify that both the tag and the product belong to the active store
+                        # to prevent cross-store mapping vulnerabilities via session manipulation.
+                        tag_qs = ESLTag.objects.filter(id=item['tag_id'], store=active_store)
+                        product_exists = Product.objects.filter(id=item['product_id'], store=active_store).exists()
+
+                        if tag_qs.exists() and product_exists:
+                            tag_qs.update(
+                                paired_product_id=item['product_id'],
+                                updated_by=request.user
+                            )
+                        else:
+                            logger.warning(f"Security: Blocked cross-store bulk mapping attempt for user {request.user}")
+                            continue
+
                         # Trigger an immediate hardware update for this tag
                         from .tasks import update_tag_image_task
                         update_tag_image_task.delay(item['tag_id'])
