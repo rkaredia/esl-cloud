@@ -476,10 +476,10 @@ def generate_esl_image(tag_id, tag_instance=None):
         elif tid == 2: template_v2(image, draw, product, width, height, color_scheme)
         else: template_v1(image, draw, product, width, height, color_scheme)
 
-        # 3. Final alignment and resampling
-        # Match user test code sequence exactly: convert("RGBA") THEN resize(..., LANCZOS)
+        # 3. Final alignment
+        # Performance: Redundant resize() to the same dimensions removed to save CPU.
+        # Match user test code sequence exactly: convert("RGBA")
         image = image.convert("RGBA")
-        image = image.resize((width, height), Image.Resampling.LANCZOS)
 
         return image
     except Exception as e:
