@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-03-14 - [Redundant Image Resampling Optimization]
+**Learning:** In image generation pipelines, calling `image.resize()` with a high-quality filter like `Image.Resampling.LANCZOS` is a CPU-intensive operation. If the image is already initialized with the correct target dimensions, this call is redundant and wasteful.
+**Action:** Always verify if an image's current dimensions match the target dimensions before performing a resize. Eliminate redundant resampling to save CPU cycles, especially in high-volume background tasks.
