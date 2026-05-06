@@ -42,7 +42,7 @@
         background: #f8fafc;
         transform: scale(1.02);
     }
-    .kpi-link:focus-visible {
+    .kpi-link:focus-visible, .manage-tags-btn:focus-visible {
         outline: 2px solid var(--primary-blue);
         outline-offset: 2px;
     }
@@ -66,7 +66,7 @@
             </h3>
 
             {% comment %} Big Value display {% endcomment %}
-            <div class="value" style="font-size: 48px; font-weight: 800; color: #1e293b; margin-bottom: 24px;">{{ tag_count|default:0 }}</div>
+            <div class="value" style="font-size: 48px; font-weight: 800; color: #1e293b; margin-bottom: 24px;" aria-label="Total ESL Tags: {{ tag_count|default:0 }}">{{ tag_count|default:0 }}</div>
             
             {% comment %} Secondary Stats {% endcomment %}
             <div style="font-size: 14px; color: #475569; display: flex; flex-direction: column; gap: 12px;">
@@ -107,18 +107,20 @@
                 </a>
                 <a href="{% url 'admin:core_esltag_changelist' %}?battery_health=low" class="kpi-link" title="View low battery tags">
                     <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
-                        <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
-                        <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
+                        <div style="color: #92400e; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
+                        <div style="font-size: 11px; color: #92400e; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
                     </div>
                 </a>
             </div>
             
-            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
-                <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);" aria-label="{{ active_gateways }} of {{ gateway_count }} gateways are currently online">
-                    {{ active_gateways }} / {{ gateway_count }}
-                </span>
-            </div>
+            <a href="{% url 'admin:core_gateway_changelist' %}" class="kpi-link" title="View all gateways">
+                <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
+                    <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);" aria-label="{{ active_gateways }} of {{ gateway_count }} gateways are currently online">
+                        {{ active_gateways }} / {{ gateway_count }}
+                    </span>
+                </div>
+            </a>
         </div>
 
         <!-- CARD 3: GATEWAY LOAD INFRASTRUCTURE -->
@@ -141,7 +143,7 @@
                     </span>
                 </div>
                 {% comment %} Progress bar showing how many tags are assigned to this gateway {% endcomment %}
-                <div style="height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;" role="progressbar" aria-valuenow="{{ gw.load_percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Gateway Load" title="Gateway Load: {{ gw.load_percent }}%">
+                <div style="height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;" role="progressbar" aria-valuenow="{{ gw.load_percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Gateway Load for {{ gw.estation_id }}: {{ gw.load_percent }}% ({{ gw.tag_count }} tags)" title="Gateway Load: {{ gw.load_percent }}%">
                     <div style="width: {{ gw.load_percent }}%; background: {{ gw.load_color }}; height: 100%; transition: width 0.5s ease;"></div>
                 </div>
             </div>
@@ -211,15 +213,15 @@
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=1" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_1 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 1</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 1</div>
                         </a>
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=2" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_2 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 2</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 2</div>
                         </a>
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=3" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_3 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 3</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 3</div>
                         </a>
                     </div>
                 </div>

@@ -282,7 +282,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if val > 20:
                 color = "#059669" # Good (Green)
             elif val > 5:
-                color = "#d97706" # Low (Orange)
+                color = "#92400e" # Low (Orange)
             else:
                 color = "#dc2626" # Critical (Red)
 
