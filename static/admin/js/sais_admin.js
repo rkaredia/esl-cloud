@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let refreshInterval = null;
 
             const updateBtn = () => {
-                refreshBtn.innerHTML = isLive ? 'Live: ON 🟢' : 'Live: OFF ⚪';
+                refreshBtn.innerHTML = isLive ? 'Live: ON <span aria-hidden="true">🟢</span>' : 'Live: OFF <span aria-hidden="true">⚪</span>';
                 refreshBtn.style.background = isLive ? '#059669' : '#64748b';
             };
 
@@ -188,20 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshItem.appendChild(refreshBtn);
             objectTools.appendChild(refreshItem);
         }
-
-        // COPY-TO-CLIPBOARD: Clicking a payload snippet copies it to the clipboard.
-        document.querySelectorAll('.field-data_preview code').forEach(code => {
-            code.style.cursor = 'pointer';
-            code.title = 'Click to copy full payload';
-            code.addEventListener('click', function() {
-                const fullData = this.innerText;
-                navigator.clipboard.writeText(fullData).then(() => {
-                    const originalText = this.innerText;
-                    this.innerText = 'Copied! ✅';
-                    setTimeout(() => { this.innerText = originalText; }, 1000);
-                });
-            });
-        });
     }
 
     // 5. GLOBAL KEYBOARD SHORTCUTS
@@ -228,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     document.addEventListener('click', function(e) {
-        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-tag_id_column, .field-data_preview code');
         if (copyable && !e.target.closest('a')) {
             copyToClipboard(copyable);
         }
@@ -236,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 7. ACTION BUTTON LOADING FEEDBACK
     document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.btn-sync, .manage-tags-btn');
+        const btn = e.target.closest('.btn-sync, .manage-tags-btn, .kpi-link');
         if (btn && !btn.classList.contains('btn-loading')) {
             btn.classList.add('btn-loading');
             const icon = btn.querySelector('span[aria-hidden="true"]');
@@ -247,28 +233,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add visual cue for copyable fields
-    document.querySelectorAll('.field-tag_mac, .field-gateway_mac').forEach(el => {
-        el.title = 'Click or press Enter/Space to copy MAC address';
+    document.querySelectorAll('.field-tag_mac, .field-gateway_mac, .field-tag_id_column, .field-data_preview code, .copy-task-id').forEach(el => {
+        const label = el.classList.contains('field-data_preview') || el.tagName === 'CODE' ? 'Copy payload' :
+                      el.classList.contains('copy-task-id') ? 'Copy Task ID' : 'Copy ID/MAC address';
+        el.title = `Click or press Enter/Space to ${label.toLowerCase()}`;
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.setAttribute('aria-label', `Copy MAC address: ${el.innerText.trim()}`);
+        el.setAttribute('aria-label', `${label}: ${el.innerText.trim()}`);
     });
 
     const style = document.createElement('style');
     style.textContent = `
-        .field-tag_mac, .field-gateway_mac, .copy-task-id {
+        .field-tag_mac, .field-gateway_mac, .copy-task-id, .field-tag_id_column, .field-data_preview code {
             cursor: pointer;
             position: relative;
             transition: background-color 0.2s;
         }
-        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible, .copy-task-id:focus-visible {
+        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible, .copy-task-id:focus-visible, .field-tag_id_column:focus-visible, .field-data_preview code:focus-visible {
             outline: 2px solid var(--primary-blue, #2563eb);
             outline-offset: -2px;
         }
-        .field-tag_mac:hover, .field-gateway_mac:hover, .copy-task-id:hover {
+        .field-tag_mac:hover, .field-gateway_mac:hover, .copy-task-id:hover, .field-tag_id_column:hover, .field-data_preview code:hover {
             background-color: #f1f5f9 !important;
         }
-        .field-tag_mac:active, .field-gateway_mac:active, .copy-task-id:active {
+        .field-tag_mac:active, .field-gateway_mac:active, .copy-task-id:active, .field-tag_id_column:active, .field-data_preview code:active {
             background-color: #e2e8f0 !important;
         }
     `;
@@ -298,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Enter or Space for element copy
-        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-tag_id_column, .field-data_preview code');
         if (copyable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             copyToClipboard(copyable);

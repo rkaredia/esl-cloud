@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-05-15 - [Color Contrast & Navigation Feedback]
+**Learning:** Standard "Amber/Orange" colors (like #d97706) often fail WCAG AA contrast on white backgrounds for small/medium text. Additionally, dashboard KPI cards that act as links should provide immediate visual feedback (like loading states) upon click, same as action buttons, to satisfy user expectations of "instant" response.
+**Action:** Use #92400e for orange/amber text to ensure AA compliance. Include .kpi-link classes in global loading feedback listeners and ensure focus-visible states are explicitly defined for all custom interactive cards.
