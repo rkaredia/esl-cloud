@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q
 from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.utils import timezone
 from django.http import HttpResponse
@@ -194,6 +195,8 @@ class SAISAdminSite(admin.AdminSite):
 
     def template_gallery(self, request):
         """Displays all supported hardware models for testing."""
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -213,6 +216,8 @@ class SAISAdminSite(admin.AdminSite):
         tag or database record. This allows developers to tweak layouts
         and see results instantly.
         """
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
@@ -517,9 +522,9 @@ class CompanySecurityMixin(AuditAdminMixin):
                 authorized_gateway_ids = Gateway.objects.filter(store__company=request.user.company).values_list('estation_id', flat=True)
                 qs = qs.filter(estation_id__in=authorized_gateway_ids)
 
-            # LEVEL 2: STORE ISOLATION (For Managers)
-            # If the user is a manager, only show data for their specific stores.
-            if request.user.role == 'manager':
+            # LEVEL 2: STORE ISOLATION (For Limited Roles)
+            # If the user is a manager, staff, or readonly, only show data for their specific stores.
+            if request.user.role in ['manager', 'staff', 'readonly']:
                 assigned_stores = request.user.managed_stores.all()
                 if hasattr(self.model, 'store'):
                     qs = qs.filter(store__in=assigned_stores)
