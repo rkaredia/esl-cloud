@@ -236,7 +236,9 @@ def process_gateway_queue_task(gateway_id):
         tag = None
         # 3. Find and LOCK the next tag in the queue for THIS gateway
         with transaction.atomic():
-            tag = ESLTag.objects.select_for_update(skip_locked=True).filter(
+            # Performance: Use select_related('gateway') to prevent N+1 queries
+            # when accessing tag.gateway.is_currently_online() in the loop.
+            tag = ESLTag.objects.select_for_update(skip_locked=True).select_related('gateway').filter(
                 gateway__estation_id=gateway_id,
                 sync_state='IMAGE_READY'
             ).order_by('updated_at').first()

@@ -231,7 +231,8 @@ class ESLMqttClient:
                 return
 
             # 2. Identify which gateway sent this
-            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).first()
+            # Performance: Use select_related('store') to avoid lazy-loading store during result logging
+            gateway = Gateway.objects.filter(estation_id__iexact=estation_id.strip()).select_related('store').first()
             if not gateway:
                 logger.error(f"Received result from unknown gateway {estation_id}")
                 return
