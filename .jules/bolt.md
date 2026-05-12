@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-03-14 - [Task and MQTT Loop N+1 Optimization]
+**Learning:** Accessing related objects (e.g., `tag.gateway` or `gateway.store`) inside high-frequency processing loops or periodic tasks triggers a hidden lazy-loading query for every iteration. In a serialized delivery loop, this doubles the query count per item.
+**Action:** Proactively use `select_related` for any relationship accessed within a loop, especially in Celery tasks and hardware result handlers, to maintain $O(1)$ query complexity for the batch.
