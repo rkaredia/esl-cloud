@@ -168,9 +168,13 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
                                 tags_with_status.append(f"{mac}-{status}")
 
             if tags_with_status:
-                html_items = [format_html('<code style="font-weight: bold; color: {};">{}</code>',
-                                         "#059669" if "Success" in ts else "#dc2626", ts)
-                              for ts in tags_with_status]
+                html_items = []
+                for ts in tags_with_status:
+                    mac = ts.split('-')[0]
+                    html_items.append(format_html(
+                        '<code class="copy-task-id" data-copy-text="{}" style="font-weight: bold; color: {};">{}</code>',
+                        mac, "#059669" if "Success" in ts else "#dc2626", ts
+                    ))
                 return format_html(", ".join(["{}"] * len(html_items)), *html_items)
 
             # FALLBACK: Recursive search for any tag ID (for other topics)
@@ -192,7 +196,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
 
             tag_id = find_tag_id(data)
             if tag_id:
-                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', tag_id)
+                return format_html('<code class="copy-task-id" data-copy-text="{}" style="font-weight: bold; color: #0f172a;">{}</code>', tag_id, tag_id)
             return "-"
         except:
             return "-"
@@ -202,8 +206,8 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
         """Short snippet of the payload for the main table."""
         try:
             val = obj.data
-            if len(val) > 80: val = val[:77] + "..."
-            return format_html('<code style="font-family: monospace; font-size: 0.9em; background: #f1f5f9; padding: 2px 4px; border-radius: 3px;">{}</code>', val)
+            preview = val[:77] + "..." if len(val) > 80 else val
+            return format_html('<code class="copy-task-id" data-copy-text="{}" style="font-family: monospace; font-size: 0.9em; background: #f1f5f9; padding: 2px 4px; border-radius: 3px;">{}</code>', val, preview)
         except: return "-"
     data_preview.short_description = "Payload Preview"
 
