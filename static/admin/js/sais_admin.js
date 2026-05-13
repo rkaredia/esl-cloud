@@ -188,20 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshItem.appendChild(refreshBtn);
             objectTools.appendChild(refreshItem);
         }
-
-        // COPY-TO-CLIPBOARD: Clicking a payload snippet copies it to the clipboard.
-        document.querySelectorAll('.field-data_preview code').forEach(code => {
-            code.style.cursor = 'pointer';
-            code.title = 'Click to copy full payload';
-            code.addEventListener('click', function() {
-                const fullData = this.innerText;
-                navigator.clipboard.writeText(fullData).then(() => {
-                    const originalText = this.innerText;
-                    this.innerText = 'Copied! ✅';
-                    setTimeout(() => { this.innerText = originalText; }, 1000);
-                });
-            });
-        });
     }
 
     // 5. GLOBAL KEYBOARD SHORTCUTS
@@ -212,6 +198,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 6. GLOBAL CLICK-TO-COPY (Enhanced with Keyboard A11y)
+    const liveRegion = document.createElement('div');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.style.position = 'absolute';
+    liveRegion.style.width = '1px';
+    liveRegion.style.height = '1px';
+    liveRegion.style.padding = '0';
+    liveRegion.style.margin = '-1px';
+    liveRegion.style.overflow = 'hidden';
+    liveRegion.style.clip = 'rect(0, 0, 0, 0)';
+    liveRegion.style.whiteSpace = 'nowrap';
+    liveRegion.style.border = '0';
+    document.body.appendChild(liveRegion);
+
     const copyToClipboard = (el) => {
         // Preference: data-task-id, then data-copy-text, then innerText
         const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.innerText.trim();
@@ -220,6 +219,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const originalContent = el.innerHTML;
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
                 el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+
+                // Provide screen reader feedback
+                liveRegion.textContent = 'Copied to clipboard';
+                setTimeout(() => { liveRegion.textContent = ''; }, 2000);
+
                 setTimeout(() => {
                     el.innerHTML = originalContent;
                 }, 1000);
@@ -247,11 +251,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add visual cue for copyable fields
-    document.querySelectorAll('.field-tag_mac, .field-gateway_mac').forEach(el => {
-        el.title = 'Click or press Enter/Space to copy MAC address';
+    document.querySelectorAll('.field-tag_mac, .field-gateway_mac, .copy-task-id').forEach(el => {
+        let label = 'Copy to clipboard';
+        let title = 'Click or press Enter/Space to copy';
+
+        if (el.classList.contains('field-tag_mac') || el.classList.contains('field-gateway_mac')) {
+            label = `Copy MAC address: ${el.innerText.trim()}`;
+            title = 'Click or press Enter/Space to copy MAC address';
+        } else if (el.hasAttribute('data-task-id')) {
+            label = `Copy Task ID: ${el.getAttribute('data-task-id')}`;
+            title = 'Click or press Enter/Space to copy Task ID';
+        } else if (el.closest('.field-tag_id_column')) {
+            label = `Copy Tag ID: ${el.innerText.trim()}`;
+            title = 'Click or press Enter/Space to copy Tag ID';
+        } else if (el.closest('.field-data_preview')) {
+            label = 'Copy full MQTT payload';
+            title = 'Click or press Enter/Space to copy full payload';
+        }
+
+        el.title = title;
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.setAttribute('aria-label', `Copy MAC address: ${el.innerText.trim()}`);
+        el.setAttribute('aria-label', label);
     });
 
     const style = document.createElement('style');

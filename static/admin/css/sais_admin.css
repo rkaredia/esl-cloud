@@ -291,6 +291,30 @@
     background: var(--navy) !important; /* Use Navy for Sync to match 'Add' buttons */
 }
 
+/* 9.5 COPY-TO-CLIPBOARD UTILS */
+.copy-task-id {
+    cursor: pointer !important;
+    transition: background-color 0.2s ease, transform 0.1s ease !important;
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.copy-task-id:hover {
+    background-color: #f1f5f9 !important;
+    color: var(--primary-blue) !important;
+}
+
+.copy-task-id:active {
+    transform: scale(0.95);
+}
+
+.copy-task-id:focus-visible {
+    outline: 2px solid var(--primary-blue, #2563eb) !important;
+    outline-offset: 1px !important;
+    background-color: #f1f5f9 !important;
+}
+
 /* 11. ANIMATIONS & LOADING STATES */
 @keyframes spin {
     from { transform: rotate(0deg); }
