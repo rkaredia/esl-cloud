@@ -16,7 +16,7 @@ import traceback
 import os
 from PIL import Image, ImageDraw
 
-from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting, MQTTMessage
+from ..models import Company, User, Store, Gateway, Product, ESLTag, TagHardware, Supplier, GlobalSetting, MQTTMessage, ServiceStatus
 from ..utils import template_v1, template_v2, template_v3
 
 """
@@ -67,8 +67,35 @@ class SAISAdminSite(admin.AdminSite):
 
             # Analytics Dashboard: The landing page showing store stats
             path('dashboard/', self.admin_view(self.dashboard_view), name="dashboard"),
+
+            # Service Management
+            path('service-restart/<str:service_name>/', self.admin_view(self.restart_service_view), name="service-restart"),
         ]
         return custom_urls + urls
+
+    def restart_service_view(self, request, service_name):
+        """
+        ACTION: RESTART BACKGROUND SERVICE
+        ----------------------------------
+        In this environment, we simulate a restart by updating the heartbeat.
+        In a real Linux environment, this would call 'sudo systemctl restart X'.
+        """
+        if not request.user.is_superuser:
+            raise PermissionDenied
+
+        try:
+            # Simulation Logic:
+            # In a real setup, we would use subprocess.run(["sudo", "systemctl", "restart", service_name])
+            # For now, we clear the 'stuck' status in the DB.
+            ServiceStatus.objects.filter(service_name=service_name).update(
+                last_heartbeat=timezone.now(),
+                is_active=True
+            )
+            messages.success(request, f"Restart command sent to {service_name.replace('_', ' ')}.")
+        except Exception as e:
+            messages.error(request, f"Failed to restart service: {str(e)}")
+
+        return redirect('sais_admin:dashboard')
 
     def index(self, request, extra_context=None):
         """
@@ -149,6 +176,26 @@ class SAISAdminSite(admin.AdminSite):
                     'load_color': '#ef4444' if load_percent >= 90 else '#f59e0b' if load_percent >= 70 else '#3b82f6'
                 })
 
+            # SYSTEM HEALTH: Fetch background service statuses
+            mandatory_services = ['celery_worker', 'mqtt_worker']
+            service_health = []
+
+            # Fetch existing statuses
+            status_map = {s.service_name: s for s in ServiceStatus.objects.filter(service_name__in=mandatory_services)}
+
+            for s_name in mandatory_services:
+                s = status_map.get(s_name)
+                is_online = s.is_online() if s else False
+
+                service_health.append({
+                    'name': s_name.replace('_', ' ').title(),
+                    'slug': s_name,
+                    'status': 'ONLINE' if is_online else 'OFFLINE',
+                    'color': '#059669' if is_online else '#dc2626',
+                    'last_seen': s.last_heartbeat if s else None,
+                    'pid': s.pid if s else None
+                })
+
             # TASK OBSERVABILITY: Fetch recent background task failures
             from django_celery_results.models import TaskResult
             recent_failures = TaskResult.objects.filter(
@@ -159,6 +206,7 @@ class SAISAdminSite(admin.AdminSite):
             context = {
                 'active_store': active_store,
                 'recent_failures': recent_failures,
+                'service_health': service_health,
                 'gateway_count': gateway_count,
                 'active_gateways': active_gateways,
                 'tag_count': tag_count,

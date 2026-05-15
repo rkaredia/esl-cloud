@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAIS Store Health Heatmap Mockup</title>
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg-gray: #f8fafc;
+            --border-gray: #e2e8f0;
+            --text-navy: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-navy);
+            margin: 0;
+            padding: 24px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-gray);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+        }
+
+        .aisle-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-gray);
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .aisle-header {
+            font-size: 14px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .section-block {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            transition: transform 0.2s, filter 0.2s;
+            position: relative;
+        }
+
+        .section-block:hover {
+            transform: scale(1.1);
+            filter: brightness(1.1);
+            z-index: 10;
+        }
+
+        /* Status Colors */
+        .status-ok { background-color: var(--success); }
+        .status-low-batt { background-color: var(--warning); }
+        .status-failure { background-color: var(--danger); }
+        .status-empty { background-color: #e2e8f0; color: #94a3b8; }
+
+        .tooltip {
+            visibility: hidden;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            font-size: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+        }
+
+        .section-block:hover .tooltip {
+            visibility: visible;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-header">
+        <div class="dashboard-title">Store Health Heatmap: <span style="color: #64748b;">Downtown Grocery</span></div>
+        <div class="legend">
+            <div class="legend-item"><div class="status-dot status-ok"></div> Healthy</div>
+            <div class="legend-item"><div class="status-dot status-low-batt"></div> Low Battery</div>
+            <div class="legend-item"><div class="status-dot status-failure"></div> Sync Failure</div>
+            <div class="legend-item"><div class="status-dot status-empty"></div> No Tags</div>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <!-- AISLE 1 -->
+        <div class="aisle-card">
+            <div class="aisle-header">
+                <span>Aisle 1: Produce</span>
+                <span style="color: var(--success)">100% Healthy</span>
+            </div>
+            <div class="sections-grid">
+                <a href="#" class="section-block status-ok">S1<div class="tooltip">Sec 1: 12 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S2<div class="tooltip">Sec 2: 15 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S3<div class="tooltip">Sec 3: 8 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S4<div class="tooltip">Sec 4: 10 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S5<div class="tooltip">Sec 5: 12 Tags<br>Status: OK</div></a>
+            </div>
+        </div>
+
+        <!-- AISLE 2 -->
+        <div class="aisle-card">
+            <div class="aisle-header">
+                <span>Aisle 2: Dairy</span>
+                <span style="color: var(--warning)">85% Healthy</span>
+            </div>
+            <div class="sections-grid">
+                <a href="#" class="section-block status-ok">S1<div class="tooltip">Sec 1: 20 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-low-batt">S2<div class="tooltip">Sec 2: 18 Tags<br>3 Low Battery</div></a>
+                <a href="#" class="section-block status-ok">S3<div class="tooltip">Sec 3: 15 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S4<div class="tooltip">Sec 4: 12 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-empty">S5<div class="tooltip">Sec 5: 0 Tags</div></a>
+            </div>
+        </div>
+
+        <!-- AISLE 3 -->
+        <div class="aisle-card">
+            <div class="aisle-header">
+                <span>Aisle 3: Frozen</span>
+                <span style="color: var(--danger)">60% Healthy</span>
+            </div>
+            <div class="sections-grid">
+                <a href="#" class="section-block status-failure">S1<div class="tooltip">Sec 1: 22 Tags<br>5 Sync Failures</div></a>
+                <a href="#" class="section-block status-ok">S2<div class="tooltip">Sec 2: 18 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-failure">S3<div class="tooltip">Sec 3: 20 Tags<br>2 Sync Failures</div></a>
+                <a href="#" class="section-block status-ok">S4<div class="tooltip">Sec 4: 15 Tags<br>Status: OK</div></a>
+                <a href="#" class="section-block status-ok">S5<div class="tooltip">Sec 5: 12 Tags<br>Status: OK</div></a>
+            </div>
+        </div>
+
+        <!-- AISLE 4 -->
+        <div class="aisle-card">
+            <div class="aisle-header">
+                <span>Aisle 4: Bakery</span>
+                <span style="color: var(--success)">100% Healthy</span>
+            </div>
+            <div class="sections-grid">
+                <a href="#" class="section-block status-ok">S1</a>
+                <a href="#" class="section-block status-ok">S2</a>
+                <a href="#" class="section-block status-ok">S3</a>
+                <a href="#" class="section-block status-ok">S4</a>
+                <a href="#" class="section-block status-ok">S5</a>
+            </div>
+        </div>
+
+        <!-- AISLE 5 -->
+        <div class="aisle-card">
+            <div class="aisle-header">
+                <span>Aisle 5: Snacks</span>
+                <span style="color: var(--warning)">92% Healthy</span>
+            </div>
+            <div class="sections-grid">
+                <a href="#" class="section-block status-ok">S1</a>
+                <a href="#" class="section-block status-ok">S2</a>
+                <a href="#" class="section-block status-ok">S3</a>
+                <a href="#" class="section-block status-low-batt">S4</a>
+                <a href="#" class="section-block status-ok">S5</a>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px; color: #64748b; font-size: 12px; text-align: center;">
+        Click on any section block to view the filtered tag list for that location.
+    </div>
+
+</body>
+</html>
