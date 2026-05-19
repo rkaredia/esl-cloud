@@ -202,17 +202,18 @@ def process_modisoft_file_logic(file_path, active_store, user, commit=False):
                 # their image refresh in Celery.
                 updated_skus = [item['sku'] for item in results['update']]
                 if updated_skus:
-                    from core.tasks import update_tag_image_task
+                    from .utils import trigger_bulk_sync
 
                     # Find all affected Tag IDs
-                    tag_ids = ESLTag.objects.filter(
+                    tag_ids = list(ESLTag.objects.filter(
                         paired_product__sku__in=updated_skus,
                         store=active_store
-                    ).values_list('id', flat=True)
+                    ).values_list('id', flat=True))
 
-                    # Queue the tasks AFTER the DB transaction is successful
-                    for tid in tag_ids:
-                        transaction.on_commit(lambda current_tid=tid: update_tag_image_task.delay(current_tid))
+                    # PERFORMANCE: Queue the tasks in bulk ($O(1)$ Redis trips via Celery groups)
+                    # instead of a manual $O(N)$ loop of .delay() calls.
+                    if tag_ids:
+                        transaction.on_commit(lambda: trigger_bulk_sync(tag_ids))
 
         return results, None
     except Exception as e:
