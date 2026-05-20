@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-05-12 - [Contrast Optimization for Warning States]
+**Learning:** The default amber/orange color (`#d97706`) used for "Low Battery" and "Retry" states fails WCAG AA contrast requirements (approx 3.5:1) on white and light-yellow backgrounds.
+**Action:** Use a darkened warning shade (`#92400e`) which provides a much higher contrast ratio (>7:1) while preserving the semantic meaning of a warning state.
