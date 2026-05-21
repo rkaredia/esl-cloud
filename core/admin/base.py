@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Count, Q
 from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.utils import timezone
 from django.http import HttpResponse
@@ -194,6 +195,10 @@ class SAISAdminSite(admin.AdminSite):
 
     def template_gallery(self, request):
         """Displays all supported hardware models for testing."""
+        # Security: Only superusers, owners, and managers can access hardware debugging tools
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
+
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -213,6 +218,10 @@ class SAISAdminSite(admin.AdminSite):
         tag or database record. This allows developers to tweak layouts
         and see results instantly.
         """
+        # Security: Only superusers, owners, and managers can access hardware debugging tools
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
+
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
