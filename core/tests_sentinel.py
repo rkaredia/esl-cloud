@@ -88,3 +88,70 @@ class SentinelSecurityTest(TestCase):
 
         html = model_admin.sync_button(self.tag)
         self.assertEqual(html, "", "Sync button should be empty for read-only user.")
+
+    def test_custom_admin_views_rbac_restricted(self):
+        """
+        VERIFICATION: Verify that 'Read Only' users are denied access to
+        hardware debugging/design tools.
+        """
+        self.client.login(username='readonly_user', password='password123')
+
+        # 1. Template Gallery
+        gallery_url = reverse('admin:template-gallery')
+        response = self.client.get(gallery_url)
+        self.assertEqual(response.status_code, 403, "Access to Template Gallery should be denied for Read-only user")
+
+        # 2. Template Render (Mock View)
+        render_url = reverse('admin:template-render', args=[self.spec.id])
+        response = self.client.get(render_url)
+        self.assertEqual(response.status_code, 403, "Access to Mock Renderer should be denied for Read-only user")
+
+    def test_manager_can_see_staff_users(self):
+        """
+        VERIFICATION: Verify that a manager can see staff users assigned to their store.
+        """
+        # Create a manager
+        manager = User.objects.create_user(
+            username='manager_verify',
+            password='password123',
+            company=self.company,
+            role='manager',
+            is_staff=True
+        )
+        manager.managed_stores.add(self.store)
+
+        # Create a staff user in the same store
+        staff = User.objects.create_user(
+            username='staff_verify',
+            password='password123',
+            company=self.company,
+            role='staff',
+            is_staff=True
+        )
+        staff.managed_stores.add(self.store)
+
+        # Create another staff user in a different company/store (should NOT be visible)
+        other_company = Company.objects.create(name="Other")
+        other_store = Store.objects.create(name="Other Store", company=other_company)
+        other_staff = User.objects.create_user(
+            username='other_staff',
+            password='password123',
+            company=other_company,
+            role='staff',
+            is_staff=True
+        )
+        other_staff.managed_stores.add(other_store)
+
+        from core.admin.organisation import CustomUserAdmin
+        ma = CustomUserAdmin(User, admin_site)
+
+        # Simulate request
+        from django.test import RequestFactory
+        factory = RequestFactory()
+        request = factory.get(reverse('admin:core_user_changelist'))
+        request.user = manager
+
+        qs = ma.get_queryset(request)
+
+        self.assertIn(staff, qs, "Manager should be able to see staff in their store")
+        self.assertNotIn(other_staff, qs, "Manager should NOT be able to see staff from other companies")
