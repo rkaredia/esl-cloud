@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-05-27 - [Clipboard Content Hygiene & Pseudo-elements]
+**Learning:** Pseudo-elements injected via CSS (e.g., `::after { content: '📋' }`) are included in `element.innerText` but ignored by `element.textContent`. This can corrupt technical data copied to the clipboard. Additionally, removing `overflow: hidden` on table cells to accommodate visual icons breaks `text-overflow: ellipsis` and column resizing.
+**Action:** Always use `textContent.trim()` for clipboard operations to keep data clean. Maintain `overflow: hidden` on data-heavy cells and use alternative visual affordances or ensure pseudo-elements don't interfere with layout constraints.
