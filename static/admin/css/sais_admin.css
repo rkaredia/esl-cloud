@@ -325,7 +325,40 @@
     display: none !important;
 }
 
-/* 10. CLEAN BUTTONS
+/* 10. COPY AFFORDANCE
+   Adds a subtle clipboard icon next to copyable fields on hover.
+*/
+.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-data_preview code {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s;
+}
+
+.field-tag_mac:focus-visible, .field-gateway_mac:focus-visible, .copy-task-id:focus-visible, .field-data_preview code:focus-visible {
+    outline: 2px solid var(--primary-blue, #2563eb);
+    outline-offset: -2px;
+}
+
+.field-tag_mac:hover, .field-gateway_mac:hover, .copy-task-id:hover, .field-data_preview code:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.field-tag_mac:active, .field-gateway_mac:active, .copy-task-id:active, .field-data_preview code:active {
+    background-color: #e2e8f0 !important;
+}
+
+.field-tag_mac:hover::after,
+.field-gateway_mac:hover::after,
+.copy-task-id:hover::after,
+.field-data_preview code:hover::after {
+    content: " 📋";
+    font-size: 10px;
+    opacity: 0.6;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* 11. CLEAN BUTTONS
    Hiding the default "+" icon for a more modern, minimal look as requested.
 */
 .addlink::before, .object-tools .addlink::before {

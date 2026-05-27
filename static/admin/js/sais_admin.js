@@ -7,6 +7,29 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // 0. A11y INITIALIZATION
+    // Create a hidden ARIA live region for global screen reader announcements
+    const liveRegion = document.createElement('div');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.setAttribute('aria-atomic', 'true');
+    liveRegion.classList.add('sr-only');
+    liveRegion.style.position = 'absolute';
+    liveRegion.style.width = '1px';
+    liveRegion.style.height = '1px';
+    liveRegion.style.padding = '0';
+    liveRegion.style.margin = '-1px';
+    liveRegion.style.overflow = 'hidden';
+    liveRegion.style.clip = 'rect(0, 0, 0, 0)';
+    liveRegion.style.whiteSpace = 'nowrap';
+    liveRegion.style.border = '0';
+    document.body.appendChild(liveRegion);
+
+    const announce = (message) => {
+        liveRegion.textContent = message;
+        // Clear after a delay to allow the same message to be announced again later
+        setTimeout(() => { liveRegion.textContent = ''; }, 3000);
+    };
+
     // 1. COLUMN RESIZING LOGIC
     // Allows users to drag table headers to change column width.
     const table = document.getElementById('result_list');
@@ -189,19 +212,6 @@ document.addEventListener('DOMContentLoaded', function() {
             objectTools.appendChild(refreshItem);
         }
 
-        // COPY-TO-CLIPBOARD: Clicking a payload snippet copies it to the clipboard.
-        document.querySelectorAll('.field-data_preview code').forEach(code => {
-            code.style.cursor = 'pointer';
-            code.title = 'Click to copy full payload';
-            code.addEventListener('click', function() {
-                const fullData = this.innerText;
-                navigator.clipboard.writeText(fullData).then(() => {
-                    const originalText = this.innerText;
-                    this.innerText = 'Copied! ✅';
-                    setTimeout(() => { this.innerText = originalText; }, 1000);
-                });
-            });
-        });
     }
 
     // 5. GLOBAL KEYBOARD SHORTCUTS
@@ -213,13 +223,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 6. GLOBAL CLICK-TO-COPY (Enhanced with Keyboard A11y)
     const copyToClipboard = (el) => {
-        // Preference: data-task-id, then data-copy-text, then innerText
-        const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.innerText.trim();
+        // Preference: data-task-id, then data-copy-text, then textContent (to avoid CSS-injected text)
+        const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.textContent.trim();
         if (text && text !== '-') {
             navigator.clipboard.writeText(text).then(() => {
                 const originalContent = el.innerHTML;
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
                 el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+                announce('Copied to clipboard');
                 setTimeout(() => {
                     el.innerHTML = originalContent;
                 }, 1000);
@@ -228,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     document.addEventListener('click', function(e) {
-        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-data_preview code');
         if (copyable && !e.target.closest('a')) {
             copyToClipboard(copyable);
         }
@@ -247,32 +258,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add visual cue for copyable fields
-    document.querySelectorAll('.field-tag_mac, .field-gateway_mac').forEach(el => {
-        el.title = 'Click or press Enter/Space to copy MAC address';
+    document.querySelectorAll('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-data_preview code').forEach(el => {
+        const isMAC = el.classList.contains('field-tag_mac') || el.classList.contains('field-gateway_mac');
+        const isTask = el.classList.contains('copy-task-id');
+        const type = isMAC ? 'MAC address' : (isTask ? 'Task ID' : 'payload');
+
+        el.title = `Click or press Enter/Space to copy ${type}`;
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.setAttribute('aria-label', `Copy MAC address: ${el.innerText.trim()}`);
+        el.setAttribute('aria-label', `Copy ${type}: ${el.textContent.trim()}`);
     });
-
-    const style = document.createElement('style');
-    style.textContent = `
-        .field-tag_mac, .field-gateway_mac, .copy-task-id {
-            cursor: pointer;
-            position: relative;
-            transition: background-color 0.2s;
-        }
-        .field-tag_mac:focus-visible, .field-gateway_mac:focus-visible, .copy-task-id:focus-visible {
-            outline: 2px solid var(--primary-blue, #2563eb);
-            outline-offset: -2px;
-        }
-        .field-tag_mac:hover, .field-gateway_mac:hover, .copy-task-id:hover {
-            background-color: #f1f5f9 !important;
-        }
-        .field-tag_mac:active, .field-gateway_mac:active, .copy-task-id:active {
-            background-color: #e2e8f0 !important;
-        }
-    `;
-    document.head.appendChild(style);
 
     document.addEventListener('keydown', function(e) {
         // Rule: Ignore shortcuts if the user is currently typing in a text box
@@ -298,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Enter or Space for element copy
-        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-data_preview code');
         if (copyable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             copyToClipboard(copyable);
