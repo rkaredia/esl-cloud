@@ -194,6 +194,10 @@ class SAISAdminSite(admin.AdminSite):
 
     def template_gallery(self, request):
         """Displays all supported hardware models for testing."""
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -213,6 +217,10 @@ class SAISAdminSite(admin.AdminSite):
         tag or database record. This allows developers to tweak layouts
         and see results instantly.
         """
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
@@ -510,8 +518,6 @@ class CompanySecurityMixin(AuditAdminMixin):
                 qs = qs.filter(company=request.user.company)
             elif hasattr(self.model, 'store'):
                 qs = qs.filter(store__company=request.user.company)
-            elif self.model == ESLTag:
-                qs = qs.filter(gateway__store__company=request.user.company)
             elif self.model.__name__ == 'MQTTMessage':
                 from ..models import Gateway
                 authorized_gateway_ids = Gateway.objects.filter(store__company=request.user.company).values_list('estation_id', flat=True)
@@ -525,8 +531,6 @@ class CompanySecurityMixin(AuditAdminMixin):
                     qs = qs.filter(store__in=assigned_stores)
                 elif self.model == Store:
                     qs = qs.filter(id__in=assigned_stores.values_list('id', flat=True))
-                elif self.model == ESLTag:
-                    qs = qs.filter(gateway__store__in=assigned_stores)
                 elif self.model.__name__ == 'MQTTMessage':
                     from ..models import Gateway
                     authorized_gateway_ids = Gateway.objects.filter(store__in=assigned_stores).values_list('estation_id', flat=True)

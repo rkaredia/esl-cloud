@@ -17,3 +17,8 @@
 **Vulnerability:** The product import service (`process_modisoft_file_logic`) was only checking for general access to the import view but was not verifying granular `add_product` vs. `change_product` permissions for individual rows in the Excel file. This allowed users with only 'Change' permissions to create new products.
 **Learning:** Bulk data processing logic in the service layer must re-verify granular permissions for each operation (create vs. update). Relying on view-level decorators or mixins is insufficient when a single entry point handles multiple types of data modifications.
 **Prevention:** Always implement granular permission checks within loops that handle bulk creation and updates, specifically checking for `add` vs. `change` permissions before performing the respective database operations. Move unauthorized rows to a 'rejected' list with an explicit error message.
+
+## 2026-05-15 - RBAC Gaps in User Management and Hardware Debugging Tools
+**Vulnerability:** Store Managers were unable to see or manage 'Store Staff' users in their assigned stores, and all staff users had unauthorized access to hardware debugging tools (Design Lab).
+**Learning:** Overriding `get_queryset` for multi-tenant isolation can inadvertently hide legitimate child records (like staff users for a manager) if the filter is too narrow. Additionally, custom admin views registered via `admin_view` are accessible to all staff by default; they require explicit role-based checks within the view function for sensitive tools.
+**Prevention:** Always include child/subordinate roles in RBAC filters for managers. Implement explicit `is_superuser` or `role` checks in any custom admin view that handles sensitive hardware configurations or internal debugging tools.
