@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-06-02 - [Redundant Pillow Resize Optimization]
+**Learning:** Calling `image.resize()` with the `LANCZOS` filter is a CPU-intensive operation. In the `generate_esl_image` function, the image was being resized to the same dimensions it was already created with, wasting significant CPU cycles during every tag update cycle.
+**Action:** Always check if the current image dimensions match the target dimensions before calling `resize()`. If they match, skip the resize to save CPU and reduce processing latency.
