@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-06-03 - [Click-to-Copy Screen Reader Feedback]
+**Learning:** Visual-only feedback for interactive actions (like "Copied! ✅") leaves screen reader users in the dark. A polite ARIA live region is necessary to provide parity of experience.
+**Action:** Always pair visual confirmations with an ARIA live region (`aria-live="polite"`) that explicitly announces the result of the action.
