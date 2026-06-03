@@ -212,6 +212,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 6. GLOBAL CLICK-TO-COPY (Enhanced with Keyboard A11y)
+    const liveRegion = document.createElement('div');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.setAttribute('aria-atomic', 'true');
+    liveRegion.classList.add('sr-only');
+    document.body.appendChild(liveRegion);
+
     const copyToClipboard = (el) => {
         // Preference: data-task-id, then data-copy-text, then innerText
         const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.innerText.trim();
@@ -220,8 +226,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const originalContent = el.innerHTML;
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
                 el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+
+                // Screen Reader Feedback
+                liveRegion.textContent = `Copied to clipboard: ${text}`;
+
                 setTimeout(() => {
                     el.innerHTML = originalContent;
+                    liveRegion.textContent = '';
                 }, 1000);
             });
         }
@@ -256,6 +267,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const style = document.createElement('style');
     style.textContent = `
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
         .field-tag_mac, .field-gateway_mac, .copy-task-id {
             cursor: pointer;
             position: relative;
