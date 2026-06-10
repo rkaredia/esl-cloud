@@ -336,3 +336,35 @@
 .addlink, .object-tools a {
     background-image: none !important;
 }
+
+/* 12. UTILITY CLASSES */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* 13. COPYABLE FIELD INDICATORS
+   Adds a subtle clipboard icon when hovering over interactive fields.
+*/
+.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-data_preview code {
+    position: relative !important;
+}
+
+.field-tag_mac:hover::after, .field-gateway_mac:hover::after, .copy-task-id:hover::after, .field-data_preview code:hover::after,
+.field-tag_mac:focus-visible::after, .field-gateway_mac:focus-visible::after, .copy-task-id:focus-visible::after, .field-data_preview code:focus-visible::after {
+    content: '📋';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.8;
+    pointer-events: none;
+}
