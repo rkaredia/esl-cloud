@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.http import HttpResponse
 from django import forms
 from django.db import models
+from django.core.exceptions import PermissionDenied
 import time
 import json
 import logging
@@ -194,6 +195,10 @@ class SAISAdminSite(admin.AdminSite):
 
     def template_gallery(self, request):
         """Displays all supported hardware models for testing."""
+        # Security: Restrict access to owners and managers only
+        if not (request.user.is_superuser or request.user.role in ['owner', 'manager']):
+            raise PermissionDenied
+
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -213,6 +218,10 @@ class SAISAdminSite(admin.AdminSite):
         tag or database record. This allows developers to tweak layouts
         and see results instantly.
         """
+        # Security: Restrict access to owners and managers only
+        if not (request.user.is_superuser or request.user.role in ['owner', 'manager']):
+            raise PermissionDenied
+
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
