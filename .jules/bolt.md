@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-06-16 - [Bulk Task Dispatch and Locking Contention]
+**Learning:** Registering individual tasks in an (N)$ loop within `transaction.on_commit` hooks (e.g., during POS sync) creates unnecessary Redis round-trips and memory overhead. Additionally, using `select_related` inside a `select_for_update` block locks related rows (like a shared Gateway), which can cause massive database contention and reduced throughput in concurrent workers.
+**Action:** Always prefer batch dispatch methods like `trigger_bulk_sync` for multiple tasks. Evaluate QuerySets into lists before passing them to `on_commit` to avoid lazy-loading. Avoid `select_related` within locking transactions on high-contention parent records.
