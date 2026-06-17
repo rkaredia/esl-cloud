@@ -7,6 +7,14 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // 0. ACCESSIBILITY: ARIA LIVE REGION
+    // Creates a hidden area for screen reader announcements (e.g., 'Copied!')
+    const liveRegion = document.createElement('div');
+    liveRegion.id = 'sais-a11y-live-region';
+    liveRegion.className = 'sr-only';
+    liveRegion.setAttribute('aria-live', 'polite');
+    document.body.appendChild(liveRegion);
+
     // 1. COLUMN RESIZING LOGIC
     // Allows users to drag table headers to change column width.
     const table = document.getElementById('result_list');
@@ -190,16 +198,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // COPY-TO-CLIPBOARD: Clicking a payload snippet copies it to the clipboard.
-        document.querySelectorAll('.field-data_preview code').forEach(code => {
+        document.querySelectorAll('.field-data_preview code, .field-tag_id_column').forEach(code => {
             code.style.cursor = 'pointer';
-            code.title = 'Click to copy full payload';
+            code.title = 'Click or press Enter/Space to copy';
+            code.setAttribute('role', 'button');
+            code.setAttribute('tabindex', '0');
+            code.setAttribute('aria-label', `Copy value: ${code.textContent.trim()}`);
             code.addEventListener('click', function() {
-                const fullData = this.innerText;
-                navigator.clipboard.writeText(fullData).then(() => {
-                    const originalText = this.innerText;
-                    this.innerText = 'Copied! ✅';
-                    setTimeout(() => { this.innerText = originalText; }, 1000);
-                });
+                copyToClipboard(this);
             });
         });
     }
@@ -213,15 +219,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 6. GLOBAL CLICK-TO-COPY (Enhanced with Keyboard A11y)
     const copyToClipboard = (el) => {
-        // Preference: data-task-id, then data-copy-text, then innerText
-        const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.innerText.trim();
+        // Preference: data-task-id, then data-copy-text, then textContent (ignores pseudo-elements)
+        const text = el.getAttribute('data-task-id') || el.getAttribute('data-copy-text') || el.textContent.trim();
         if (text && text !== '-') {
             navigator.clipboard.writeText(text).then(() => {
                 const originalContent = el.innerHTML;
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
                 el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+
+                // Screen Reader Feedback
+                const region = document.getElementById('sais-a11y-live-region');
+                if (region) region.textContent = 'Copied to clipboard';
+
                 setTimeout(() => {
                     el.innerHTML = originalContent;
+                    el.style.width = ''; // Clear fixed width
+                    if (region) region.textContent = '';
                 }, 1000);
             });
         }
@@ -247,11 +260,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add visual cue for copyable fields
-    document.querySelectorAll('.field-tag_mac, .field-gateway_mac').forEach(el => {
-        el.title = 'Click or press Enter/Space to copy MAC address';
+    document.querySelectorAll('.field-tag_mac, .field-gateway_mac, .copy-task-id').forEach(el => {
+        const isMAC = el.classList.contains('field-tag_mac') || el.classList.contains('field-gateway_mac');
+        el.title = isMAC ? 'Click or press Enter/Space to copy MAC address' : 'Click or press Enter/Space to copy';
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.setAttribute('aria-label', `Copy MAC address: ${el.innerText.trim()}`);
+        const labelText = isMAC ? `Copy MAC address: ${el.textContent.trim()}` : `Copy value: ${el.textContent.trim()}`;
+        el.setAttribute('aria-label', labelText);
     });
 
     const style = document.createElement('style');
@@ -298,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Enter or Space for element copy
-        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id');
+        const copyable = e.target.closest('.field-tag_mac, .field-gateway_mac, .copy-task-id, .field-tag_id_column, .field-data_preview code');
         if (copyable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             copyToClipboard(copyable);

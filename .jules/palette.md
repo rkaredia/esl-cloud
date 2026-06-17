@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-05-15 - [Accessible Click-to-Copy & Clipboard Hygiene]
+**Learning:** "Click-to-copy" functionality on static text or truncated identifiers is a common UX pattern that significantly helps power users, but it must be implemented with full accessibility (roles, tabindex, keyboard listeners, and ARIA live regions) to be truly inclusive. Using `textContent` instead of `innerText` prevents polluting the clipboard with decorative CSS pseudo-elements (like emojis or icons).
+**Action:** Always wrap click-to-copy features in an accessible container with `role="button"` and `tabindex="0"`. Implement a global ARIA live region for success announcements and use `textContent.trim()` for the raw data retrieval. Clear any temporary inline styles (like fixed widths used to prevent layout shift) immediately after the feedback animation.

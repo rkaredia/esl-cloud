@@ -317,6 +317,19 @@
     border-right: none !important;
 }
 
+/* 12. UTILITIES */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
 /* 9. HIDE REDUNDANT WIDGETS
    Removes the "Add", "Edit", and "Delete" icons next to foreign key dropdowns
    in list views (change-list) while keeping them on edit pages.
