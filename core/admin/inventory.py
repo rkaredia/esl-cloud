@@ -106,7 +106,7 @@ class ProductAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         if not request.user.has_perm('core.change_product') or not request.user.has_perm('core.change_esltag'):
             raise PermissionDenied
         try:
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
             count = queryset.count()
             if count > 100:
                 self.message_user(request, "Error: Please select maximum 100 items.", messages.ERROR)

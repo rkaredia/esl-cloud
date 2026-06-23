@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.core.cache import cache
 from .models import ESLTag, Store, Gateway, GlobalSetting, MQTTMessage
-from .utils import generate_esl_image, trigger_bulk_sync
+from .utils import generate_esl_image
 from .mqtt_client import mqtt_service
 
 """
@@ -74,10 +74,12 @@ def update_tag_image_task(self, tag_id, is_retry=False):
             ESLTag.objects.filter(pk=tag_id).update(sync_state='PROCESSING')
 
         # DATA PREFETCHING
+        # store__company included to avoid lazy-loading queries during get_tag_path
         tag = ESLTag.objects.select_related(
             'hardware_spec',
             'paired_product__preferred_supplier',
-            'gateway__store__company'
+            'gateway__store__company',
+            'store__company'
         ).get(pk=tag_id)
 
         if not tag.paired_product:
@@ -451,13 +453,13 @@ def check_gateways_status_task():
             Q(sync_state='PROCESSING', updated_at__lt=stuck_cutoff)
         ).values_list('id', flat=True))
 
-        count_tag_timeouts = 0
-        for tid in timed_out_tags:
-            # We don't countdown here, we call immediately so it enters RETRY_WAITING or PUSH_FAILED
-            handle_tag_failure_task.delay(tid, reason="Timeout")
-            count_tag_timeouts += 1
-
+        from celery import group
+        count_tag_timeouts = len(timed_out_tags)
         if count_tag_timeouts > 0:
+            # PERFORMANCE: Grouped dispatch reduces Redis round-trips from O(N) to O(1)
+            # We don't countdown here, we call immediately so it enters RETRY_WAITING or PUSH_FAILED
+            job = group(handle_tag_failure_task.s(tid, reason="Timeout") for tid in timed_out_tags)
+            job.apply_async()
             logger.info(f"Triggered recovery/retry for {count_tag_timeouts} tags due to timeout or stuck processing.")
 
         # NEW: Restart stalled queues (in case a worker died)
@@ -515,3 +517,24 @@ def cleanup_old_logs_task():
     except Exception:
         logger.exception("Error in cleanup_old_logs_task")
         return "Cleanup failed"
+
+def trigger_bulk_sync(tag_ids):
+    """
+    TASK DISPATCHER: CELERY GROUP
+    -----------------------------
+    Takes a list of tag IDs and queues them all for refresh in the
+    background as a single 'Group' of tasks.
+    """
+    from celery import group
+    from .models import ESLTag
+
+    # Filter only tags that have a product and hardware spec
+    valid_tag_ids = list(ESLTag.objects.filter(id__in=tag_ids, paired_product__isnull=False, hardware_spec__isnull=False).values_list('id', flat=True))
+
+    if not valid_tag_ids: return None
+
+    # Create a Celery 'Group' - this allows us to track progress of the whole batch
+    job_group = group(update_tag_image_task.s(tid) for tid in valid_tag_ids)
+    result = job_group.apply_async()
+    result.save() # Persist the group ID to the database so the UI can see it
+    return result

@@ -6,8 +6,6 @@ from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 import barcode
 from barcode.writer import ImageWriter
-from celery import group
-
 """
 SAIS UTILITIES: IMAGE RENDERING & HELPER FUNCTIONS
 --------------------------------------------------
@@ -19,7 +17,6 @@ Key Components:
 1. FONT MANAGEMENT: Dynamic resizing to ensure text always fits the screen.
 2. TEMPLATES: Different visual layouts (Standard, Promo, Modern).
 3. BARCODE GENERATION: Creating Code128 barcodes from SKUs.
-4. TASK TRIGGERING: Helpers for mass-updating tags.
 """
 
 logger = logging.getLogger('core')
@@ -488,23 +485,3 @@ def generate_esl_image(tag_id, tag_instance=None):
         fallback = Image.new('RGBA', (250, 122), color=(255, 255, 255, 255))
         return fallback
 
-def trigger_bulk_sync(tag_ids):
-    """
-    TASK DISPATCHER: CELERY GROUP
-    -----------------------------
-    Takes a list of tag IDs and queues them all for refresh in the
-    background as a single 'Group' of tasks.
-    """
-    from core.tasks import update_tag_image_task
-    from .models import ESLTag
-
-    # Filter only tags that have a product and hardware spec
-    valid_tag_ids = list(ESLTag.objects.filter(id__in=tag_ids, paired_product__isnull=False, hardware_spec__isnull=False).values_list('id', flat=True))
-
-    if not valid_tag_ids: return None
-
-    # Create a Celery 'Group' - this allows us to track progress of the whole batch
-    job_group = group(update_tag_image_task.s(tid) for tid in valid_tag_ids)
-    result = job_group.apply_async()
-    result.save() # Persist the group ID to the database so the UI can see it
-    return result

@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-03-14 - [O(1) Task Dispatching with Celery Groups]
+**Learning:** Using individual `.delay()` calls in a loop (even inside `transaction.on_commit`) creates $O(N)$ round-trips to the message broker (Redis), causing significant latency for large batches. Consolidating these into a single Celery `group(...).apply_async()` reduces overhead to $O(1)$. Additionally, prefetching related data used in dynamic file path generation (e.g., `store__company` for `upload_to`) is critical to avoid $O(N)$ lazy-loading queries during file saving.
+**Action:** Use `trigger_bulk_sync` (which utilizes Celery groups) for all bulk hardware updates. Always audit `select_related` calls in background tasks to include fields required by custom storage paths or model validation.
