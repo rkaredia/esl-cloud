@@ -363,7 +363,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
         if not request.user.has_perm('core.change_esltag'):
             raise PermissionDenied
         try:
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
 
             tag_ids = []
             offline_gateways = set()
@@ -418,7 +418,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store).filter(paired_product__isnull=False)
             count = tags.count()
             # Safety limit: max 500 for ALL refresh to prevent queue flooding
@@ -438,7 +438,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=1)
@@ -459,7 +459,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=2)
@@ -480,7 +480,7 @@ class ESLTagAdmin(CompanySecurityMixin, UIHelperMixin, StoreFilteredAdmin):
             if not request.active_store:
                 self.message_user(request, "Please select a store first.", messages.WARNING)
                 return
-            from ..utils import trigger_bulk_sync
+            from ..tasks import trigger_bulk_sync
             tags = ESLTag.objects.for_store(request.active_store)
             count = tags.count()
             tags.update(template_id=3)

@@ -346,6 +346,7 @@ def bulk_map_tags_view(request):
                 active_store = getattr(request, 'active_store', None)
 
                 # Use a TRANSACTION to ensure all updates happen together (all or nothing)
+                mapped_tag_ids = []
                 with transaction.atomic():
                     for item in proposed_data:
                         # SECURITY: Verify that both the tag and the product belong to the active store
@@ -358,13 +359,15 @@ def bulk_map_tags_view(request):
                                 paired_product_id=item['product_id'],
                                 updated_by=request.user
                             )
+                            mapped_tag_ids.append(item['tag_id'])
                         else:
                             logger.warning(f"Security: Blocked cross-store bulk mapping attempt for user {request.user}")
                             continue
 
-                        # Trigger an immediate hardware update for this tag
-                        from .tasks import update_tag_image_task
-                        update_tag_image_task.delay(item['tag_id'])
+                # Trigger immediate hardware updates for all mapped tags in a single O(1) bulk dispatch
+                if mapped_tag_ids:
+                    from .tasks import trigger_bulk_sync
+                    trigger_bulk_sync(mapped_tag_ids)
 
                 messages.success(request, f"Successfully mapped {len(proposed_data)} tags.")
                 if 'pending_bulk_maps' in request.session: del request.session['pending_bulk_maps']

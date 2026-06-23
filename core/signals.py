@@ -33,7 +33,7 @@ def update_tags_on_product_change(sender, instance, **kwargs):
     if not getattr(instance, '_needs_refresh', True):
         return
 
-    from .utils import trigger_bulk_sync
+    from .tasks import trigger_bulk_sync
     
     # 1. Look up all Tags currently displaying this product
     tag_ids = list(instance.esl_tags.values_list('id', flat=True))
