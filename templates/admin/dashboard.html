@@ -113,12 +113,14 @@
                 </a>
             </div>
             
-            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
-                <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);" aria-label="{{ active_gateways }} of {{ gateway_count }} gateways are currently online">
-                    {{ active_gateways }} / {{ gateway_count }}
-                </span>
-            </div>
+            <a href="{% url 'sais_admin:core_gateway_changelist' %}" class="kpi-link" title="View all gateways">
+                <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: #475569; font-size: 14px;">Active Gateways</span>
+                    <span style="background: var(--azure, #C7EFFF); color: var(--navy, #003459); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid rgba(0, 52, 89, 0.1);" aria-label="{{ active_gateways }} of {{ gateway_count }} gateways are currently online">
+                        {{ active_gateways }} / {{ gateway_count }}
+                    </span>
+                </div>
+            </a>
         </div>
 
         <!-- CARD 3: GATEWAY LOAD INFRASTRUCTURE -->

@@ -7,6 +7,14 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // 0. ACCESSIBILITY SETUP
+    // Create a hidden ARIA live region for announcing dynamic updates to screen readers.
+    const liveRegion = document.createElement('div');
+    liveRegion.id = 'sais-a11y-live-region';
+    liveRegion.className = 'sr-only';
+    liveRegion.setAttribute('aria-live', 'polite');
+    document.body.appendChild(liveRegion);
+
     // 1. COLUMN RESIZING LOGIC
     // Allows users to drag table headers to change column width.
     const table = document.getElementById('result_list');
@@ -218,10 +226,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (text && text !== '-') {
             navigator.clipboard.writeText(text).then(() => {
                 const originalContent = el.innerHTML;
+                const region = document.getElementById('sais-a11y-live-region');
+
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
-                el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+                el.innerHTML = '<span style="color: #059669; font-weight: bold;"><span aria-hidden="true">✅</span> Copied!</span>';
+
+                if (region) {
+                    region.textContent = 'Copied to clipboard';
+                }
+
                 setTimeout(() => {
                     el.innerHTML = originalContent;
+                    el.style.width = ''; // Clear inline width
+                    if (region) {
+                        region.textContent = ''; // Clear for next announcement
+                    }
                 }, 1000);
             });
         }
@@ -236,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 7. ACTION BUTTON LOADING FEEDBACK
     document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.btn-sync, .manage-tags-btn');
+        const btn = e.target.closest('.btn-sync, .manage-tags-btn, .kpi-link');
         if (btn && !btn.classList.contains('btn-loading')) {
             btn.classList.add('btn-loading');
             const icon = btn.querySelector('span[aria-hidden="true"]');
