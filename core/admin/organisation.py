@@ -154,7 +154,7 @@ class CustomUserAdmin(UserAdmin, CompanySecurityMixin):
             if request.user.role == 'manager':
                 # Filter by role AND overlapping store assignments
                 return qs.filter(
-                    Q(role__in=['manager', 'readonly']) &
+                    Q(role__in=['manager', 'staff', 'readonly']) &
                     Q(managed_stores__in=request.user.managed_stores.all())
                 ).distinct()
 
