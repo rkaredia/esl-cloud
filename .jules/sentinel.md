@@ -17,3 +17,8 @@
 **Vulnerability:** The product import service (`process_modisoft_file_logic`) was only checking for general access to the import view but was not verifying granular `add_product` vs. `change_product` permissions for individual rows in the Excel file. This allowed users with only 'Change' permissions to create new products.
 **Learning:** Bulk data processing logic in the service layer must re-verify granular permissions for each operation (create vs. update). Relying on view-level decorators or mixins is insufficient when a single entry point handles multiple types of data modifications.
 **Prevention:** Always implement granular permission checks within loops that handle bulk creation and updates, specifically checking for `add` vs. `change` permissions before performing the respective database operations. Move unauthorized rows to a 'rejected' list with an explicit error message.
+
+## 2026-05-02 - Restricting Custom Admin Views to High-Privilege Roles
+**Vulnerability:** Custom administrative views (Template Design Lab and Mock Renderer) were accessible to any authenticated staff user (including 'readonly' and 'staff' roles) because they only relied on the base `is_staff` check provided by `AdminSite.admin_view`.
+**Learning:** Custom views added via `get_urls` in a subclassed `AdminSite` inherit the site's default authentication but not necessarily the model-level permission logic or custom role-based filters applied to standard `ModelAdmin` classes.
+**Prevention:** Always implement explicit role or permission checks within custom admin view functions, especially for tools that expose internal hardware capabilities or debugging features.

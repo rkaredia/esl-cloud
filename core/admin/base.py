@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.urls import path, reverse, NoReverseMatch
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -194,6 +195,10 @@ class SAISAdminSite(admin.AdminSite):
 
     def template_gallery(self, request):
         """Displays all supported hardware models for testing."""
+        # SECURITY: Design Lab is restricted to superusers, owners, or managers.
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
+
         try:
             specs = TagHardware.objects.all()
             return render(request, 'admin/core/template_gallery.html', {
@@ -213,6 +218,10 @@ class SAISAdminSite(admin.AdminSite):
         tag or database record. This allows developers to tweak layouts
         and see results instantly.
         """
+        # SECURITY: Mock renderer is restricted to superusers, owners, or managers.
+        if not request.user.is_superuser and request.user.role not in ['owner', 'manager']:
+            raise PermissionDenied
+
         try:
             spec = TagHardware.objects.get(pk=spec_id)
             template_id = int(request.GET.get('t', 1))
