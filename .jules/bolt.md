@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-03-14 - [Bulk Task Dispatch in ETL Services]
+**Learning:** Manual loops of background task calls (e.g., `task.delay()`) within a transaction commit hook create an O(N) bottleneck in Redis/Celery operations after the DB transaction finishes. Consolidating these into a single O(1) batch dispatch using a Celery group (via `trigger_bulk_sync`) significantly improves performance during large data imports.
+**Action:** Always replace manual task queueing loops in service layers with batch dispatch utilities. Ensure the QuerySet is evaluated into a list before the `on_commit` hook to prevent redundant DB queries or lazy-loading issues.
