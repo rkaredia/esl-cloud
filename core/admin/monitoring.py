@@ -168,8 +168,8 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
                                 tags_with_status.append(f"{mac}-{status}")
 
             if tags_with_status:
-                html_items = [format_html('<code style="font-weight: bold; color: {};">{}</code>',
-                                         "#059669" if "Success" in ts else "#dc2626", ts)
+                html_items = [format_html('<code class="field-tag_id_column" role="button" tabindex="0" aria-label="Copy Tag ID and Status: {}" title="Click or press Enter/Space to copy" style="font-weight: bold; color: {}; cursor: pointer;">{}</code>',
+                                         ts, "#059669" if "Success" in ts else "#dc2626", ts)
                               for ts in tags_with_status]
                 return format_html(", ".join(["{}"] * len(html_items)), *html_items)
 
@@ -192,7 +192,7 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
 
             tag_id = find_tag_id(data)
             if tag_id:
-                return format_html('<code style="font-weight: bold; color: #0f172a;">{}</code>', tag_id)
+                return format_html('<code class="field-tag_id_column" role="button" tabindex="0" aria-label="Copy Tag ID: {}" title="Click or press Enter/Space to copy" style="font-weight: bold; color: #0f172a; cursor: pointer;">{}</code>', tag_id, tag_id)
             return "-"
         except:
             return "-"
@@ -201,9 +201,10 @@ class MQTTMessageAdmin(CompanySecurityMixin, admin.ModelAdmin):
     def data_preview(self, obj):
         """Short snippet of the payload for the main table."""
         try:
-            val = obj.data
-            if len(val) > 80: val = val[:77] + "..."
-            return format_html('<code style="font-family: monospace; font-size: 0.9em; background: #f1f5f9; padding: 2px 4px; border-radius: 3px;">{}</code>', val)
+            full_val = obj.data
+            display_val = full_val
+            if len(display_val) > 80: display_val = display_val[:77] + "..."
+            return format_html('<code class="field-data_preview" role="button" tabindex="0" data-copy-text="{}" aria-label="Copy full payload" title="Click or press Enter/Space to copy full payload" style="font-family: monospace; font-size: 0.9em; background: #f1f5f9; padding: 2px 4px; border-radius: 3px; cursor: pointer;">{}</code>', full_val, display_val)
         except: return "-"
     data_preview.short_description = "Payload Preview"
 
