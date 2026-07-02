@@ -17,3 +17,8 @@
 **Vulnerability:** The product import service (`process_modisoft_file_logic`) was only checking for general access to the import view but was not verifying granular `add_product` vs. `change_product` permissions for individual rows in the Excel file. This allowed users with only 'Change' permissions to create new products.
 **Learning:** Bulk data processing logic in the service layer must re-verify granular permissions for each operation (create vs. update). Relying on view-level decorators or mixins is insufficient when a single entry point handles multiple types of data modifications.
 **Prevention:** Always implement granular permission checks within loops that handle bulk creation and updates, specifically checking for `add` vs. `change` permissions before performing the respective database operations. Move unauthorized rows to a 'rejected' list with an explicit error message.
+
+## 2026-05-12 - Enforcing Hierarchical RBAC in Custom Administrative Views
+**Vulnerability:** The Template Design Lab and Mock Renderer views were accessible to any authenticated staff user (including 'staff' and 'readonly' roles) because they lacked explicit role-based access checks, relying only on the base `admin_view` decorator which only enforces `is_staff`.
+**Learning:** Custom administrative views that provide hardware debugging or template design capabilities should have explicit checks for higher-level roles like 'owner' or 'manager'. Standard Django Admin staff-level access is often too broad for sensitive system tools.
+**Prevention:** Always implement explicit role-based checks (e.g., `request.user.role in ['owner', 'manager']`) in custom AdminSite views that are not meant for general operational staff. Raise `PermissionDenied` for unauthorized roles.
