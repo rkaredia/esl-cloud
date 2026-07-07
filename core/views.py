@@ -183,6 +183,12 @@ def preview_tag_import(request):
         summary = {'added': 0, 'updated': 0, 'rejected': 0, 'unchanged': 0}
         results = []
 
+        # PERFORMANCE: Pre-fetch hardware, gateways, and existing tags into memory
+        # to avoid N+1 queries during the processing loop.
+        hardware_map = {hw.model_number: hw for hw in TagHardware.objects.all()}
+        gateway_map = {gw.gateway_mac.upper(): gw for gw in Gateway.objects.filter(store=active_store)}
+        existing_tags_map = {tag.tag_mac: tag for tag in ESLTag.objects.filter(store=active_store)}
+
         # Iterate through rows starting from row 2 (skip headers)
         for row in sheet.iter_rows(min_row=2, values_only=True):
             if not any(row[:3]): continue
@@ -190,9 +196,12 @@ def preview_tag_import(request):
             # 1. Clean data: Remove spaces/special chars from MAC address
             sanitized_id = InputSanitizationMiddleware.sanitize_tag_id(row[0])
 
-            # 2. Lookups: Find the physical spec and the gateway
-            spec = TagHardware.objects.filter(model_number=str(row[2] or "").strip()).first()
-            gateway = Gateway.objects.filter(gateway_mac__iexact=str(row[1] or ""), store=active_store).first()
+            # 2. Lookups: Find the physical spec and the gateway using memory maps
+            model_name = str(row[2] or "").strip()
+            spec = hardware_map.get(model_name)
+
+            gw_mac_raw = str(row[1] or "").strip().upper()
+            gateway = gateway_map.get(gw_mac_raw)
 
             # 3. Validation: Reject if mandatory data is missing
             if not sanitized_id or not spec or not gateway:
@@ -200,8 +209,8 @@ def preview_tag_import(request):
                 results.append({'mac': str(row[0]), 'status': 'rejected', 'message': 'Invalid ID, Model, or Gateway.'})
                 continue
 
-            # 4. Save: Get or Create the record in the DB
-            tag = ESLTag.objects.filter(tag_mac=sanitized_id, store=active_store).first()
+            # 4. Save: Check memory map for existing tag
+            tag = existing_tags_map.get(sanitized_id)
 
             if not tag:
                 # Security: Explicitly check for 'add' permission before creating new tag
