@@ -33,3 +33,7 @@
 ## 2026-03-13 - [MQTT Batch Result Processing Optimization]
 **Learning:** Processing multi-tag results in an O(N) loop with individual `.update()` calls creates significant database pressure and latency during high-traffic updates. Consolidating successful status transitions into a single `bulk_update` reduces database round-trips by $O(N)$. Additionally, moving static helper classes like `BytesEncoder` out of high-frequency function scopes avoids redundant class redefinition overhead.
 **Action:** Always collect model instances for status transitions in hardware processing loops and apply `bulk_update` at the end of the batch. Move helper classes to the module level to minimize instantiation cost in hot paths.
+
+## 2026-03-14 - [Admin Import N+1 Query Optimization]
+**Learning:** Bulk import views that perform lookups (e.g., matching a MAC address to a Tag or a Model Name to a Hardware Spec) for every row create an $O(N)$ database bottleneck. Pre-fetching all relevant dimension data and existing records into memory maps (dictionaries) before the loop reduces database round-trips to $O(1)$.
+**Action:** Audit all file-processing and bulk-action loops for row-by-row `.get()` or `.filter()` calls. Implement pre-fetching into memory maps to maintain constant query performance regardless of input file size.
