@@ -7,6 +7,25 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // 0. ACCESSIBILITY: ARIA LIVE REGION
+    // Ensures screen readers announce when a background operation (like copy) completes.
+    let liveRegion = document.getElementById('sais-a11y-live-region');
+    if (!liveRegion) {
+        liveRegion = document.createElement('div');
+        liveRegion.id = 'sais-a11y-live-region';
+        liveRegion.className = 'sr-only';
+        liveRegion.setAttribute('aria-live', 'polite');
+        document.body.appendChild(liveRegion);
+    }
+
+    const announceToScreenReader = (message) => {
+        if (liveRegion) {
+            liveRegion.textContent = message;
+            // Clear after announcement to allow re-announcing same message
+            setTimeout(() => { liveRegion.textContent = ''; }, 1000);
+        }
+    };
+
     // 1. COLUMN RESIZING LOGIC
     // Allows users to drag table headers to change column width.
     const table = document.getElementById('result_list');
@@ -178,8 +197,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 isLive = !isLive;
                 localStorage.setItem('mqtt-live-refresh', isLive);
                 updateBtn();
-                if (isLive) startRefresh();
-                else if (refreshInterval) clearInterval(refreshInterval);
+                if (isLive) {
+                    startRefresh();
+                    announceToScreenReader('MQTT Live Refresh enabled');
+                } else if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    announceToScreenReader('MQTT Live Refresh disabled');
+                }
             });
 
             updateBtn();
@@ -198,6 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 navigator.clipboard.writeText(fullData).then(() => {
                     const originalText = this.innerText;
                     this.innerText = 'Copied! ✅';
+                    announceToScreenReader('Payload copied to clipboard');
                     setTimeout(() => { this.innerText = originalText; }, 1000);
                 });
             });
@@ -220,6 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const originalContent = el.innerHTML;
                 el.style.width = el.offsetWidth + 'px'; // Prevent layout shift
                 el.innerHTML = '<span style="color: #059669; font-weight: bold;">Copied! ✅</span>';
+                announceToScreenReader('Copied to clipboard');
                 setTimeout(() => {
                     el.innerHTML = originalContent;
                 }, 1000);

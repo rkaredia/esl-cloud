@@ -21,3 +21,7 @@
 ## 2026-04-29 - [Unified Click-to-Copy & Metric A11y]
 **Learning:** Truncated identifiers (like UUIDs) in dashboards are a major friction point for power users unless accompanied by an easy "Click-to-copy" mechanism. Additionally, high-level metrics displayed as simple ratios (e.g., "0/0") lack sufficient context for screen readers without descriptive ARIA labels.
 **Action:** Implement a global `copyToClipboard` utility that supports both `data-*` attributes and fallback `innerText`. Always supplement dashboard metric badges with an `aria-label` that explains the ratio's context (e.g., "X of Y gateways online").
+
+## 2026-07-08 - [Warning Color Contrast & ARIA Feedback]
+**Learning:** Standard "Amber-600" (#d97706) fails WCAG AA contrast on white backgrounds for small text. Additionally, visual-only feedback (like "Copied! ✅") is invisible to screen reader users unless accompanied by an ARIA live region announcement.
+**Action:** Use "Amber-800" (#92400e) for warning-level text to ensure 4.5:1+ contrast. Always implement a global `announceToScreenReader` utility using a persistent `#sais-a11y-live-region` for background or transient UI state changes.
