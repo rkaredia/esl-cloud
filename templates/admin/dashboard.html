@@ -107,8 +107,8 @@
                 </a>
                 <a href="{% url 'admin:core_esltag_changelist' %}?battery_health=low" class="kpi-link" title="View low battery tags">
                     <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #fef3c7; text-align: center;">
-                        <div style="color: #d97706; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
-                        <div style="font-size: 11px; color: #d97706; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
+                        <div style="color: #92400e; font-weight: 800; font-size: 32px;">{{ low_battery_count|default:0 }}</div>
+                        <div style="font-size: 11px; color: #92400e; font-weight: 700; text-transform: uppercase;">Low (&lt;20%)</div>
                     </div>
                 </a>
             </div>
@@ -211,15 +211,15 @@
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=1" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_1 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 1</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 1</div>
                         </a>
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=2" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_2 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 2</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 2</div>
                         </a>
                         <a href="{% url 'admin:core_esltag_changelist' %}?sync_state=RETRY_WAITING&retry_count=3" class="kpi-link" style="background: white; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #fef3c7;">
                             <div style="font-size: 14px; font-weight: 800; color: #b45309;">{{ sync_stats.retry_3 }}</div>
-                            <div style="font-size: 9px; color: #d97706; font-weight: 700;">Attempt 3</div>
+                            <div style="font-size: 9px; color: #92400e; font-weight: 700;">Attempt 3</div>
                         </a>
                     </div>
                 </div>
